@@ -1,0 +1,1237 @@
+{
+  "rotation_order": "rz_rx_ry",
+  "count": 26,
+  "missing_models": [],
+  "callouts": [
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_train/entities/unnamed_2_67266_1567.vmdl",
+      "origin": [
+        450.000092,
+        -1288.0,
+        -176.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          436.79209441307063,
+          -1292.4704008705164
+        ],
+        [
+          462.39528872177215,
+          -1292.4703978183768
+        ],
+        [
+          462.39528872177215,
+          -1283.5295992263768
+        ],
+        [
+          436.79209441307063,
+          -1283.5296022785164
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 436.79209441307063,
+        "min_y": -1292.4704008705164,
+        "max_x": 462.39528872177215,
+        "max_y": -1283.5295992263768
+      },
+      "zspan_xyspan_ratio": 1.5595233723612238,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Dumpster",
+      "model": "maps/de_train/entities/unnamed_2_67266_1604.vmdl",
+      "origin": [
+        -537.5,
+        1475.0,
+        -165.821503
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -542.55459855754,
+          1473.593436636773
+        ],
+        [
+          -534.3250006135469,
+          1473.5934376178177
+        ],
+        [
+          -534.3250006135469,
+          1478.2974660274165
+        ],
+        [
+          -542.55459855754,
+          1478.2974650463716
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -542.55459855754,
+        "min_y": 1473.593436636773,
+        "max_x": -534.3250006135469,
+        "max_y": 1478.2974660274165
+      },
+      "zspan_xyspan_ratio": 0.7746913546215122,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "ElectricalBox",
+      "model": "maps/de_train/entities/unnamed_2_67266_1614.vmdl",
+      "origin": [
+        -250.0,
+        25.0,
+        -162.718994
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -253.1749989670868,
+          23.6474498345105
+        ],
+        [
+          -246.8250005756979,
+          23.6474505914895
+        ],
+        [
+          -246.8250005756979,
+          26.9994625147854
+        ],
+        [
+          -253.1749989670868,
+          26.999461757806397
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -253.1749989670868,
+        "min_y": 23.6474498345105,
+        "max_x": -246.8250005756979,
+        "max_y": 26.9994625147854
+      },
+      "zspan_xyspan_ratio": 0.8039999858689264,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Entrance",
+      "model": "maps/de_train/entities/unnamed_2_67266_1626.vmdl",
+      "origin": [
+        1475.0,
+        -862.5,
+        -265.717499
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1472.929900074683,
+          -863.8779880119469
+        ],
+        [
+          1475.9524987266432,
+          -863.877987651625
+        ],
+        [
+          1475.9524987266432,
+          -861.1220121212814
+        ],
+        [
+          1472.929900074683,
+          -861.1220124816034
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1472.929900074683,
+        "min_y": -863.8779880119469,
+        "max_x": 1475.9524987266432,
+        "max_y": -861.1220121212814
+      },
+      "zspan_xyspan_ratio": 2.4201674776864164,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Entrance",
+      "model": "maps/de_train/entities/unnamed_2_67266_1628.vmdl",
+      "origin": [
+        1950.0,
+        -1737.5,
+        -266.718994
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1948.6156997395892,
+          -1738.8525499520215
+        ],
+        [
+          1952.2732971288297,
+          -1738.8525495160015
+        ],
+        [
+          1952.2732971288297,
+          -1736.1474499420015
+        ],
+        [
+          1948.6156997395892,
+          -1736.1474503780214
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1948.6156997395892,
+        "min_y": -1738.8525499520215,
+        "max_x": 1952.2732971288297,
+        "max_y": -1736.1474499420015
+      },
+      "zspan_xyspan_ratio": 4.666664158719507,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_train/entities/unnamed_2_67266_1633.vmdl",
+      "origin": [
+        -1824.0,
+        1296.0,
+        -128.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1829.2831968425605,
+          1293.5615997541934
+        ],
+        [
+          -1818.716802091613,
+          1293.5616010138065
+        ],
+        [
+          -1818.716802091613,
+          1298.4384002458066
+        ],
+        [
+          -1829.2831968425605,
+          1298.4383989861935
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1829.2831968425605,
+        "min_y": 1293.5615997541934,
+        "max_x": -1818.716802091613,
+        "max_y": 1298.4384002458066
+      },
+      "zspan_xyspan_ratio": 2.8461529355078703,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_train/entities/unnamed_2_67266_1634.vmdl",
+      "origin": [
+        -640.0,
+        1296.0,
+        -128.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -640.4063997664368,
+          1293.5616003355533
+        ],
+        [
+          -634.7168020916129,
+          1293.5616010138065
+        ],
+        [
+          -634.7168020916129,
+          1298.4384002458066
+        ],
+        [
+          -640.4063997664368,
+          1298.4383995675532
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -640.4063997664368,
+        "min_y": 1293.5616003355533,
+        "max_x": -634.7168020916129,
+        "max_y": 1298.4384002458066
+      },
+      "zspan_xyspan_ratio": 2.1071418850704804,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Alley",
+      "model": "maps/de_train/entities/unnamed_2_67266_1638.vmdl",
+      "origin": [
+        96.0,
+        1472.0,
+        -128.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          89.90400173514664,
+          1469.5615996573001
+        ],
+        [
+          103.72159829953331,
+          1469.5616013044867
+        ],
+        [
+          103.72159829953331,
+          1474.4384005364866
+        ],
+        [
+          89.90400173514664,
+          1474.4383988893
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 89.90400173514664,
+        "min_y": 1469.5615996573001,
+        "max_x": 103.72159829953331,
+        "max_y": 1474.4384005364866
+      },
+      "zspan_xyspan_ratio": 1.7058818567171452,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ivy",
+      "model": "maps/de_train/entities/unnamed_2_67266_1644.vmdl",
+      "origin": [
+        864.0,
+        1600.0,
+        -128.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          839.6160175261782,
+          1597.5615974772022
+        ],
+        [
+          868.0640113263219,
+          1597.561600868468
+        ],
+        [
+          868.0640113263219,
+          1602.438400100468
+        ],
+        [
+          839.6160175261782,
+          1602.4383967092022
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 839.6160175261782,
+        "min_y": 1597.5615974772022,
+        "max_x": 868.0640113263219,
+        "max_y": 1602.438400100468
+      },
+      "zspan_xyspan_ratio": 0.5071428469188358,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_train/entities/unnamed_2_67266_1649.vmdl",
+      "origin": [
+        240.0,
+        416.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          233.49760238050638,
+          412.3423998008535
+        ],
+        [
+          246.5023967959005,
+          412.3424013511465
+        ],
+        [
+          246.5023967959005,
+          419.6576001991465
+        ],
+        [
+          233.49760238050638,
+          419.6575986488535
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 233.49760238050638,
+        "min_y": 412.3423998008535,
+        "max_x": 246.5023967959005,
+        "max_y": 419.6576001991465
+      },
+      "zspan_xyspan_ratio": 2.28124944667803,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_train/entities/unnamed_2_67266_1650.vmdl",
+      "origin": [
+        240.0,
+        -96.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          235.12320212450646,
+          -99.65760000535987
+        ],
+        [
+          246.50239805551382,
+          -99.65759864885351
+        ],
+        [
+          246.50239805551382,
+          -92.3423998008535
+        ],
+        [
+          235.12320212450646,
+          -92.34240115735987
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 235.12320212450646,
+        "min_y": -99.65760000535987,
+        "max_x": 246.50239805551382,
+        "max_y": -92.3423998008535
+      },
+      "zspan_xyspan_ratio": 1.6785710330825072,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_train/entities/unnamed_2_67266_1654.vmdl",
+      "origin": [
+        -192.0,
+        -96.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -193.62560003468013,
+          -99.65759961778663
+        ],
+        [
+          -185.49760189603998,
+          -99.65759864885351
+        ],
+        [
+          -185.49760189603998,
+          -92.3423998008535
+        ],
+        [
+          -193.62560003468013,
+          -92.34240076978662
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -193.62560003468013,
+        "min_y": -99.65759961778663,
+        "max_x": -185.49760189603998,
+        "max_y": -92.3423998008535
+      },
+      "zspan_xyspan_ratio": 0.6000000643730223,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_train/entities/unnamed_2_67266_1656.vmdl",
+      "origin": [
+        32.0,
+        -192.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          29.561599899533288,
+          -195.65759971467995
+        ],
+        [
+          34.43839816260024,
+          -195.65759913332013
+        ],
+        [
+          34.43839816260024,
+          -188.34240028532014
+        ],
+        [
+          29.561599899533288,
+          -188.34240086667995
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 29.561599899533288,
+        "min_y": -195.65759971467995,
+        "max_x": 34.43839816260024,
+        "max_y": -188.34240028532014
+      },
+      "zspan_xyspan_ratio": 0.6666667328940629,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LongDog",
+      "model": "maps/de_train/entities/unnamed_2_67266_1659.vmdl",
+      "origin": [
+        -392.0,
+        -296.0,
+        -144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -395.04799930804586,
+          -298.0319998495633
+        ],
+        [
+          -388.95200074645663,
+          -298.0319991228635
+        ],
+        [
+          -388.95200074645663,
+          -293.9680001504367
+        ],
+        [
+          -395.04799930804586,
+          -293.9680008771365
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -395.04799930804586,
+        "min_y": -298.0319998495633,
+        "max_x": -388.95200074645663,
+        "max_y": -293.9680001504367
+      },
+      "zspan_xyspan_ratio": 0.6583333611405476,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LongDog",
+      "model": "maps/de_train/entities/unnamed_2_67266_1660.vmdl",
+      "origin": [
+        -560.0,
+        -296.0,
+        -144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -563.0479992777667,
+          -298.0319998495633
+        ],
+        [
+          -559.7968018669171,
+          -298.0319994619901
+        ],
+        [
+          -559.7968018669171,
+          -293.9680004895633
+        ],
+        [
+          -563.0479992777667,
+          -293.9680008771365
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -563.0479992777667,
+        "min_y": -298.0319998495633,
+        "max_x": -559.7968018669171,
+        "max_y": -293.9680004895633
+      },
+      "zspan_xyspan_ratio": 4.287500119209277,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSideUpper",
+      "model": "maps/de_train/entities/unnamed_2_67266_1663.vmdl",
+      "origin": [
+        -960.0,
+        56.0,
+        72.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -973.2079967088335,
+          54.57759864948368
+        ],
+        [
+          -937.6480037137866,
+          54.577602888566076
+        ],
+        [
+          -937.6480037137866,
+          57.42240244056608
+        ],
+        [
+          -973.2079967088335,
+          57.42239820148368
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -973.2079967088335,
+        "min_y": 54.57759864948368,
+        "max_x": -937.6480037137866,
+        "max_y": 57.42240244056608
+      },
+      "zspan_xyspan_ratio": 0.3314285678707819,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackofB",
+      "model": "maps/de_train/entities/unnamed_2_67266_1673.vmdl",
+      "origin": [
+        -1064.0,
+        -1144.0,
+        -16.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1080.0527959459303,
+          -1151.721600697643
+        ],
+        [
+          -1047.9472027944566,
+          -1151.7215968703572
+        ],
+        [
+          -1047.9472027944566,
+          -1142.983998246357
+        ],
+        [
+          -1080.0527959459303,
+          -1142.9840020736428
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1080.0527959459303,
+        "min_y": -1151.721600697643,
+        "max_x": -1047.9472027944566,
+        "max_y": -1142.983998246357
+      },
+      "zspan_xyspan_ratio": 0.46835443667352544,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_train/entities/unnamed_2_67266_1680.vmdl",
+      "origin": [
+        1688.0,
+        -112.0,
+        -160.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1678.6401015466704,
+          -113.21920092378704
+        ],
+        [
+          1706.0847972246704,
+          -113.21919765212381
+        ],
+        [
+          1706.0847972246704,
+          -109.56159822812381
+        ],
+        [
+          1706.084794463211,
+          -109.56159822812381
+        ],
+        [
+          1678.6401015466704,
+          -109.56160149978705
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1678.6401015466704,
+        "min_y": -113.21920092378704,
+        "max_x": 1706.0847972246704,
+        "max_y": -109.56159822812381
+      },
+      "zspan_xyspan_ratio": 0.8440536098117223,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Connector",
+      "model": "maps/de_train/entities/unnamed_2_67266_1687.vmdl",
+      "origin": [
+        352.0,
+        -624.0,
+        -144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          349.15520170761295,
+          -625.6256000831266
+        ],
+        [
+          354.03199900174656,
+          -625.6255995017667
+        ],
+        [
+          354.03199900174656,
+          -622.3744000137667
+        ],
+        [
+          349.15520170761295,
+          -622.3744005951266
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 349.15520170761295,
+        "min_y": -625.6256000831266,
+        "max_x": 354.03199900174656,
+        "max_y": -622.3744000137667
+      },
+      "zspan_xyspan_ratio": 3.333332406150027,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Connector",
+      "model": "maps/de_train/entities/unnamed_2_67266_1688.vmdl",
+      "origin": [
+        352.0,
+        -576.0,
+        -144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          352.81279992044665,
+          -577.6255996471067
+        ],
+        [
+          359.11199820174653,
+          -577.6255988961835
+        ],
+        [
+          359.11199820174653,
+          -573.3583995681835
+        ],
+        [
+          352.81279992044665,
+          -573.3584003191066
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 352.81279992044665,
+        "min_y": -577.6255996471067,
+        "max_x": 359.11199820174653,
+        "max_y": -573.3583995681835
+      },
+      "zspan_xyspan_ratio": 0.967742273760295,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TMain",
+      "model": "maps/de_train/entities/unnamed_2_67266_1692.vmdl",
+      "origin": [
+        -704.0,
+        1008.0,
+        -128.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -709.2832006213994,
+          1005.5615997541933
+        ],
+        [
+          -697.9040025102928,
+          1005.5616011106997
+        ],
+        [
+          -697.9040025102928,
+          1010.0320004066997
+        ],
+        [
+          -709.2832006213994,
+          1010.0319990501932
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -709.2832006213994,
+        "min_y": 1005.5615997541933,
+        "max_x": -697.9040025102928,
+        "max_y": 1010.0320004066997
+      },
+      "zspan_xyspan_ratio": 0.642857096633141,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TMain",
+      "model": "maps/de_train/entities/unnamed_2_67266_1694.vmdl",
+      "origin": [
+        -704.0,
+        608.0,
+        -128.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -713.1439980755334,
+          605.5615992939503
+        ],
+        [
+          -699.9360014635931,
+          605.5616008684666
+        ],
+        [
+          -699.9360014635931,
+          610.0320001644666
+        ],
+        [
+          -713.1439980755334,
+          610.0319985899503
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -713.1439980755334,
+        "min_y": 605.5615992939503,
+        "max_x": -699.9360014635931,
+        "max_y": 610.0320001644666
+      },
+      "zspan_xyspan_ratio": 0.8307691888414145,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TStairs",
+      "model": "maps/de_train/entities/unnamed_2_67266_1699.vmdl",
+      "origin": [
+        -936.0,
+        1168.0,
+        -152.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -943.9247985097667,
+          1166.1711997308635
+        ],
+        [
+          -934.7808004342332,
+          1166.171200820913
+        ],
+        [
+          -934.7808004342332,
+          1172.0639998929132
+        ],
+        [
+          -943.9247985097667,
+          1172.0639988028634
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -943.9247985097667,
+        "min_y": 1166.1711997308635,
+        "max_x": -934.7808004342332,
+        "max_y": 1172.0639998929132
+      },
+      "zspan_xyspan_ratio": 0.4444444977207005,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_train/entities/unnamed_2_67266_1704.vmdl",
+      "origin": [
+        1504.0,
+        -848.0,
+        -200.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1500.7488013598165,
+          -851.0479999075733
+        ],
+        [
+          1510.9087991784565,
+          -851.0479986964068
+        ],
+        [
+          1510.9087991784565,
+          -844.9519996564069
+        ],
+        [
+          1500.7488013598165,
+          -844.9520008675732
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1500.7488013598165,
+        "min_y": -851.0479999075733,
+        "max_x": 1510.9087991784565,
+        "max_y": -844.9519996564069
+      },
+      "zspan_xyspan_ratio": 0.4800000440597563,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_train/entities/unnamed_2_67266_1703.vmdl",
+      "origin": [
+        1752.0,
+        -1248.0,
+        -200.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1742.6527984925312,
+          -1251.0480006342734
+        ],
+        [
+          1758.9087959325311,
+          -1251.0479986964071
+        ],
+        [
+          1758.9087959325311,
+          -1244.9519996564072
+        ],
+        [
+          1758.9087941884516,
+          -1244.9519996564072
+        ],
+        [
+          1742.6527984925312,
+          -1244.9520015942735
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1742.6527984925312,
+        "min_y": -1251.0480006342734,
+        "max_x": 1758.9087959325311,
+        "max_y": -1244.9519996564072
+      },
+      "zspan_xyspan_ratio": 0.8999999481439536,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LongDog",
+      "model": "maps/de_train/entities/unnamed_2_67266_1706.vmdl",
+      "origin": [
+        -673.0,
+        -296.0,
+        -144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -680.9756002821813,
+          -295.1872010787656
+        ],
+        [
+          -672.7968020092292,
+          -295.18720010377666
+        ],
+        [
+          -672.7968020092292,
+          -290.66600159092303
+        ],
+        [
+          -680.9756002821813,
+          -290.666002565912
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -680.9756002821813,
+        "min_y": -295.1872010787656,
+        "max_x": -672.7968020092292,
+        "max_y": -290.66600159092303
+      },
+      "zspan_xyspan_ratio": 0.45031060073129325,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_train\\vrf\\entities\\maps\\de_train\\entities\\default_ents.vents"
+    }
+  ]
+}

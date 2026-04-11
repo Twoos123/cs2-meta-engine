@@ -1,0 +1,949 @@
+{
+  "rotation_order": "rz_rx_ry",
+  "count": 18,
+  "missing_models": [],
+  "callouts": [
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_83.vmdl",
+      "origin": [
+        -975.0,
+        1087.5,
+        122.507645
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -994.0880988864475,
+          1086.0654988827384
+        ],
+        [
+          -987.9920981265913,
+          1086.0654996094383
+        ],
+        [
+          -973.4124999472084,
+          1086.065501347462
+        ],
+        [
+          -971.5329024384475,
+          1086.0655015715279
+        ],
+        [
+          -971.5329024384475,
+          1089.8747060589333
+        ],
+        [
+          -994.0880988864475,
+          1089.874703370144
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -994.0880988864475,
+        "min_y": 1086.0654988827384,
+        "max_x": -971.5329024384475,
+        "max_y": 1089.8747060589333
+      },
+      "zspan_xyspan_ratio": 1.429053969824,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1719.vmdl",
+      "origin": [
+        -425.0,
+        1412.5,
+        83.046799
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -435.88389724136897,
+          1411.0205458288333
+        ],
+        [
+          -422.142499405369,
+          1411.0205474669358
+        ],
+        [
+          -422.142499405369,
+          1415.6738115412672
+        ],
+        [
+          -431.6167002872551,
+          1415.6738104118544
+        ],
+        [
+          -435.88389724136897,
+          1415.6738099031645
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -435.88389724136897,
+        "min_y": 1411.0205458288333,
+        "max_x": -422.142499405369,
+        "max_y": 1415.6738115412672
+      },
+      "zspan_xyspan_ratio": 1.4491679970419409,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "MainHall",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1721.vmdl",
+      "origin": [
+        -1800.0,
+        -650.0,
+        125.281158
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -1800.9651994846502,
+          -651.352546026329
+        ],
+        [
+          -1777.80040313265,
+          -651.3525432648696
+        ],
+        [
+          -1775.5652043809132,
+          -651.352542998413
+        ],
+        [
+          -1775.5652043809132,
+          -648.1021388105808
+        ],
+        [
+          -1795.682002084953,
+          -648.1021412086902
+        ],
+        [
+          -1800.9651994846502,
+          -648.1021418384968
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1800.9651994846502,
+        "min_y": -651.352546026329,
+        "max_x": -1775.5652043809132,
+        "max_y": -648.1021388105808
+      },
+      "zspan_xyspan_ratio": 0.5840000208245196,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1723.vmdl",
+      "origin": [
+        -662.5,
+        -2412.5,
+        -110.960846
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -665.4336982102589,
+          -2413.8708168483254
+        ],
+        [
+          -640.2369039223385,
+          -2413.8708138446327
+        ],
+        [
+          -640.2369039223385,
+          -2409.4783927223875
+        ],
+        [
+          -665.4336982102589,
+          -2409.47839572608
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -665.4336982102589,
+        "min_y": -2413.8708168483254,
+        "max_x": -640.2369039223385,
+        "max_y": -2409.4783927223875
+      },
+      "zspan_xyspan_ratio": 0.5806451418801616,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Middle",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1725.vmdl",
+      "origin": [
+        -625.0,
+        -775.0,
+        87.414352
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 84,
+      "polygon_2d": [
+        [
+          -627.5400009050318,
+          -776.4067448352853
+        ],
+        [
+          -613.0366004033491,
+          -776.4067431063453
+        ],
+        [
+          -608.5662011073491,
+          -776.4067425734321
+        ],
+        [
+          -605.518202096039,
+          -776.4067422100821
+        ],
+        [
+          -605.518202096039,
+          -771.3275228073226
+        ],
+        [
+          -622.4600017050318,
+          -771.3275248269426
+        ],
+        [
+          -627.5399986280389,
+          -771.3275254325258
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -627.5400009050318,
+        "min_y": -776.4067448352853,
+        "max_x": -605.518202096039,
+        "max_y": -771.3275228073226
+      },
+      "zspan_xyspan_ratio": 1.0611302522638484,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TopofMid",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1727.vmdl",
+      "origin": [
+        -575.0,
+        25.0,
+        167.149994
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -575.6349993701147,
+          23.603431900825903
+        ],
+        [
+          -569.3358010433958,
+          23.60343265174907
+        ],
+        [
+          -569.3358010433958,
+          28.06959034685454
+        ],
+        [
+          -575.6349993701147,
+          28.069589595931372
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -575.6349993701147,
+        "min_y": 23.603431900825903,
+        "max_x": -569.3358010433958,
+        "max_y": 28.06959034685454
+      },
+      "zspan_xyspan_ratio": 0.907258050912786,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "House",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1729.vmdl",
+      "origin": [
+        -200.0,
+        712.5,
+        133.813599
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -210.172699875623,
+          711.1068499344476
+        ],
+        [
+          -202.22249928665008,
+          711.1068508821853
+        ],
+        [
+          -194.72950046665008,
+          711.1068517754205
+        ],
+        [
+          -194.72950230762302,
+          716.2131346382736
+        ],
+        [
+          -210.172699875623,
+          716.2131327973005
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -210.172699875623,
+        "min_y": 711.1068499344476,
+        "max_x": -194.72950046665008,
+        "max_y": 716.2131346382736
+      },
+      "zspan_xyspan_ratio": 0.9999999202071778,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Alley",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1731.vmdl",
+      "origin": [
+        1362.5,
+        875.0,
+        175.867996
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          1350.6382000679039,
+          872.15855212334
+        ],
+        [
+          1359.1726006375468,
+          872.1585531407197
+        ],
+        [
+          1365.268599677547,
+          872.1585538674195
+        ],
+        [
+          1365.2685952446777,
+          877.6449526158464
+        ],
+        [
+          1354.9053968766777,
+          877.6449513804566
+        ],
+        [
+          1350.6382000679039,
+          877.6449508717668
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1350.6382000679039,
+        "min_y": 872.15855212334,
+        "max_x": 1365.268599677547,
+        "max_y": 877.6449526158464
+      },
+      "zspan_xyspan_ratio": 2.541666286342096,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ramp",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1733.vmdl",
+      "origin": [
+        1287.5,
+        -737.5,
+        70.210358
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1284.0074992646498,
+          -739.2507118838
+        ],
+        [
+          1300.3396976403874,
+          -739.25070993685
+        ],
+        [
+          1300.3396976403874,
+          -733.1873422332638
+        ],
+        [
+          1284.0074992646498,
+          -733.187344180214
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1284.0074992646498,
+        "min_y": -739.2507118838,
+        "max_x": 1300.3396976403874,
+        "max_y": -733.1873422332638
+      },
+      "zspan_xyspan_ratio": 0.30948678417677183,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1735.vmdl",
+      "origin": [
+        1300.0,
+        725.0,
+        176.427002
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          1272.8474022775754,
+          723.4629416005507
+        ],
+        [
+          1276.5050040027916,
+          723.4629420365706
+        ],
+        [
+          1300.2794002587916,
+          723.4629448707
+        ],
+        [
+          1300.2794002587916,
+          727.8339537374057
+        ],
+        [
+          1291.5417993335755,
+          727.8339526958026
+        ],
+        [
+          1272.8474022775754,
+          727.8339504672564
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1272.8474022775754,
+        "min_y": 723.4629416005507,
+        "max_x": 1300.2794002587916,
+        "max_y": 727.8339537374057
+      },
+      "zspan_xyspan_ratio": 0.7037036636661742,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SideEntrance",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1737.vmdl",
+      "origin": [
+        75.0,
+        -500.0,
+        223.373505
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          71.6472003740238,
+          -502.01608729379996
+        ],
+        [
+          95.21839830920983,
+          -502.0160840963205
+        ],
+        [
+          95.21839830920983,
+          -497.7488851558937
+        ],
+        [
+          95.21839758206266,
+          -497.7488849621071
+        ],
+        [
+          71.6472003740238,
+          -497.74888757822674
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 71.6472003740238,
+        "min_y": -502.01608729379996,
+        "max_x": 95.21839830920983,
+        "max_y": -497.7488849621071
+      },
+      "zspan_xyspan_ratio": 0.5583488026901392,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSideUpper",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1739.vmdl",
+      "origin": [
+        512.5,
+        -825.0,
+        171.942505
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          510.4933972381235,
+          -826.7550259775329
+        ],
+        [
+          513.7699998711562,
+          -826.755025393145
+        ],
+        [
+          516.3098769495838,
+          -826.7550248965812
+        ],
+        [
+          516.3098769495838,
+          -822.0521398278669
+        ],
+        [
+          510.49339980579646,
+          -822.0521401336723
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 510.4933972381235,
+        "min_y": -826.7550259775329,
+        "max_x": 516.3098769495838,
+        "max_y": -822.0521398278669
+      },
+      "zspan_xyspan_ratio": 3.703133129903582,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSideLower",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1741.vmdl",
+      "origin": [
+        1125.0,
+        -775.0,
+        58.967239
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          1122.3329988545674,
+          -776.4638467823504
+        ],
+        [
+          1126.9049998302005,
+          -776.4638462373256
+        ],
+        [
+          1128.8353993081905,
+          -776.463846007204
+        ],
+        [
+          1132.4929976905873,
+          -776.463845571184
+        ],
+        [
+          1132.4929972545674,
+          -770.4017673235717
+        ],
+        [
+          1122.3330005502005,
+          -770.401768534738
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1122.3329988545674,
+        "min_y": -776.4638467823504,
+        "max_x": 1132.4929976905873,
+        "max_y": -770.4017673235717
+      },
+      "zspan_xyspan_ratio": 1.4000000110460948,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1743.vmdl",
+      "origin": [
+        600.0,
+        -1550.0,
+        16.840599
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          598.0950000093201,
+          -1546.7701519518569
+        ],
+        [
+          598.0950006149033,
+          -1552.1169983876657
+        ],
+        [
+          602.3114015980896,
+          -1552.1169978850317
+        ],
+        [
+          612.7507999540895,
+          -1552.116996640558
+        ],
+        [
+          612.7507999540895,
+          -1546.7701502047494
+        ],
+        [
+          601.9049994093201,
+          -1546.7701514976693
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 598.0950000093201,
+        "min_y": -1552.1169983876657,
+        "max_x": 612.7507999540895,
+        "max_y": -1546.7701502047494
+      },
+      "zspan_xyspan_ratio": 1.289427921547079,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Water",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1745.vmdl",
+      "origin": [
+        575.0,
+        -1650.0,
+        -38.255898
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          561.0300028328347,
+          -1653.9051014471058
+        ],
+        [
+          575.2539996723481,
+          -1653.905099751473
+        ],
+        [
+          575.2539996723481,
+          -1648.0124475697087
+        ],
+        [
+          561.0300028328347,
+          -1648.0124492653415
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 561.0300028328347,
+        "min_y": -1653.9051014471058,
+        "max_x": 575.2539996723481,
+        "max_y": -1648.0124475697087
+      },
+      "zspan_xyspan_ratio": 0.5428572116080373,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnel",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1747.vmdl",
+      "origin": [
+        387.5,
+        -1850.0,
+        -109.162903
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          386.23000040741226,
+          -1851.4307335259368
+        ],
+        [
+          388.76999804532267,
+          -1851.4307332231454
+        ],
+        [
+          388.76999804532267,
+          -1848.5692664740632
+        ],
+        [
+          386.23000040741226,
+          -1848.5692667768546
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 386.23000040741226,
+        "min_y": -1851.4307335259368,
+        "max_x": 388.76999804532267,
+        "max_y": -1848.5692664740632
+      },
+      "zspan_xyspan_ratio": 5.752013722588961,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Outside",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1749.vmdl",
+      "origin": [
+        -2112.5,
+        -925.0,
+        31.856201
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -2134.72499259853,
+          -928.8571495517673
+        ],
+        [
+          -2126.19059394253,
+          -928.8571485343875
+        ],
+        [
+          -2110.7473972950165,
+          -928.8571466934146
+        ],
+        [
+          -2107.699400869547,
+          -928.8571463300647
+        ],
+        [
+          -2107.699400869547,
+          -920.7291468349183
+        ],
+        [
+          -2116.233799525547,
+          -920.7291478522981
+        ],
+        [
+          -2129.035395626183,
+          -920.7291493783678
+        ],
+        [
+          -2134.72499259853,
+          -920.7291500566209
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2134.72499259853,
+        "min_y": -928.8571495517673,
+        "max_x": -2107.699400869547,
+        "max_y": -920.7291468349183
+      },
+      "zspan_xyspan_ratio": 1.246240735653838,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SideHall",
+      "model": "maps/de_ancient/entities/unnamed_2_32941_1752.vmdl",
+      "origin": [
+        -1362.5,
+        425.0,
+        133.099152
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          -1383.0485956179339,
+          423.44887386890616
+        ],
+        [
+          -1371.2629974739339,
+          423.4488752738592
+        ],
+        [
+          -1361.229999877527,
+          423.44887646988605
+        ],
+        [
+          -1361.229999877527,
+          427.91848124086465
+        ],
+        [
+          -1383.0485956179339,
+          427.9184786398848
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1383.0485956179339,
+        "min_y": 423.44887386890616,
+        "max_x": -1361.229999877527,
+        "max_y": 427.91848124086465
+      },
+      "zspan_xyspan_ratio": 0.7450523728665732,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_ancient\\vrf\\entities\\maps\\de_ancient\\entities\\default_ents.vents"
+    }
+  ]
+}

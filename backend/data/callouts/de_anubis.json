@@ -1,0 +1,2937 @@
+{
+  "rotation_order": "rz_rx_ry",
+  "count": 62,
+  "missing_models": [],
+  "callouts": [
+    {
+      "name": "TSpawn",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_5.vmdl",
+      "origin": [
+        -16.0,
+        -1520.0,
+        104.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -24.940796121220544,
+          -1523.0480005858265
+        ],
+        [
+          -2.182404743672768,
+          -1523.0479978728138
+        ],
+        [
+          -2.182404743672768,
+          -1516.9519988328136
+        ],
+        [
+          -24.940796121220544,
+          -1516.9520015458265
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -24.940796121220544,
+        "min_y": -1523.0480005858265,
+        "max_x": -2.182404743672768,
+        "max_y": -1516.9519988328136
+      },
+      "zspan_xyspan_ratio": 1.857142477923529,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSideUpper",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_6.vmdl",
+      "origin": [
+        1408.0,
+        184.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1397.2304020835732,
+          180.74879922816362
+        ],
+        [
+          1418.7695979164268,
+          180.74880179583639
+        ],
+        [
+          1418.7695979164268,
+          187.25120077183638
+        ],
+        [
+          1397.2304020835732,
+          187.25119820416361
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1397.2304020835732,
+        "min_y": 180.74879922816362,
+        "max_x": 1418.7695979164268,
+        "max_y": 187.25120077183638
+      },
+      "zspan_xyspan_ratio": 0.30188681757632896,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Street",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_8.vmdl",
+      "origin": [
+        1408.0,
+        -688.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1408.0000003875732,
+          -691.251199488
+        ],
+        [
+          1418.9727968186003,
+          -691.2511981799403
+        ],
+        [
+          1418.9727968186003,
+          -684.7487992039403
+        ],
+        [
+          1408.0000003875732,
+          -684.748800512
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1408.0000003875732,
+        "min_y": -691.251199488,
+        "max_x": 1418.9727968186003,
+        "max_y": -684.7487992039403
+      },
+      "zspan_xyspan_ratio": 1.4074072419207166,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Street",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_10.vmdl",
+      "origin": [
+        752.0,
+        -688.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          749.5616009169132,
+          -691.25119977868
+        ],
+        [
+          760.9407984951067,
+          -691.2511984221736
+        ],
+        [
+          760.9407984951067,
+          -684.7487994461736
+        ],
+        [
+          749.5616009169132,
+          -684.74880080268
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 749.5616009169132,
+        "min_y": -691.25119977868,
+        "max_x": 760.9407984951067,
+        "max_y": -684.7487994461736
+      },
+      "zspan_xyspan_ratio": 0.46428575670841027,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Street",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_12.vmdl",
+      "origin": [
+        480.0,
+        -688.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          473.09120181469984,
+          -691.2512003115932
+        ],
+        [
+          484.4703990053201,
+          -691.2511989550868
+        ],
+        [
+          484.4703990053201,
+          -684.7487999790868
+        ],
+        [
+          473.09120181469984,
+          -684.7488013355932
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 473.09120181469984,
+        "min_y": -691.2512003115932,
+        "max_x": 484.4703990053201,
+        "max_y": -684.7487999790868
+      },
+      "zspan_xyspan_ratio": 0.7500000010643705,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Street",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_14.vmdl",
+      "origin": [
+        88.0,
+        -432.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          80.27840211226314,
+          -435.25120040848645
+        ],
+        [
+          92.47039936866999,
+          -435.2511989550868
+        ],
+        [
+          92.47039936866999,
+          -428.7487999790868
+        ],
+        [
+          80.27840211226314,
+          -428.74880143248646
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 80.27840211226314,
+        "min_y": -435.25120040848645,
+        "max_x": 92.47039936866999,
+        "max_y": -428.7487999790868
+      },
+      "zspan_xyspan_ratio": 0.5666666919655294,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TStairs",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_16.vmdl",
+      "origin": [
+        752.0,
+        -96.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          746.3104013804666,
+          -102.50239965425318
+        ],
+        [
+          754.0319995831067,
+          -102.50239873376673
+        ],
+        [
+          754.0319995831067,
+          -92.74880026976672
+        ],
+        [
+          746.3104013804666,
+          -92.74880119025319
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 746.3104013804666,
+        "min_y": -102.50239965425318,
+        "max_x": 754.0319995831067,
+        "max_y": -92.74880026976672
+      },
+      "zspan_xyspan_ratio": 0.5000000720222855,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Canal",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_18.vmdl",
+      "origin": [
+        120.0,
+        192.0,
+        -88.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          115.1232025847496,
+          190.17119970664012
+        ],
+        [
+          124.8767974152504,
+          190.17120086935986
+        ],
+        [
+          124.8767974152504,
+          193.82880029335988
+        ],
+        [
+          115.1232025847496,
+          193.82879913064014
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 115.1232025847496,
+        "min_y": 190.17119970664012,
+        "max_x": 124.8767974152504,
+        "max_y": 193.82880029335988
+      },
+      "zspan_xyspan_ratio": 3.1249988805504905,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Canal",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_20.vmdl",
+      "origin": [
+        1072.0,
+        224.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1066.3104014773596,
+          217.4976003457468
+        ],
+        [
+          1090.6943959901735,
+          217.49760325254618
+        ],
+        [
+          1090.6943959901735,
+          221.56160261254618
+        ],
+        [
+          1066.3104014773596,
+          221.56159970574683
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1066.3104014773596,
+        "min_y": 217.4976003457468,
+        "max_x": 1090.6943959901735,
+        "max_y": 221.56160261254618
+      },
+      "zspan_xyspan_ratio": 0.5666666482554485,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Main",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_22.vmdl",
+      "origin": [
+        1672.0,
+        968.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1666.5136025838563,
+          965.9679996659702
+        ],
+        [
+          1677.4863981912908,
+          965.9680009740299
+        ],
+        [
+          1677.4863981912908,
+          970.0320003340298
+        ],
+        [
+          1666.5136025838563,
+          970.0319990259702
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1666.5136025838563,
+        "min_y": 965.9679996659702,
+        "max_x": 1677.4863981912908,
+        "max_y": 970.0320003340298
+      },
+      "zspan_xyspan_ratio": 1.4444440593445416,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Main",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_24.vmdl",
+      "origin": [
+        1672.0,
+        1408.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1666.3104021798365,
+          1405.967999641747
+        ],
+        [
+          1678.0959987735437,
+          1405.9680010466998
+        ],
+        [
+          1678.0959987735437,
+          1410.0320004066998
+        ],
+        [
+          1666.3104021798365,
+          1410.031999001747
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1666.3104021798365,
+        "min_y": 1405.967999641747,
+        "max_x": 1678.0959987735437,
+        "max_y": 1410.0320004066998
+      },
+      "zspan_xyspan_ratio": 0.5517241790376826,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Fountain",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_26.vmdl",
+      "origin": [
+        1672.0,
+        1728.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1670.3744023149827,
+          1725.9680001262136
+        ],
+        [
+          1682.159998085097,
+          1725.9680015311665
+        ],
+        [
+          1682.159998085097,
+          1730.8448007631664
+        ],
+        [
+          1670.3744023149827,
+          1730.8447993582135
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1670.3744023149827,
+        "min_y": 1725.9680001262136,
+        "max_x": 1682.159998085097,
+        "max_y": 1730.8448007631664
+      },
+      "zspan_xyspan_ratio": 0.5862069820252099,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_28.vmdl",
+      "origin": [
+        1392.0,
+        1728.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1383.872003338983,
+          1725.967999351067
+        ],
+        [
+          1407.0367967115137,
+          1725.9680021125262
+        ],
+        [
+          1407.0367967115137,
+          1730.8448013445263
+        ],
+        [
+          1383.872003338983,
+          1730.8447985830671
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1383.872003338983,
+        "min_y": 1725.967999351067,
+        "max_x": 1407.0367967115137,
+        "max_y": 1730.8448013445263
+      },
+      "zspan_xyspan_ratio": 0.5175439543762884,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_30.vmdl",
+      "origin": [
+        880.0,
+        1728.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          879.1872007578067,
+          1725.9680002231066
+        ],
+        [
+          886.09599904,
+          1725.9680010466998
+        ],
+        [
+          886.09599904,
+          1730.8448002787
+        ],
+        [
+          879.1872007578067,
+          1730.8447994551068
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 879.1872007578067,
+        "min_y": 1725.9680002231066,
+        "max_x": 886.09599904,
+        "max_y": 1730.8448002787
+      },
+      "zspan_xyspan_ratio": 0.7647060089870131,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_32.vmdl",
+      "origin": [
+        1032.0,
+        1648.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1030.78080055535,
+          1645.56160023866
+        ],
+        [
+          1033.2191998322232,
+          1645.56160052934
+        ],
+        [
+          1033.2191998322232,
+          1650.43839976134
+        ],
+        [
+          1030.78080055535,
+          1650.43839947066
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1030.78080055535,
+        "min_y": 1645.56160023866,
+        "max_x": 1033.2191998322232,
+        "max_y": 1650.43839976134
+      },
+      "zspan_xyspan_ratio": 0.5833335369825418,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_34.vmdl",
+      "origin": [
+        952.0,
+        1672.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          951.3904002655634,
+          1669.56160031133
+        ],
+        [
+          952.6095999282234,
+          1669.56160045667
+        ],
+        [
+          952.6095999282234,
+          1674.43839968867
+        ],
+        [
+          951.3904002655634,
+          1674.43839954333
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 951.3904002655634,
+        "min_y": 1669.56160031133,
+        "max_x": 952.6095999282234,
+        "max_y": 1674.43839968867
+      },
+      "zspan_xyspan_ratio": 0.25000011175872827,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_36.vmdl",
+      "origin": [
+        1072.0,
+        1568.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1071.3904002413399,
+          1565.56160031133
+        ],
+        [
+          1072.8127998235534,
+          1565.5616004808933
+        ],
+        [
+          1072.8127998235534,
+          1570.4383997128932
+        ],
+        [
+          1071.3904002413399,
+          1570.43839954333
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1071.3904002413399,
+        "min_y": 1565.56160031133,
+        "max_x": 1072.8127998235534,
+        "max_y": 1570.4383997128932
+      },
+      "zspan_xyspan_ratio": 0.3333334409528548,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_38.vmdl",
+      "origin": [
+        880.0,
+        2000.0,
+        -80.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          879.1872011453798,
+          1997.9680002231066
+        ],
+        [
+          882.8448001333599,
+          1997.9680006591266
+        ],
+        [
+          882.8448001333599,
+          2002.8447998911267
+        ],
+        [
+          879.1872011453798,
+          2002.8447994551068
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 879.1872011453798,
+        "min_y": 1997.9680002231066,
+        "max_x": 882.8448001333599,
+        "max_y": 2002.8447998911267
+      },
+      "zspan_xyspan_ratio": 0.7500002110997435,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Walkway",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_40.vmdl",
+      "origin": [
+        992.0,
+        1552.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          983.4656021675931,
+          1549.5615993666204
+        ],
+        [
+          992.8127998235534,
+          1549.5616004808935
+        ],
+        [
+          992.8127998235534,
+          1554.4383997128934
+        ],
+        [
+          983.4656021675931,
+          1554.4383985986203
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 983.4656021675931,
+        "min_y": 1549.5615993666204,
+        "max_x": 992.8127998235534,
+        "max_y": 1554.4383997128934
+      },
+      "zspan_xyspan_ratio": 0.78260868483545,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Walkway",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_42.vmdl",
+      "origin": [
+        1056.0,
+        1552.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1047.465602167593,
+          1549.5615993666204
+        ],
+        [
+          1055.5936006938064,
+          1549.5616003355535
+        ],
+        [
+          1055.5936006938064,
+          1554.4383995675535
+        ],
+        [
+          1047.465602167593,
+          1554.4383985986203
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1047.465602167593,
+        "min_y": 1549.5615993666204,
+        "max_x": 1055.5936006938064,
+        "max_y": 1554.4383995675535
+      },
+      "zspan_xyspan_ratio": 0.20000011444092278,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Walkway",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_44.vmdl",
+      "origin": [
+        840.0,
+        1608.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          839.3904004109033,
+          1605.56160031133
+        ],
+        [
+          840.6095997828835,
+          1605.56160045667
+        ],
+        [
+          840.6095997828835,
+          1610.43839968867
+        ],
+        [
+          839.3904004109033,
+          1610.43839954333
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 839.3904004109033,
+        "min_y": 1605.56160031133,
+        "max_x": 840.6095997828835,
+        "max_y": 1610.43839968867
+      },
+      "zspan_xyspan_ratio": 1.249999764064983,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Walkway",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_46.vmdl",
+      "origin": [
+        840.0,
+        1648.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          839.59360013667,
+          1645.5616003355533
+        ],
+        [
+          840.8127997024369,
+          1645.5616004808933
+        ],
+        [
+          840.8127997024369,
+          1650.4383997128934
+        ],
+        [
+          839.59360013667,
+          1650.4383995675532
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 839.59360013667,
+        "min_y": 1645.5616003355533,
+        "max_x": 840.8127997024369,
+        "max_y": 1650.4383997128934
+      },
+      "zspan_xyspan_ratio": 0.9166664406657113,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Heaven",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_48.vmdl",
+      "origin": [
+        840.0,
+        1712.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          839.59360013667,
+          1711.9999999515533
+        ],
+        [
+          853.004799138943,
+          1712.000001550293
+        ],
+        [
+          853.004799138943,
+          1715.6576009742932
+        ],
+        [
+          839.59360013667,
+          1715.6575993755534
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 839.59360013667,
+        "min_y": 1711.9999999515533,
+        "max_x": 853.004799138943,
+        "max_y": 1715.6576009742932
+      },
+      "zspan_xyspan_ratio": 0.2727271492488076,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Heaven",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_50.vmdl",
+      "origin": [
+        1008.0,
+        2152.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1007.5936001124468,
+          2151.9999999515535
+        ],
+        [
+          1014.2991993471262,
+          2152.0000007509234
+        ],
+        [
+          1014.2991993471262,
+          2155.657600174923
+        ],
+        [
+          1007.5936001124468,
+          2155.657599375553
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1007.5936001124468,
+        "min_y": 2151.9999999515535,
+        "max_x": 1014.2991993471262,
+        "max_y": 2155.657600174923
+      },
+      "zspan_xyspan_ratio": 0.6060610196258791,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Heaven",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_52.vmdl",
+      "origin": [
+        1056.0,
+        2152.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1056.2032000164468,
+          2152.0000000242235
+        ],
+        [
+          1062.2991996862531,
+          2152.0000007509234
+        ],
+        [
+          1062.2991996862531,
+          2155.657600174923
+        ],
+        [
+          1056.2032000164468,
+          2155.657599448223
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1056.2032000164468,
+        "min_y": 2152.0000000242235,
+        "max_x": 1062.2991996862531,
+        "max_y": 2155.657600174923
+      },
+      "zspan_xyspan_ratio": 0.20000004132589216,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TunnelStairs",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_54.vmdl",
+      "origin": [
+        640.0,
+        1712.0,
+        -64.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          641.2191999048931,
+          1712.00000014534
+        ],
+        [
+          649.7535987546798,
+          1712.0000011627199
+        ],
+        [
+          649.7535987546798,
+          1715.6576005867198
+        ],
+        [
+          641.2191999048931,
+          1715.65759956934
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 641.2191999048931,
+        "min_y": 1712.00000014534,
+        "max_x": 649.7535987546798,
+        "max_y": 1715.6576005867198
+      },
+      "zspan_xyspan_ratio": 0.5714283500399351,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TunnelStairs",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_56.vmdl",
+      "origin": [
+        336.0,
+        1856.0,
+        8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          333.5616008200197,
+          1854.1711999973202
+        ],
+        [
+          338.4383999551264,
+          1854.17120057868
+        ],
+        [
+          338.4383999551264,
+          1857.82880000268
+        ],
+        [
+          333.5616008200197,
+          1857.8287994213201
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 333.5616008200197,
+        "min_y": 1854.1711999973202,
+        "max_x": 338.4383999551264,
+        "max_y": 1857.82880000268
+      },
+      "zspan_xyspan_ratio": 1.4999994238219594,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnel",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_58.vmdl",
+      "origin": [
+        336.0,
+        2064.0,
+        8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          333.56160077157324,
+          2059.73280038132
+        ],
+        [
+          346.97279938627275,
+          2059.73280198006
+        ],
+        [
+          346.97279938627275,
+          2065.01600114806
+        ],
+        [
+          333.56160077157324,
+          2065.01599954932
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 333.56160077157324,
+        "min_y": 2059.73280038132,
+        "max_x": 346.97279938627275,
+        "max_y": 2065.01600114806
+      },
+      "zspan_xyspan_ratio": 0.5151515287253898,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_60.vmdl",
+      "origin": [
+        272.0,
+        2464.0,
+        8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          273.21920019557325,
+          2459.73280081734
+        ],
+        [
+          280.53439623366694,
+          2459.73280168938
+        ],
+        [
+          280.53439623366694,
+          2465.01600085738
+        ],
+        [
+          273.21920019557325,
+          2465.01599998534
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 273.21920019557325,
+        "min_y": 2459.73280081734,
+        "max_x": 280.53439623366694,
+        "max_y": 2465.01600085738
+      },
+      "zspan_xyspan_ratio": 4.999996046227899,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSideUpper",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_62.vmdl",
+      "origin": [
+        -512.0,
+        2200.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -519.9247974923868,
+          2199.3903991512902
+        ],
+        [
+          -509.7647992861738,
+          2199.390400362457
+        ],
+        [
+          -509.7647992861738,
+          2203.860799658457
+        ],
+        [
+          -519.9247974923868,
+          2203.86079844729
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -519.9247974923868,
+        "min_y": 2199.3903991512902,
+        "max_x": -509.7647992861738,
+        "max_y": 2203.860799658457
+      },
+      "zspan_xyspan_ratio": 2.0799990606311596,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Water",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_64.vmdl",
+      "origin": [
+        272.0,
+        2832.0,
+        8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          271.5936008875928,
+          2825.2944010075535
+        ],
+        [
+          281.34719659013314,
+          2825.2944021702733
+        ],
+        [
+          281.34719659013314,
+          2830.5776013382733
+        ],
+        [
+          271.5936008875928,
+          2830.5776001755535
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 271.5936008875928,
+        "min_y": 2825.2944010075535,
+        "max_x": 281.34719659013314,
+        "max_y": 2830.5776013382733
+      },
+      "zspan_xyspan_ratio": 3.7083311691476664,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SnipersNest",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_66.vmdl",
+      "origin": [
+        -1344.0,
+        2200.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1359.2399954199007,
+          2201.4223979592507
+        ],
+        [
+          -1347.8607992951065,
+          2201.4223993157566
+        ],
+        [
+          -1347.8607992951065,
+          2203.8607989317566
+        ],
+        [
+          -1359.2399954199007,
+          2203.8607975752507
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1359.2399954199007,
+        "min_y": 2201.4223979592507,
+        "max_x": -1347.8607992951065,
+        "max_y": 2203.8607989317566
+      },
+      "zspan_xyspan_ratio": 0.39285713540656986,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SnipersNest",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_68.vmdl",
+      "origin": [
+        -1136.0,
+        2200.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1146.3631962363474,
+          2201.4223985406106
+        ],
+        [
+          -1139.860799392,
+          2201.4223993157566
+        ],
+        [
+          -1139.860799392,
+          2203.8607989317566
+        ],
+        [
+          -1146.3631962363474,
+          2203.8607981566106
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1146.3631962363474,
+        "min_y": 2201.4223985406106,
+        "max_x": -1139.860799392,
+        "max_y": 2203.8607989317566
+      },
+      "zspan_xyspan_ratio": 0.7500000372529118,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSideUpper",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_70.vmdl",
+      "origin": [
+        -512.0,
+        2560.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -518.908797652387,
+          2559.3903992724067
+        ],
+        [
+          -516.4703989084268,
+          2559.3903995630867
+        ],
+        [
+          -516.4703989084268,
+          2563.8607988590866
+        ],
+        [
+          -518.908797652387,
+          2563.860798568407
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -518.908797652387,
+        "min_y": 2559.3903992724067,
+        "max_x": -516.4703989084268,
+        "max_y": 2563.8607988590866
+      },
+      "zspan_xyspan_ratio": 1.636363735868945,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_72.vmdl",
+      "origin": [
+        272.0,
+        2176.0,
+        8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          275.2511977439207,
+          2171.7328010595734
+        ],
+        [
+          280.5343954585206,
+          2171.73280168938
+        ],
+        [
+          280.5343954585206,
+          2176.2032009853797
+        ],
+        [
+          275.2511977439207,
+          2176.2032003555732
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 275.2511977439207,
+        "min_y": 2171.7328010595734,
+        "max_x": 280.5343954585206,
+        "max_y": 2176.2032009853797
+      },
+      "zspan_xyspan_ratio": 3.5384602144627815,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "PalaceInterior",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_74.vmdl",
+      "origin": [
+        -512.0,
+        1792.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -523.3791952527545,
+          1792.609598547494
+        ],
+        [
+          -523.3791946229478,
+          1792.609598547494
+        ],
+        [
+          -509.96799891504713,
+          1792.6096001462333
+        ],
+        [
+          -509.96799891504713,
+          1796.6735995062334
+        ],
+        [
+          -523.3791952527545,
+          1796.673597907494
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -523.3791952527545,
+        "min_y": 1792.609598547494,
+        "max_x": -509.96799891504713,
+        "max_y": 1796.6735995062334
+      },
+      "zspan_xyspan_ratio": 0.39393948600093665,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "PalaceInterior",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_76.vmdl",
+      "origin": [
+        -144.0,
+        1792.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -152.1279974119404,
+          1790.9839988034937
+        ],
+        [
+          -147.25119934266,
+          1790.9839993848536
+        ],
+        [
+          -147.25119934266,
+          1796.6735984888535
+        ],
+        [
+          -152.1279974119404,
+          1796.6735979074938
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -152.1279974119404,
+        "min_y": 1790.9839988034937,
+        "max_x": -147.25119934266,
+        "max_y": 1796.6735984888535
+      },
+      "zspan_xyspan_ratio": 0.5714285641300639,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "PalaceInterior",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_78.vmdl",
+      "origin": [
+        -512.0,
+        1328.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -520.5343965243472,
+          1328.6095988866202
+        ],
+        [
+          -511.593599240407,
+          1328.6095999524468
+        ],
+        [
+          -511.593599240407,
+          1333.4863991844468
+        ],
+        [
+          -520.5343965243472,
+          1333.4863981186204
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -520.5343965243472,
+        "min_y": 1328.6095988866202,
+        "max_x": -511.593599240407,
+        "max_y": 1333.4863991844468
+      },
+      "zspan_xyspan_ratio": 1.2272726127431417,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "PalaceInterior",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_80.vmdl",
+      "origin": [
+        -848.0,
+        1488.0,
+        -8.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -859.3791955918807,
+          1488.6095985474938
+        ],
+        [
+          -854.9088003653993,
+          1488.6095990804067
+        ],
+        [
+          -854.9088003653993,
+          1492.6735984404067
+        ],
+        [
+          -859.3791955918807,
+          1492.6735979074938
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -859.3791955918807,
+        "min_y": 1488.6095985474938,
+        "max_x": -854.9088003653993,
+        "max_y": 1492.6735984404067
+      },
+      "zspan_xyspan_ratio": 1.8181827935309656,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bricks",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_82.vmdl",
+      "origin": [
+        -936.0,
+        1104.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -938.8448004482627,
+          1101.9679997870867
+        ],
+        [
+          -933.1552042026154,
+          1101.9680004653396
+        ],
+        [
+          -933.1552042026154,
+          1106.0319998253397
+        ],
+        [
+          -938.8448004482627,
+          1106.0319991470867
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -938.8448004482627,
+        "min_y": 1101.9679997870867,
+        "max_x": -933.1552042026154,
+        "max_y": 1106.0319998253397
+      },
+      "zspan_xyspan_ratio": 0.7857152314821162,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackofB",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_84.vmdl",
+      "origin": [
+        -720.0,
+        864.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -729.7535979795333,
+          861.9679989634936
+        ],
+        [
+          -717.1552046144114,
+          861.9680004653394
+        ],
+        [
+          -717.1552046144114,
+          866.0319998253394
+        ],
+        [
+          -717.1552053895581,
+          866.0319998253394
+        ],
+        [
+          -729.7535979795333,
+          866.0319983234937
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -729.7535979795333,
+        "min_y": 861.9679989634936,
+        "max_x": -717.1552046144114,
+        "max_y": 866.0319998253394
+      },
+      "zspan_xyspan_ratio": 0.5161293525478388,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_86.vmdl",
+      "origin": [
+        -992.0,
+        864.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1001.7535980764269,
+          861.9679989634936
+        ],
+        [
+          -989.1552047113051,
+          861.9680004653394
+        ],
+        [
+          -989.1552047113051,
+          866.0319998253394
+        ],
+        [
+          -989.1552070367444,
+          866.0319998253394
+        ],
+        [
+          -1001.7535980764269,
+          866.0319983234937
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1001.7535980764269,
+        "min_y": 861.9679989634936,
+        "max_x": -989.1552047113051,
+        "max_y": 866.0319998253394
+      },
+      "zspan_xyspan_ratio": 1.5483872979786524,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_88.vmdl",
+      "origin": [
+        -992.0,
+        400.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -996.4703985208539,
+          395.93599971951363
+        ],
+        [
+          -989.9680012404866,
+          395.93600049466016
+        ],
+        [
+          -989.9680012404866,
+          402.03199953466014
+        ],
+        [
+          -996.4703985208539,
+          402.03199875951367
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -996.4703985208539,
+        "min_y": 395.93599971951363,
+        "max_x": -989.9680012404866,
+        "max_y": 402.03199953466014
+      },
+      "zspan_xyspan_ratio": 2.1874993029052034,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Alley",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_90.vmdl",
+      "origin": [
+        -992.0,
+        1392.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1002.1599987875732,
+          1388.7487993008335
+        ],
+        [
+          -987.1232018338264,
+          1388.7488010933598
+        ],
+        [
+          -987.1232018338264,
+          1394.0320002613598
+        ],
+        [
+          -1002.1599987875732,
+          1394.0319984688335
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1002.1599987875732,
+        "min_y": 1388.7487993008335,
+        "max_x": -987.1232018338264,
+        "max_y": 1394.0320002613598
+      },
+      "zspan_xyspan_ratio": 0.3783784547454673,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LowerTunnel",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_92.vmdl",
+      "origin": [
+        -720.0,
+        1392.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -718.7807991261741,
+          1388.74880065734
+        ],
+        [
+          -713.091201281787,
+          1388.7488013355933
+        ],
+        [
+          -713.091201281787,
+          1394.0320005035933
+        ],
+        [
+          -718.7807991261741,
+          1394.03199982534
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -718.7807991261741,
+        "min_y": 1388.74880065734,
+        "max_x": -713.091201281787,
+        "max_y": 1394.0320005035933
+      },
+      "zspan_xyspan_ratio": 1.8571422842085603,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LowerTunnel",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_94.vmdl",
+      "origin": [
+        -720.0,
+        1584.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -717.9679992057271,
+          1580.7488007542333
+        ],
+        [
+          -713.0912008942137,
+          1580.7488013355933
+        ],
+        [
+          -713.0912008942137,
+          1586.0320005035933
+        ],
+        [
+          -717.9679992057271,
+          1586.0319999222334
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -717.9679992057271,
+        "min_y": 1580.7488007542333,
+        "max_x": -713.0912008942137,
+        "max_y": 1586.0320005035933
+      },
+      "zspan_xyspan_ratio": 1.153846366165619,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_96.vmdl",
+      "origin": [
+        -1536.0,
+        400.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1538.4383992768733,
+          395.93599996174686
+        ],
+        [
+          -1533.9680009498063,
+          395.93600049466005
+        ],
+        [
+          -1533.9680009498063,
+          402.03199953466003
+        ],
+        [
+          -1538.4383992768733,
+          402.0319990017469
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1538.4383992768733,
+        "min_y": 395.93599996174686,
+        "max_x": -1533.9680009498063,
+        "max_y": 402.03199953466003
+      },
+      "zspan_xyspan_ratio": 0.7999999856949023,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "OutsideLong",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_98.vmdl",
+      "origin": [
+        -1744.0,
+        400.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1746.8447986315134,
+          395.9359999133003
+        ],
+        [
+          -1741.968000998253,
+          395.9360004946601
+        ],
+        [
+          -1741.968000998253,
+          402.03199953466014
+        ],
+        [
+          -1746.8447986315134,
+          402.0319989533003
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1746.8447986315134,
+        "min_y": 395.9359999133003,
+        "max_x": -1741.968000998253,
+        "max_y": 402.03199953466014
+      },
+      "zspan_xyspan_ratio": 1.6666666269302401,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "OutsideLong",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_100.vmdl",
+      "origin": [
+        -1744.0,
+        224.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1754.9727975453004,
+          219.9359989443671
+        ],
+        [
+          -1742.3744019031863,
+          219.93600044621334
+        ],
+        [
+          -1742.3744019031863,
+          226.03199948621335
+        ],
+        [
+          -1754.9727975453004,
+          226.0319979843671
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1754.9727975453004,
+        "min_y": 219.9359989443671,
+        "max_x": -1742.3744019031863,
+        "max_y": 226.03199948621335
+      },
+      "zspan_xyspan_ratio": 1.06451611712372,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "OutsideLong",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_102.vmdl",
+      "origin": [
+        -1232.0,
+        224.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1242.1599976733,
+          219.93599904126043
+        ],
+        [
+          -1235.251200311593,
+          219.93599986485356
+        ],
+        [
+          -1235.251200311593,
+          226.03199890485357
+        ],
+        [
+          -1242.1599976733,
+          226.0319980812604
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1242.1599976733,
+        "min_y": 219.93599904126043,
+        "max_x": -1235.251200311593,
+        "max_y": 226.03199890485357
+      },
+      "zspan_xyspan_ratio": 1.8823526239725545,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "OutsideLong",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_104.vmdl",
+      "origin": [
+        -1232.0,
+        -96.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1242.972797303067,
+          -100.0640010556329
+        ],
+        [
+          -1234.0320002129129,
+          -100.0639999898065
+        ],
+        [
+          -1234.0320002129129,
+          -96.4064005658065
+        ],
+        [
+          -1242.972797303067,
+          -96.40640163163289
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1242.972797303067,
+        "min_y": -100.0640010556329,
+        "max_x": -1234.0320002129129,
+        "max_y": -96.4064005658065
+      },
+      "zspan_xyspan_ratio": 1.0454543358530957,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_106.vmdl",
+      "origin": [
+        -1504.0,
+        -96.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1515.7855975141933,
+          -96.00000130805972
+        ],
+        [
+          -1506.438399616,
+          -96.00000019378665
+        ],
+        [
+          -1506.438399616,
+          -92.74880080267994
+        ],
+        [
+          -1515.7855975141933,
+          -92.74880191695303
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1515.7855975141933,
+        "min_y": -96.00000130805972,
+        "max_x": -1506.438399616,
+        "max_y": -92.74880080267994
+      },
+      "zspan_xyspan_ratio": 0.5652174361486597,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_108.vmdl",
+      "origin": [
+        -1504.0,
+        -384.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1512.5343967665804,
+          -384.8128008893797
+        ],
+        [
+          -1506.4383982110471,
+          -384.8128001626798
+        ],
+        [
+          -1506.4383982110471,
+          -380.74880080267985
+        ],
+        [
+          -1512.5343967665804,
+          -380.7488015293797
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1512.5343967665804,
+        "min_y": -384.8128008893797,
+        "max_x": -1506.4383982110471,
+        "max_y": -380.74880080267985
+      },
+      "zspan_xyspan_ratio": 0.6666666931576158,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_110.vmdl",
+      "origin": [
+        -896.0,
+        -672.0,
+        144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -899.2511980346007,
+          -674.0320000675731
+        ],
+        [
+          -892.7488011902533,
+          -674.0319992924268
+        ],
+        [
+          -892.7488011902533,
+          -669.9679999324268
+        ],
+        [
+          -899.2511980346007,
+          -669.9680007075732
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -899.2511980346007,
+        "min_y": -674.0320000675731,
+        "max_x": -892.7488011902533,
+        "max_y": -669.9679999324268
+      },
+      "zspan_xyspan_ratio": 1.749999679625066,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_112.vmdl",
+      "origin": [
+        -896.0,
+        -928.0,
+        144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -906.5663967372607,
+          -930.0320009396129
+        ],
+        [
+          -892.7488015778266,
+          -930.0319992924268
+        ],
+        [
+          -892.7488015778266,
+          -925.9679999324268
+        ],
+        [
+          -906.5663967372607,
+          -925.9680015796129
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -906.5663967372607,
+        "min_y": -930.0320009396129,
+        "max_x": -892.7488015778266,
+        "max_y": -925.9679999324268
+      },
+      "zspan_xyspan_ratio": 0.6764707568401213,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_114.vmdl",
+      "origin": [
+        -720.0,
+        -672.0,
+        144.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -719.1871991590671,
+          -674.0319995831067
+        ],
+        [
+          -714.3104007022135,
+          -674.0319990017467
+        ],
+        [
+          -714.3104007022135,
+          -669.9679996417468
+        ],
+        [
+          -719.1871991590671,
+          -669.9680002231066
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -719.1871991590671,
+        "min_y": -674.0319995831067,
+        "max_x": -714.3104007022135,
+        "max_y": -669.9679996417468
+      },
+      "zspan_xyspan_ratio": 1.333333220746788,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bridge",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_116.vmdl",
+      "origin": [
+        -192.0,
+        -432.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -193.21919893596038,
+          -434.03199982534
+        ],
+        [
+          -182.65280321607966,
+          -434.031998565727
+        ],
+        [
+          -182.65280321607966,
+          -428.748799397727
+        ],
+        [
+          -193.21919893596038,
+          -428.74880065734
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -193.21919893596038,
+        "min_y": -434.03199982534,
+        "max_x": -182.65280321607966,
+        "max_y": -428.748799397727
+      },
+      "zspan_xyspan_ratio": 1.461538373718578,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bridge",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_118.vmdl",
+      "origin": [
+        -192.0,
+        48.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -194.8447989706403,
+          45.96799998087341
+        ],
+        [
+          -178.18240377473938,
+          45.96800196718612
+        ],
+        [
+          -178.18240377473938,
+          51.25120113518612
+        ],
+        [
+          -194.8447989706403,
+          51.25119914887341
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -194.8447989706403,
+        "min_y": 45.96799998087341,
+        "max_x": -178.18240377473938,
+        "max_y": 51.25120113518612
+      },
+      "zspan_xyspan_ratio": 0.31707313300456164,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "MidDoors",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_120.vmdl",
+      "origin": [
+        64.0,
+        48.0,
+        96.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          72.94079805908706,
+          44.74880119025307
+        ],
+        [
+          81.06879576170736,
+          44.748802159186184
+        ],
+        [
+          81.06879576170736,
+          51.251201135186186
+        ],
+        [
+          72.94079805908706,
+          51.251200166253064
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 72.94079805908706,
+        "min_y": 44.74880119025307,
+        "max_x": 81.06879576170736,
+        "max_y": 51.251201135186186
+      },
+      "zspan_xyspan_ratio": 1.0499998685717808,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Middle",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_122.vmdl",
+      "origin": [
+        -64.0,
+        816.0,
+        72.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -67.2512014743125,
+          813.7647995768533
+        ],
+        [
+          -60.74880317656568,
+          813.7648003519998
+        ],
+        [
+          -60.74880317656568,
+          818.2352000355729
+        ],
+        [
+          -67.2512014743125,
+          818.2351992604265
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -67.2512014743125,
+        "min_y": 813.7647995768533,
+        "max_x": -60.74880317656568,
+        "max_y": 818.2352000355729
+      },
+      "zspan_xyspan_ratio": 0.8749999906867794,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Middle",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_124.vmdl",
+      "origin": [
+        176.0,
+        816.0,
+        72.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          172.74879963996042,
+          812.9520000924266
+        ],
+        [
+          197.1327957999604,
+          812.9520029992259
+        ],
+        [
+          197.1327957999604,
+          818.2352021672259
+        ],
+        [
+          197.13279473413408,
+          818.2352021672259
+        ],
+        [
+          172.74879963996042,
+          818.2351992604266
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 172.74879963996042,
+        "min_y": 812.9520000924266,
+        "max_x": 197.1327957999604,
+        "max_y": 818.2352021672259
+      },
+      "zspan_xyspan_ratio": 0.3666666446791797,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Connector",
+      "model": "maps/de_anubis/entities/unnamed_2_31046_126.vmdl",
+      "origin": [
+        -80.0,
+        192.0,
+        -88.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -83.65760097429299,
+          190.1711998519801
+        ],
+        [
+          -73.90400314009952,
+          190.17120101469985
+        ],
+        [
+          -73.90400314009952,
+          195.45440018269983
+        ],
+        [
+          -83.65760097429299,
+          195.4543990199801
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -83.65760097429299,
+        "min_y": 190.1711998519801,
+        "max_x": -73.90400314009952,
+        "max_y": 195.45440018269983
+      },
+      "zspan_xyspan_ratio": 0.5416666962620306,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_anubis\\vrf\\entities\\maps\\de_anubis\\entities\\default_ents.vents"
+    }
+  ]
+}

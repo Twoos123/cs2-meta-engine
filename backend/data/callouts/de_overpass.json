@@ -1,0 +1,1461 @@
+{
+  "rotation_order": "rz_rx_ry",
+  "count": 26,
+  "missing_models": [],
+  "callouts": [
+    {
+      "name": "TSpawn",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3765.vmdl",
+      "origin": [
+        -562.5,
+        -2512.5,
+        202.451508
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -588.700098434103,
+          -2513.866687704212
+        ],
+        [
+          -565.9924990336614,
+          -2513.866684997255
+        ],
+        [
+          -559.0075017293731,
+          -2513.866684164578
+        ],
+        [
+          -559.0075017293731,
+          -2506.771068778092
+        ],
+        [
+          -579.8355008217454,
+          -2506.771071260983
+        ],
+        [
+          -588.700098434103,
+          -2506.7710723177256
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -588.700098434103,
+        "min_y": -2513.866687704212,
+        "max_x": -559.0075017293731,
+        "max_y": -2506.771068778092
+      },
+      "zspan_xyspan_ratio": 1.1210435953549078,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TStairs",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3767.vmdl",
+      "origin": [
+        -775.0,
+        -2287.5,
+        269.555511
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -777.0446995266042,
+          -2289.5567774772185
+        ],
+        [
+          -769.7295006786042,
+          -2289.5567766051786
+        ],
+        [
+          -769.7295006786042,
+          -2282.8659100929403
+        ],
+        [
+          -772.7775010797277,
+          -2282.8659104562903
+        ],
+        [
+          -777.0446995266042,
+          -2282.8659109649802
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -777.0446995266042,
+        "min_y": -2289.5567774772185,
+        "max_x": -769.7295006786042,
+        "max_y": -2282.8659100929403
+      },
+      "zspan_xyspan_ratio": 1.010416733878489,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3769.vmdl",
+      "origin": [
+        -1112.5,
+        -2137.5,
+        393.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 108,
+      "polygon_2d": [
+        [
+          -1120.5899009530322,
+          -2138.8525507513914
+        ],
+        [
+          -1110.912502016789,
+          -2144.9493361864593
+        ],
+        [
+          -1107.1787034526055,
+          -2144.9493357413558
+        ],
+        [
+          -1088.281105726129,
+          -2144.949333488586
+        ],
+        [
+          -1088.281105726129,
+          -2141.901333968586
+        ],
+        [
+          -1107.178702604789,
+          -2134.5861373733555
+        ],
+        [
+          -1117.9483013690322,
+          -2134.586138657192
+        ],
+        [
+          -1120.5898993058458,
+          -2134.5861389720953
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1120.5899009530322,
+        "min_y": -2144.9493361864593,
+        "max_x": -1088.281105726129,
+        "max_y": -2134.5861373733555
+      },
+      "zspan_xyspan_ratio": 0.74764151639209,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Playground",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3771.vmdl",
+      "origin": [
+        -3062.5,
+        -2375.0,
+        530.43396
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -3078.374996850512,
+          -2376.381964608165
+        ],
+        [
+          -3060.493397437966,
+          -2376.3819624765124
+        ],
+        [
+          -3060.2902001103084,
+          -2376.381962452289
+        ],
+        [
+          -3060.2902001103084,
+          -2372.7250226778433
+        ],
+        [
+          -3062.7286002834453,
+          -2372.7250229685233
+        ],
+        [
+          -3078.374996850512,
+          -2372.7250248337195
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -3078.374996850512,
+        "min_y": -2376.381964608165,
+        "max_x": -3060.2902001103084,
+        "max_y": -2372.7250226778433
+      },
+      "zspan_xyspan_ratio": 1.4831461252928144,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Fountain",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3773.vmdl",
+      "origin": [
+        -1937.5,
+        -2537.5,
+        485.602478
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -1939.0875002602038,
+          -2539.3311753372723
+        ],
+        [
+          -1926.4891030148083,
+          -2539.331174222999
+        ],
+        [
+          -1914.297107958939,
+          -2539.3311723820266
+        ],
+        [
+          -1914.297107958939,
+          -2533.883101908203
+        ],
+        [
+          -1926.4891030148083,
+          -2533.8831029740295
+        ],
+        [
+          -1939.0875002602038,
+          -2533.883104863449
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1939.0875002602038,
+        "min_y": -2539.3311753372723,
+        "max_x": -1914.297107958939,
+        "max_y": -2533.883101908203
+      },
+      "zspan_xyspan_ratio": 1.4671798462303778,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "UpperPark",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3776.vmdl",
+      "origin": [
+        -3362.5,
+        -2300.0,
+        529.755493
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          -3367.570561595841,
+          -2301.3688678037443
+        ],
+        [
+          -3365.039999398644,
+          -2301.368867502078
+        ],
+        [
+          -3289.0432101918122,
+          -2301.368858442553
+        ],
+        [
+          -3287.0112109720553,
+          -2301.3688578127467
+        ],
+        [
+          -3287.0112109720553,
+          -2296.2853799496593
+        ],
+        [
+          -3289.0432101918122,
+          -2296.2853798043193
+        ],
+        [
+          -3346.6975037968928,
+          -2296.2853866772475
+        ],
+        [
+          -3367.570561595841,
+          -2296.2853891655104
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -3367.570561595841,
+        "min_y": -2301.3688678037443,
+        "max_x": -3287.0112109720553,
+        "max_y": -2296.2853798043193
+      },
+      "zspan_xyspan_ratio": 0.33673553875431217,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3779.vmdl",
+      "origin": [
+        -3025.0,
+        737.5,
+        537.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 84,
+      "polygon_2d": [
+        [
+          -3033.7756968708923,
+          736.147449166855
+        ],
+        [
+          -3027.882895425006,
+          736.1474498693316
+        ],
+        [
+          -3026.460495649006,
+          736.1474500388948
+        ],
+        [
+          -3019.1452982059595,
+          736.1474509109346
+        ],
+        [
+          -3019.1452982059595,
+          740.4138626902305
+        ],
+        [
+          -3023.412500401396,
+          740.4138621815406
+        ],
+        [
+          -3026.587499901396,
+          740.4138618030512
+        ],
+        [
+          -3033.7756959019594,
+          740.413860946151
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -3033.7756968708923,
+        "min_y": 736.147449166855,
+        "max_x": -3019.1452982059595,
+        "max_y": 740.4138626902305
+      },
+      "zspan_xyspan_ratio": 2.449652650306695,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackofA",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3781.vmdl",
+      "origin": [
+        -1800.0,
+        1262.5,
+        407.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -1808.6994987813957,
+          1260.9950491999389
+        ],
+        [
+          -1801.5874995986042,
+          1260.9950500477553
+        ],
+        [
+          -1798.4125014611664,
+          1260.9950504262447
+        ],
+        [
+          -1798.4125014611664,
+          1267.0902619175406
+        ],
+        [
+          -1804.0259005771663,
+          1267.0902612483712
+        ],
+        [
+          -1808.6994987813957,
+          1267.0902606912346
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1808.6994987813957,
+        "min_y": 1260.9950491999389,
+        "max_x": -1798.4125014611664,
+        "max_y": 1267.0902619175406
+      },
+      "zspan_xyspan_ratio": 1.1111111490396517,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Lobby",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3783.vmdl",
+      "origin": [
+        -2475.0,
+        1150.0,
+        537.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -2476.9049995395208,
+          1148.6474499859064
+        ],
+        [
+          -2473.0950017200926,
+          1148.647450246307
+        ],
+        [
+          -2471.697999638877,
+          1148.6474504128425
+        ],
+        [
+          -2468.6952403493697,
+          1148.6474507707994
+        ],
+        [
+          -2468.6952403493697,
+          1151.8978630976685
+        ],
+        [
+          -2470.4675491450184,
+          1151.8978628863929
+        ],
+        [
+          -2471.697999638877,
+          1151.8978627397116
+        ],
+        [
+          -2476.9049989642167,
+          1151.8978617314156
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2476.9049995395208,
+        "min_y": 1148.6474499859064,
+        "max_x": -2468.6952403493697,
+        "max_y": 1151.8978630976685
+      },
+      "zspan_xyspan_ratio": 1.1632982968534216,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "StorageRoom",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3785.vmdl",
+      "origin": [
+        -2387.5,
+        1037.5,
+        409.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -2387.8175002785288,
+          1036.147450175151
+        ],
+        [
+          -2382.7629003962757,
+          1036.1474507777064
+        ],
+        [
+          -2371.3837034721123,
+          1036.1474521342127
+        ],
+        [
+          -2371.3837034721123,
+          1039.1946641055085
+        ],
+        [
+          -2376.463702672112,
+          1039.1946634999254
+        ],
+        [
+          -2387.817499842509,
+          1039.194662146447
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2387.8175002785288,
+        "min_y": 1036.147450175151,
+        "max_x": -2371.3837034721123,
+        "max_y": 1039.1946641055085
+      },
+      "zspan_xyspan_ratio": 0.6553323047557585,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Canal",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3787.vmdl",
+      "origin": [
+        -150.0,
+        -1462.5,
+        86.667641
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -152.2224994986042,
+          -1464.3883463329216
+        ],
+        [
+          -103.0989072346042,
+          -1464.3883404769322
+        ],
+        [
+          -103.09890884545551,
+          -1458.3005529499212
+        ],
+        [
+          -143.9421024134555,
+          -1458.3005578188101
+        ],
+        [
+          -152.2224994986042,
+          -1458.300558805911
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -152.2224994986042,
+        "min_y": -1464.3883463329216,
+        "max_x": -103.0989072346042,
+        "max_y": -1458.3005529499212
+      },
+      "zspan_xyspan_ratio": 0.27507756847077625,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Alley",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3789.vmdl",
+      "origin": [
+        -387.5,
+        -2125.0,
+        202.964005
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -388.7700011020068,
+          -2126.3698981015573
+        ],
+        [
+          -372.74260395907464,
+          -2126.369896384729
+        ],
+        [
+          -366.44340398516937,
+          -2126.3698956338058
+        ],
+        [
+          -366.4434049510746,
+          -2123.144883496723
+        ],
+        [
+          -388.7700011020068,
+          -2123.1448865458347
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -388.7700011020068,
+        "min_y": -2126.3698981015573,
+        "max_x": -366.44340398516937,
+        "max_y": -2123.144883496723
+      },
+      "zspan_xyspan_ratio": 0.65699658562788,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SideAlley",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3791.vmdl",
+      "origin": [
+        -325.0,
+        -1962.5,
+        203.122009
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -329.6100984594906,
+          -1963.8582143310362
+        ],
+        [
+          -322.1425005256979,
+          -1963.8582134408289
+        ],
+        [
+          -322.1425005256979,
+          -1961.1417854903168
+        ],
+        [
+          -329.6100984594906,
+          -1961.1417863805243
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -329.6100984594906,
+        "min_y": -1963.8582143310362,
+        "max_x": -322.1425005256979,
+        "max_y": -1961.1417854903168
+      },
+      "zspan_xyspan_ratio": 0.9999999241545021,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Water",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3793.vmdl",
+      "origin": [
+        -1625.0,
+        -1037.5,
+        153.281158
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -1626.587499825698,
+          -1041.4949409846806
+        ],
+        [
+          -1611.4491011378157,
+          -1041.4949391800428
+        ],
+        [
+          -1607.7915021982822,
+          -1041.4949387440229
+        ],
+        [
+          -1607.7915021982822,
+          -1034.7893398000228
+        ],
+        [
+          -1626.5874985115825,
+          -1034.7893420406806
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1626.587499825698,
+        "min_y": -1041.4949409846806,
+        "max_x": -1607.7915021982822,
+        "max_y": -1034.7893398000228
+      },
+      "zspan_xyspan_ratio": 0.6918919127974927,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Water",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3796.vmdl",
+      "origin": [
+        -1675.0,
+        112.5,
+        146.582306
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -1681.515098286663,
+          108.26881009474677
+        ],
+        [
+          -1668.9166992532832,
+          108.26881159659311
+        ],
+        [
+          -1665.2590998292833,
+          108.26881203261301
+        ],
+        [
+          -1663.4303011588863,
+          108.26881225062297
+        ],
+        [
+          -1663.4303011588863,
+          114.9744104194766
+        ],
+        [
+          -1672.574300533396,
+          114.97440932942685
+        ],
+        [
+          -1676.5874999013959,
+          114.97440885101611
+        ],
+        [
+          -1681.515098286663,
+          114.97440826360041
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1681.515098286663,
+        "min_y": 108.26881009474677,
+        "max_x": -1663.4303011588863,
+        "max_y": 114.9744104194766
+      },
+      "zspan_xyspan_ratio": 0.8609551015341631,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3798.vmdl",
+      "origin": [
+        -737.5,
+        75.0,
+        107.980713
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -746.9233987536913,
+          72.57990531092194
+        ],
+        [
+          -743.2149988350573,
+          72.57990575299767
+        ],
+        [
+          -727.0098013870572,
+          72.57990768480809
+        ],
+        [
+          -727.0098027132848,
+          77.64209053324369
+        ],
+        [
+          -733.5122018346246,
+          77.64208975809724
+        ],
+        [
+          -746.9233987536913,
+          77.64208815935756
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -746.9233987536913,
+        "min_y": 72.57990531092194,
+        "max_x": -727.0098013870572,
+        "max_y": 77.64209053324369
+      },
+      "zspan_xyspan_ratio": 0.7831632947620716,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bridge",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3801.vmdl",
+      "origin": [
+        -1375.0,
+        -225.0,
+        172.777496
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1376.6002000174844,
+          -226.69056068807848
+        ],
+        [
+          -1373.7300004694846,
+          -226.69056034592396
+        ],
+        [
+          -1373.7299993309882,
+          -223.30943935128442
+        ],
+        [
+          -1376.6002000174844,
+          -223.30943969343895
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1376.6002000174844,
+        "min_y": -226.69056068807848,
+        "max_x": -1373.7299993309882,
+        "max_y": -223.30943935128442
+      },
+      "zspan_xyspan_ratio": 3.4256068399108393,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Construction",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3803.vmdl",
+      "origin": [
+        -925.0,
+        -350.0,
+        153.281158
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 48,
+      "polygon_2d": [
+        [
+          -932.5691985990738,
+          -353.18214182575485
+        ],
+        [
+          -923.7299999910738,
+          -353.1821407720401
+        ],
+        [
+          -923.7299999910738,
+          -348.30534115246695
+        ],
+        [
+          -929.3180003706868,
+          -348.30534181860844
+        ],
+        [
+          -932.5691985990738,
+          -348.3053422061817
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -932.5691985990738,
+        "min_y": -353.18214182575485,
+        "max_x": -923.7299999910738,
+        "max_y": -348.30534115246695
+      },
+      "zspan_xyspan_ratio": 1.1954021942727366,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Walkway",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3805.vmdl",
+      "origin": [
+        -1875.0,
+        -562.5,
+        185.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          -1877.2225016514521,
+          -563.8525498581563
+        ],
+        [
+          -1858.8837029891595,
+          -563.8525478657873
+        ],
+        [
+          -1853.6454713121955,
+          -563.8525468537682
+        ],
+        [
+          -1853.6454713121955,
+          -560.6021349144722
+        ],
+        [
+          -1858.8837029891595,
+          -560.6021353451316
+        ],
+        [
+          -1877.2224994229064,
+          -560.6021381126468
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1877.2225016514521,
+        "min_y": -563.8525498581563,
+        "max_x": -1853.6454713121955,
+        "max_y": -560.6021349144722
+      },
+      "zspan_xyspan_ratio": 0.5774433181427464,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "UnderA",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3807.vmdl",
+      "origin": [
+        -2200.0,
+        200.0,
+        185.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 60,
+      "polygon_2d": [
+        [
+          -2202.031999292427,
+          198.24026209848944
+        ],
+        [
+          -2187.401600565421,
+          198.24026384256905
+        ],
+        [
+          -2182.9312012694213,
+          198.24026437548227
+        ],
+        [
+          -2182.9312012694213,
+          201.89786457462864
+        ],
+        [
+          -2191.6688008653823,
+          201.89786353302551
+        ],
+        [
+          -2200.634999975698,
+          201.89786246417117
+        ],
+        [
+          -2202.031999292427,
+          201.8978622976358
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2202.031999292427,
+        "min_y": 198.24026209848944,
+        "max_x": -2182.9312012694213,
+        "max_y": 201.89786457462864
+      },
+      "zspan_xyspan_ratio": 0.6562499874048483,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Stairs",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3809.vmdl",
+      "origin": [
+        -1787.5,
+        1125.0,
+        351.588013
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1793.7229985188799,
+          1119.8288645500518
+        ],
+        [
+          -1785.59500080112,
+          1119.8288655189847
+        ],
+        [
+          -1785.59500080112,
+          1127.6225498140936
+        ],
+        [
+          -1793.7229985188799,
+          1127.6225488451607
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1793.7229985188799,
+        "min_y": 1119.8288645500518,
+        "max_x": -1785.59500080112,
+        "max_y": 1127.6225498140936
+      },
+      "zspan_xyspan_ratio": 0.23437513010947172,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LowerPark",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3811.vmdl",
+      "origin": [
+        -2600.0,
+        -1700.0,
+        528.372009
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 96,
+      "polygon_2d": [
+        [
+          -2600.634999824302,
+          -1703.5654485498544
+        ],
+        [
+          -2593.8024001281833,
+          -1703.565447735345
+        ],
+        [
+          -2579.375201455474,
+          -1703.5654460154888
+        ],
+        [
+          -2554.5848057954936,
+          -1703.5654430602426
+        ],
+        [
+          -2545.64400870534,
+          -1703.5654419944162
+        ],
+        [
+          -2545.64400870534,
+          -1698.0790428584162
+        ],
+        [
+          -2553.16240817537,
+          -1698.0790437546793
+        ],
+        [
+          -2600.634999824302,
+          -1698.0790494138544
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2600.634999824302,
+        "min_y": -1703.5654485498544,
+        "max_x": -2545.64400870534,
+        "max_y": -1698.0790428584162
+      },
+      "zspan_xyspan_ratio": 0.39538106954663427,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Restroom",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3813.vmdl",
+      "origin": [
+        -2675.0,
+        -150.0,
+        488.745483
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 96,
+      "polygon_2d": [
+        [
+          -2696.3868022669512,
+          -150.86538680043168
+        ],
+        [
+          -2696.386796380683,
+          -151.42663462464347
+        ],
+        [
+          -2693.33879632777,
+          -151.5412784082784
+        ],
+        [
+          -2676.9049981406233,
+          -151.58050195573472
+        ],
+        [
+          -2673.0950006300427,
+          -151.52126985499154
+        ],
+        [
+          -2673.09499980645,
+          -151.3748571094938
+        ],
+        [
+          -2673.09499907975,
+          -147.97735572192605
+        ],
+        [
+          -2673.0950013567426,
+          -147.73971154395744
+        ],
+        [
+          -2696.3867991663656,
+          -146.96655834032345
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2696.3868022669512,
+        "min_y": -151.58050195573472,
+        "max_x": -2673.09499907975,
+        "max_y": -146.96655834032345
+      },
+      "zspan_xyspan_ratio": 1.1952013742713545,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SnipersNest",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3815.vmdl",
+      "origin": [
+        -1737.5,
+        387.5,
+        313.281006
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 72,
+      "polygon_2d": [
+        [
+          -1739.011298949004,
+          386.1474500328391
+        ],
+        [
+          -1732.712100393678,
+          386.14745078376217
+        ],
+        [
+          -1722.7553034075079,
+          386.1474519707052
+        ],
+        [
+          -1722.7553034075079,
+          389.1946639420011
+        ],
+        [
+          -1731.2897031293342,
+          389.19466292462124
+        ],
+        [
+          -1735.150501237498,
+          389.19466246437815
+        ],
+        [
+          -1739.011298949004,
+          389.194662004135
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1739.011298949004,
+        "min_y": 386.1474500328391,
+        "max_x": -1722.7553034075079,
+        "max_y": 389.1946639420011
+      },
+      "zspan_xyspan_ratio": 0.8960938671511759,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Connector",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3817.vmdl",
+      "origin": [
+        -1775.0,
+        -1112.5,
+        153.281158
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 96,
+      "polygon_2d": [
+        [
+          -1780.6769004897576,
+          -1107.6557428641752
+        ],
+        [
+          -1780.6768994239312,
+          -1113.8525465880075
+        ],
+        [
+          -1769.704100546348,
+          -1113.8525452799477
+        ],
+        [
+          -1767.2657018266111,
+          -1113.8525449892677
+        ],
+        [
+          -1767.2657018266111,
+          -1111.0085407374354
+        ],
+        [
+          -1769.7041011519311,
+          -1107.9605415081155
+        ],
+        [
+          -1778.0353009057576,
+          -1104.607743029272
+        ],
+        [
+          -1780.6769004897576,
+          -1104.607743344175
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1780.6769004897576,
+        "min_y": -1113.8525465880075,
+        "max_x": -1767.2657018266111,
+        "max_y": -1104.607743029272
+      },
+      "zspan_xyspan_ratio": 1.0454544552265677,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Pipe",
+      "model": "maps/de_overpass/entities/unnamed_2_62091_3819.vmdl",
+      "origin": [
+        -712.5,
+        -950.0,
+        77.848495
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -713.7699996107552,
+          -951.4278228513465
+        ],
+        [
+          -711.2300016518857,
+          -951.4278225485549
+        ],
+        [
+          -711.2300016518857,
+          -948.5721771486535
+        ],
+        [
+          -713.7699996107552,
+          -948.5721774514451
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -713.7699996107552,
+        "min_y": -951.4278228513465,
+        "max_x": -711.2300016518857,
+        "max_y": -948.5721771486535
+      },
+      "zspan_xyspan_ratio": 4.820905534407477,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_overpass\\vrf\\entities\\maps\\de_overpass\\entities\\default_ents.vents"
+    }
+  ]
+}

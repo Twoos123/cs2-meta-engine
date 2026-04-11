@@ -1,0 +1,2361 @@
+{
+  "rotation_order": "rz_rx_ry",
+  "count": 50,
+  "missing_models": [],
+  "callouts": [
+    {
+      "name": "Pit",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1637.vmdl",
+      "origin": [
+        -2525.0,
+        62.5,
+        11605.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2534.105897412364,
+          61.147449127492116
+        ],
+        [
+          -2523.4125003256977,
+          61.14745040224475
+        ],
+        [
+          -2523.4125003256977,
+          68.66584921824474
+        ],
+        [
+          -2534.105897412364,
+          68.66584794349211
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2534.105897412364,
+        "min_y": 61.147449127492116,
+        "max_x": -2523.4125003256977,
+        "max_y": 68.66584921824474
+      },
+      "zspan_xyspan_ratio": 0.9643705192670091,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LadderTop",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1643.vmdl",
+      "origin": [
+        -1562.5,
+        -625.0,
+        11829.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1567.5545982032738,
+          -626.3525503895553
+        ],
+        [
+          -1561.230000237849,
+          -626.3525496356042
+        ],
+        [
+          -1561.230000237849,
+          -623.6474500616042
+        ],
+        [
+          -1567.5545982032738,
+          -623.6474508155553
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1567.5545982032738,
+        "min_y": -626.3525503895553,
+        "max_x": -1561.230000237849,
+        "max_y": -623.6474500616042
+      },
+      "zspan_xyspan_ratio": 1.3775098649439363,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Crane",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1647.vmdl",
+      "origin": [
+        -450.0,
+        -1075.0,
+        11830.400391
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -450.63499953059426,
+          -1076.3817697799714
+        ],
+        [
+          -449.3650005541874,
+          -1076.3817696285755
+        ],
+        [
+          -449.3650005541874,
+          -1073.6182302200286
+        ],
+        [
+          -450.63499953059426,
+          -1073.6182303714245
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -450.63499953059426,
+        "min_y": -1076.3817697799714,
+        "max_x": -449.3650005541874,
+        "max_y": -1073.6182302200286
+      },
+      "zspan_xyspan_ratio": 2.499982030864073,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "APlatform",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1651.vmdl",
+      "origin": [
+        -962.5,
+        -1462.5,
+        11829.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -964.0874976107773,
+          -1463.8525499762447
+        ],
+        [
+          -960.9125004392447,
+          -1463.8525495977553
+        ],
+        [
+          -960.9125004392447,
+          -1461.1474500237553
+        ],
+        [
+          -964.0874976107773,
+          -1461.1474504022447
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -964.0874976107773,
+        "min_y": -1463.8525499762447,
+        "max_x": -960.9125004392447,
+        "max_y": -1461.1474500237553
+      },
+      "zspan_xyspan_ratio": 6.151995589842406,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackofB",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1663.vmdl",
+      "origin": [
+        -1500.0,
+        925.0,
+        11829.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1506.0197987734318,
+          923.6474494953839
+        ],
+        [
+          -1498.0950005270936,
+          923.6474504400937
+        ],
+        [
+          -1498.0950005270936,
+          926.3525500140937
+        ],
+        [
+          -1506.0197987734318,
+          926.3525490693839
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1506.0197987734318,
+        "min_y": 923.6474494953839,
+        "max_x": -1498.0950005270936,
+        "max_y": 926.3525500140937
+      },
+      "zspan_xyspan_ratio": 0.5352564167947385,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BPlatform",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1665.vmdl",
+      "origin": [
+        -1487.5,
+        575.0,
+        11923.75
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1490.7257992512807,
+          573.2791498864547
+        ],
+        [
+          -1485.6458004812448,
+          573.2791504920378
+        ],
+        [
+          -1485.6458004812448,
+          576.4160499980379
+        ],
+        [
+          -1490.7257992512807,
+          576.4160493924546
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1490.7257992512807,
+        "min_y": 573.2791498864547,
+        "max_x": -1485.6458004812448,
+        "max_y": 576.4160499980379
+      },
+      "zspan_xyspan_ratio": 0.710000013518403,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LadderBottom",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1671.vmdl",
+      "origin": [
+        -1412.5,
+        -587.5,
+        11541.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1418.3039016400467,
+          -588.8525504788792
+        ],
+        [
+          -1411.191900243849,
+          -588.8525496310623
+        ],
+        [
+          -1411.191900243849,
+          -586.1474500570623
+        ],
+        [
+          -1418.3039016400467,
+          -586.1474509048792
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1418.3039016400467,
+        "min_y": -588.8525504788792,
+        "max_x": -1411.191900243849,
+        "max_y": -586.1474500570623
+      },
+      "zspan_xyspan_ratio": 0.689285402484984,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Connector",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1679.vmdl",
+      "origin": [
+        -1725.0,
+        -575.0,
+        11605.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1725.6349996910737,
+          -577.9781496066979
+        ],
+        [
+          -1714.6622016855304,
+          -577.9781482986382
+        ],
+        [
+          -1714.6622016855304,
+          -573.6474489806382
+        ],
+        [
+          -1725.6349996910737,
+          -573.6474502886979
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1725.6349996910737,
+        "min_y": -577.9781496066979,
+        "max_x": -1714.6622016855304,
+        "max_y": -573.6474489806382
+      },
+      "zspan_xyspan_ratio": 0.20370374580610587,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackofA",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1681.vmdl",
+      "origin": [
+        -475.0,
+        187.5,
+        11829.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -478.13689816463324,
+          186.1474498390524
+        ],
+        [
+          -473.4633005114845,
+          186.1474503961889
+        ],
+        [
+          -473.4633005114845,
+          190.8210496601889
+        ],
+        [
+          -478.13689816463324,
+          190.8210491030524
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -478.13689816463324,
+        "min_y": 186.1474498390524,
+        "max_x": -473.4633005114845,
+        "max_y": 190.8210496601889
+      },
+      "zspan_xyspan_ratio": 2.1956519005092057,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TopofMid",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1683.vmdl",
+      "origin": [
+        -912.5,
+        112.5,
+        11829.25
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -913.452499812151,
+          111.14745009945315
+        ],
+        [
+          -906.6199020145358,
+          111.14745091396256
+        ],
+        [
+          -906.6199020145358,
+          113.85255048796256
+        ],
+        [
+          -913.452499812151,
+          113.85254967345315
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -913.452499812151,
+        "min_y": 111.14745009945315,
+        "max_x": -906.6199020145358,
+        "max_y": 113.85255048796256
+      },
+      "zspan_xyspan_ratio": 1.3828994474716438,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "ARamp",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1686.vmdl",
+      "origin": [
+        -472.0,
+        -1264.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -474.8447989948635,
+          -1268.8767995711266
+        ],
+        [
+          -469.1552010051365,
+          -1268.8767988928735
+        ],
+        [
+          -469.1552010051365,
+          -1259.1232004288734
+        ],
+        [
+          -474.8447989948635,
+          -1259.1232011071265
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -474.8447989948635,
+        "min_y": -1268.8767995711266,
+        "max_x": -469.1552010051365,
+        "max_y": -1259.1232004288734
+      },
+      "zspan_xyspan_ratio": 0.9583333859014462,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "ARamp",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1687.vmdl",
+      "origin": [
+        -848.0,
+        -1264.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -850.8447989948635,
+          -1269.2831995071265
+        ],
+        [
+          -828.4928031204466,
+          -1269.2831968425605
+        ],
+        [
+          -828.4928031204466,
+          -1263.1871978025606
+        ],
+        [
+          -850.8447989948635,
+          -1263.1872004671266
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -850.8447989948635,
+        "min_y": -1269.2831995071265,
+        "max_x": -828.4928031204466,
+        "max_y": -1263.1871978025606
+      },
+      "zspan_xyspan_ratio": 0.22727275362686297,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1689.vmdl",
+      "origin": [
+        -256.0,
+        -1264.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -260.0639987301934,
+          -1262.3744007404666
+        ],
+        [
+          -244.6208018404466,
+          -1262.3743988994936
+        ],
+        [
+          -244.6208018404466,
+          -1258.3103995394936
+        ],
+        [
+          -260.0639987301934,
+          -1258.3104013804666
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -260.0639987301934,
+        "min_y": -1262.3744007404666,
+        "max_x": -244.6208018404466,
+        "max_y": -1258.3103995394936
+      },
+      "zspan_xyspan_ratio": 0.3684210678216538,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1691.vmdl",
+      "origin": [
+        -256.0,
+        -512.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -263.72159815419343,
+          -510.37440117648646
+        ],
+        [
+          -245.02720226091307,
+          -510.3743989479403
+        ],
+        [
+          -245.02720226091307,
+          -506.3103995879403
+        ],
+        [
+          -263.72159815419343,
+          -506.3104018164865
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -263.72159815419343,
+        "min_y": -510.37440117648646,
+        "max_x": -245.02720226091307,
+        "max_y": -506.3103995879403
+      },
+      "zspan_xyspan_ratio": 0.5217390824355687,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1693.vmdl",
+      "origin": [
+        -640.0,
+        -512.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -647.7215981541935,
+          -510.37440117648646
+        ],
+        [
+          -640.4064003235732,
+          -510.3744003044467
+        ],
+        [
+          -640.4064003235732,
+          -506.31040094444666
+        ],
+        [
+          -647.7215981541935,
+          -506.3104018164865
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -647.7215981541935,
+        "min_y": -510.37440117648646,
+        "max_x": -640.4064003235732,
+        "max_y": -506.31040094444666
+      },
+      "zspan_xyspan_ratio": 1.166666358709428,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1695.vmdl",
+      "origin": [
+        -896.0,
+        560.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -896.4063993061935,
+          561.6255996955533
+        ],
+        [
+          -885.0272026484864,
+          561.6256010520597
+        ],
+        [
+          -885.0272026484864,
+          565.6896004120597
+        ],
+        [
+          -896.4063993061935,
+          565.6895990555533
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -896.4063993061935,
+        "min_y": 561.6255996955533,
+        "max_x": -885.0272026484864,
+        "max_y": 565.6896004120597
+      },
+      "zspan_xyspan_ratio": 1.142857029729945,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1697.vmdl",
+      "origin": [
+        -1288.0,
+        928.0,
+        11856.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1289.62559938065,
+          925.96800032
+        ],
+        [
+          -1286.37440061935,
+          925.9680007075732
+        ],
+        [
+          -1286.37440061935,
+          930.03199968
+        ],
+        [
+          -1289.62559938065,
+          930.0319992924268
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1289.62559938065,
+        "min_y": 925.96800032,
+        "max_x": -1286.37440061935,
+        "max_y": 930.03199968
+      },
+      "zspan_xyspan_ratio": 1.1000000238416385,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1699.vmdl",
+      "origin": [
+        -848.0,
+        112.0,
+        11712.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -841.9040013475733,
+          113.62560047069984
+        ],
+        [
+          -837.0272027938264,
+          113.62560105205971
+        ],
+        [
+          -837.0272027938264,
+          117.68960041205972
+        ],
+        [
+          -841.9040013475733,
+          117.68959983069983
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -841.9040013475733,
+        "min_y": 113.62560047069984,
+        "max_x": -837.0272027938264,
+        "max_y": 117.68960041205972
+      },
+      "zspan_xyspan_ratio": 1.1666666037505424,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1701.vmdl",
+      "origin": [
+        -2136.0,
+        800.0,
+        11856.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2143.3151965952306,
+          797.9679996417469
+        ],
+        [
+          -2128.6848034047694,
+          797.9680013858263
+        ],
+        [
+          -2128.6848034047694,
+          802.0320003582531
+        ],
+        [
+          -2143.3151965952306,
+          802.0319986141737
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2143.3151965952306,
+        "min_y": 797.9679996417469,
+        "max_x": -2128.6848034047694,
+        "max_y": 802.0320003582531
+      },
+      "zspan_xyspan_ratio": 1.6944441029135842,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1703.vmdl",
+      "origin": [
+        -2392.0,
+        336.0,
+        11856.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2396.4703982059505,
+          333.9679999808734
+        ],
+        [
+          -2387.5296017940495,
+          333.9680010466998
+        ],
+        [
+          -2387.5296017940495,
+          338.0320000191266
+        ],
+        [
+          -2396.4703982059505,
+          338.0319989533002
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2396.4703982059505,
+        "min_y": 333.9679999808734,
+        "max_x": -2387.5296017940495,
+        "max_y": 338.0320000191266
+      },
+      "zspan_xyspan_ratio": 1.3181816928148666,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1705.vmdl",
+      "origin": [
+        -2392.0,
+        336.0,
+        11584.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2415.1647952619505,
+          333.5615978163272
+        ],
+        [
+          -2415.1647945836967,
+          333.5615978163272
+        ],
+        [
+          -2394.8447984619506,
+          333.56160023866
+        ],
+        [
+          -2394.8447984619506,
+          338.0319991470868
+        ],
+        [
+          -2415.1647952619505,
+          338.03199672475404
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2415.1647952619505,
+        "min_y": 333.5615978163272,
+        "max_x": -2394.8447984619506,
+        "max_y": 338.0319991470868
+      },
+      "zspan_xyspan_ratio": 0.280000169467918,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1707.vmdl",
+      "origin": [
+        -2192.0,
+        -504.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2193.828799615106,
+          -506.2351996722234
+        ],
+        [
+          -2190.171200384894,
+          -506.2351992362034
+        ],
+        [
+          -2190.171200384894,
+          -501.7648003277766
+        ],
+        [
+          -2193.828799615106,
+          -501.7648007637966
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2193.828799615106,
+        "min_y": -506.2351996722234,
+        "max_x": -2190.171200384894,
+        "max_y": -501.7648003277766
+      },
+      "zspan_xyspan_ratio": 1.818182958059139,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1709.vmdl",
+      "origin": [
+        -2192.0,
+        -656.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2192.000000242233,
+          -658.2351994542134
+        ],
+        [
+          -2189.96800061068,
+          -658.2351992119801
+        ],
+        [
+          -2189.96800061068,
+          -653.7648003035533
+        ],
+        [
+          -2192.000000242233,
+          -653.7648005457866
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2192.000000242233,
+        "min_y": -658.2351994542134,
+        "max_x": -2189.96800061068,
+        "max_y": -653.7648003035533
+      },
+      "zspan_xyspan_ratio": 0.8181821373869769,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1711.vmdl",
+      "origin": [
+        -2192.0,
+        -800.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2210.287995618154,
+          -802.235201634313
+        ],
+        [
+          -2188.7488015293807,
+          -802.2351990666401
+        ],
+        [
+          -2188.7488015293807,
+          -797.7648001582133
+        ],
+        [
+          -2210.287995618154,
+          -797.764802725886
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2210.287995618154,
+        "min_y": -802.235201634313,
+        "max_x": -2188.7488015293807,
+        "max_y": -797.7648001582133
+      },
+      "zspan_xyspan_ratio": 0.9811320574354199,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1713.vmdl",
+      "origin": [
+        -1464.0,
+        -1264.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1470.5023990486698,
+          -1266.23520022936
+        ],
+        [
+          -1457.4976009513302,
+          -1266.2351986790668
+        ],
+        [
+          -1457.4976009513302,
+          -1261.76479977064
+        ],
+        [
+          -1470.5023990486698,
+          -1261.7648013209332
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1470.5023990486698,
+        "min_y": -1266.23520022936,
+        "max_x": -1457.4976009513302,
+        "max_y": -1261.76479977064
+      },
+      "zspan_xyspan_ratio": 0.9062499542487242,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1715.vmdl",
+      "origin": [
+        -1464.0,
+        -688.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1470.5023997753697,
+          -690.23520022936
+        ],
+        [
+          -1451.4016017175436,
+          -690.235197952367
+        ],
+        [
+          -1451.4016017175436,
+          -685.7647990439401
+        ],
+        [
+          -1470.5023997753697,
+          -685.7648013209332
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1470.5023997753697,
+        "min_y": -690.23520022936,
+        "max_x": -1451.4016017175436,
+        "max_y": -685.7647990439401
+      },
+      "zspan_xyspan_ratio": 0.21276600326337378,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Tunnels",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1717.vmdl",
+      "origin": [
+        -1392.0,
+        -336.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1395.65759956934,
+          -338.23519989023333
+        ],
+        [
+          -1388.34240043066,
+          -338.23519901819344
+        ],
+        [
+          -1388.34240043066,
+          -333.76480010976667
+        ],
+        [
+          -1395.65759956934,
+          -333.76480098180656
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1395.65759956934,
+        "min_y": -338.23519989023333,
+        "max_x": -1388.34240043066,
+        "max_y": -333.76480010976667
+      },
+      "zspan_xyspan_ratio": 0.5555555857258545,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bridge",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1719.vmdl",
+      "origin": [
+        -1392.0,
+        -80.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1394.43839932532,
+          -82.23519974489335
+        ],
+        [
+          -1388.3424003337668,
+          -82.23519901819346
+        ],
+        [
+          -1388.3424003337668,
+          -78.57759998176664
+        ],
+        [
+          -1394.43839932532,
+          -78.57760070846652
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1394.43839932532,
+        "min_y": -82.23519974489335,
+        "max_x": -1388.3424003337668,
+        "max_y": -78.57759998176664
+      },
+      "zspan_xyspan_ratio": 0.6000000540413976,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bridge",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1721.vmdl",
+      "origin": [
+        -1232.0,
+        -80.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1233.6255992595334,
+          -82.23519964800003
+        ],
+        [
+          -1231.1872003217868,
+          -82.2351993573201
+        ],
+        [
+          -1231.1872003217868,
+          -78.57760032089328
+        ],
+        [
+          -1233.6255992595334,
+          -78.57760061157322
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1233.6255992595334,
+        "min_y": -82.23519964800003,
+        "max_x": -1231.1872003217868,
+        "max_y": -78.57760032089328
+      },
+      "zspan_xyspan_ratio": 1.5555561398283264,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Bridge",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1723.vmdl",
+      "origin": [
+        -992.0,
+        -80.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1001.7535972043868,
+          -82.23520061693316
+        ],
+        [
+          -989.5616006262335,
+          -82.23519916353348
+        ],
+        [
+          -989.5616006262335,
+          -78.57760012710665
+        ],
+        [
+          -1001.7535972043868,
+          -78.57760158050634
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1001.7535972043868,
+        "min_y": -82.23520061693316,
+        "max_x": -989.5616006262335,
+        "max_y": -78.57760012710665
+      },
+      "zspan_xyspan_ratio": 1.033333496120111,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Scaffolding",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1725.vmdl",
+      "origin": [
+        -992.0,
+        -640.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1000.1280001249528,
+          -639.7968010009333
+        ],
+        [
+          -989.1552019982927,
+          -639.7967996928736
+        ],
+        [
+          -989.1552019982927,
+          -635.7328003328736
+        ],
+        [
+          -1000.1280001249528,
+          -635.7328016409333
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1000.1280001249528,
+        "min_y": -639.7968010009333,
+        "max_x": -989.1552019982927,
+        "max_y": -635.7328003328736
+      },
+      "zspan_xyspan_ratio": 0.11111117145166328,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Scaffolding",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1727.vmdl",
+      "origin": [
+        -992.0,
+        -1088.0,
+        11576.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -999.72159863866,
+          -1087.7968009524864
+        ],
+        [
+          -988.748800512,
+          -1087.7967996444268
+        ],
+        [
+          -988.748800512,
+          -1079.6688009244267
+        ],
+        [
+          -999.72159863866,
+          -1079.6688022324865
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -999.72159863866,
+        "min_y": -1087.7968009524864,
+        "max_x": -988.748800512,
+        "max_y": -1079.6688009244267
+      },
+      "zspan_xyspan_ratio": 0.11111121560320913,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Side",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1729.vmdl",
+      "origin": [
+        -1096.0,
+        -1088.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1099.2511985432902,
+          -1089.6255999377865
+        ],
+        [
+          -1086.2463993801243,
+          -1089.6255983874935
+        ],
+        [
+          -1086.2463993801243,
+          -1085.9679993510665
+        ],
+        [
+          -1099.2511985432902,
+          -1085.9680009013598
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1099.2511985432902,
+        "min_y": -1089.6255999377865,
+        "max_x": -1086.2463993801243,
+        "max_y": -1085.9679993510665
+      },
+      "zspan_xyspan_ratio": 0.2187500464496601,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Side",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1731.vmdl",
+      "origin": [
+        -1096.0,
+        -576.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1099.25119854329,
+          -577.6255999377867
+        ],
+        [
+          -1094.7808003615635,
+          -577.6255994048735
+        ],
+        [
+          -1094.7808003615635,
+          -573.9680003684466
+        ],
+        [
+          -1099.25119854329,
+          -573.9680009013598
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1099.25119854329,
+        "min_y": -577.6255999377867,
+        "max_x": -1094.7808003615635,
+        "max_y": -573.9680003684466
+      },
+      "zspan_xyspan_ratio": 2.0909091874588146,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Elevator",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1733.vmdl",
+      "origin": [
+        -1096.0,
+        -208.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1099.251197574357,
+          -209.62559993778666
+        ],
+        [
+          -1093.56160031133,
+          -209.6255992595335
+        ],
+        [
+          -1093.56160031133,
+          -205.96800022310666
+        ],
+        [
+          -1099.251197574357,
+          -205.96800090135983
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1099.251197574357,
+        "min_y": -209.62559993778666,
+        "max_x": -1093.56160031133,
+        "max_y": -205.96800022310666
+      },
+      "zspan_xyspan_ratio": 2.7142849126642585,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Elevator",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1735.vmdl",
+      "origin": [
+        -1096.0,
+        -464.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1095.187199231737,
+          -465.6255994533201
+        ],
+        [
+          -1092.7488004393301,
+          -465.6255991626402
+        ],
+        [
+          -1092.7488004393301,
+          -461.9680001262133
+        ],
+        [
+          -1095.187199231737,
+          -461.9680004168933
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1095.187199231737,
+        "min_y": -465.6255994533201,
+        "max_x": -1092.7488004393301,
+        "max_y": -461.9680001262133
+      },
+      "zspan_xyspan_ratio": 2.111111286245742,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Elevator",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1737.vmdl",
+      "origin": [
+        -1096.0,
+        -80.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1096.8127993148635,
+          -81.62559964710672
+        ],
+        [
+          -1092.7488004393301,
+          -81.62559916264016
+        ],
+        [
+          -1092.7488004393301,
+          -77.96800012621334
+        ],
+        [
+          -1096.8127993148635,
+          -77.96800061067991
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1096.8127993148635,
+        "min_y": -81.62559964710672,
+        "max_x": -1092.7488004393301,
+        "max_y": -77.96800012621334
+      },
+      "zspan_xyspan_ratio": 0.9999999880792744,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackDoor",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1741.vmdl",
+      "origin": [
+        -832.0,
+        80.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -830.7807995137468,
+          78.37440059512656
+        ],
+        [
+          -827.52960055866,
+          78.37440098269981
+        ],
+        [
+          -827.52960055866,
+          81.62560008312663
+        ],
+        [
+          -830.7807995137468,
+          81.62559969555338
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -830.7807995137468,
+        "min_y": 78.37440059512656,
+        "max_x": -827.52960055866,
+        "max_y": 81.62560008312663
+      },
+      "zspan_xyspan_ratio": 1.3749998938289751,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackDoor",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1743.vmdl",
+      "origin": [
+        -832.0,
+        288.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -832.8127993390868,
+          286.3744003528933
+        ],
+        [
+          -826.71680068666,
+          286.3744010795931
+        ],
+        [
+          -826.71680068666,
+          289.62560018001994
+        ],
+        [
+          -832.8127993390868,
+          289.6255994533201
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -832.8127993390868,
+        "min_y": 286.3744003528933,
+        "max_x": -826.71680068666,
+        "max_y": 289.62560018001994
+      },
+      "zspan_xyspan_ratio": 0.5333333630031042,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackDoor",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1745.vmdl",
+      "origin": [
+        -656.0,
+        80.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -653.96799988398,
+          78.37440069201988
+        ],
+        [
+          -651.52960055866,
+          78.37440098269981
+        ],
+        [
+          -651.52960055866,
+          81.62560008312663
+        ],
+        [
+          -653.96799988398,
+          81.62559979244669
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -653.96799988398,
+        "min_y": 78.37440069201988,
+        "max_x": -651.52960055866,
+        "max_y": 81.62560008312663
+      },
+      "zspan_xyspan_ratio": 0.7500001415610938,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1747.vmdl",
+      "origin": [
+        -1888.0,
+        -1376.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1889.219202424119,
+          -1377.6255996955538
+        ],
+        [
+          -1868.4928061241387,
+          -1377.6255972247743
+        ],
+        [
+          -1868.4928061241387,
+          -1373.1551983163474
+        ],
+        [
+          -1889.219202424119,
+          -1373.155200787127
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1889.219202424119,
+        "min_y": -1377.6255996955538,
+        "max_x": -1868.4928061241387,
+        "max_y": -1373.1551983163474
+      },
+      "zspan_xyspan_ratio": 0.17647061023474536,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1749.vmdl",
+      "origin": [
+        -1888.0,
+        -1648.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1885.1551991883894,
+          -1649.6255992110866
+        ],
+        [
+          -1882.3104037059068,
+          -1649.6255988719604
+        ],
+        [
+          -1882.3104037059068,
+          -1645.1551999635335
+        ],
+        [
+          -1885.1551991883894,
+          -1645.15520030266
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1885.1551991883894,
+        "min_y": -1649.6255992110866,
+        "max_x": -1882.3104037059068,
+        "max_y": -1645.1551999635335
+      },
+      "zspan_xyspan_ratio": 4.727270123387556,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1751.vmdl",
+      "origin": [
+        -2480.0,
+        -1376.0,
+        11840.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2481.219202811692,
+          -1377.6255996955538
+        ],
+        [
+          -2460.492806414819,
+          -1377.6255972247743
+        ],
+        [
+          -2460.492806414819,
+          -1373.1551983163474
+        ],
+        [
+          -2481.219202811692,
+          -1373.155200787127
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2481.219202811692,
+        "min_y": -1377.6255996955538,
+        "max_x": -2460.492806414819,
+        "max_y": -1373.1551983163474
+      },
+      "zspan_xyspan_ratio": 0.13725492542681042,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1753.vmdl",
+      "origin": [
+        -2368.0,
+        -720.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2370.8447993097666,
+          -722.23519979334
+        ],
+        [
+          -2365.1552037908186,
+          -722.2351991150872
+        ],
+        [
+          -2365.1552037908186,
+          -717.7648002066603
+        ],
+        [
+          -2370.8447993097666,
+          -717.7648008849131
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2370.8447993097666,
+        "min_y": -722.23519979334,
+        "max_x": -2365.1552037908186,
+        "max_y": -717.7648002066603
+      },
+      "zspan_xyspan_ratio": 0.7142861363843266,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1755.vmdl",
+      "origin": [
+        -2176.0,
+        -720.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2178.8447986315136,
+          -722.23519979334
+        ],
+        [
+          -2173.1552032579057,
+          -722.2351991150872
+        ],
+        [
+          -2173.1552032579057,
+          -717.7648002066603
+        ],
+        [
+          -2178.8447986315136,
+          -717.7648008849131
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2178.8447986315136,
+        "min_y": -722.23519979334,
+        "max_x": -2173.1552032579057,
+        "max_y": -717.7648002066603
+      },
+      "zspan_xyspan_ratio": 0.928571925479914,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TCorridorUp",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1757.vmdl",
+      "origin": [
+        -2176.0,
+        -496.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2178.0319985172805,
+          -498.23519969644667
+        ],
+        [
+          -2173.155202773439,
+          -498.23519911508714
+        ],
+        [
+          -2173.155202773439,
+          -493.7648002066603
+        ],
+        [
+          -2178.0319985172805,
+          -493.76480078801984
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2178.0319985172805,
+        "min_y": -498.23519969644667,
+        "max_x": -2173.155202773439,
+        "max_y": -493.7648002066603
+      },
+      "zspan_xyspan_ratio": 0.6666671468151752,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TCorridorUp",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1759.vmdl",
+      "origin": [
+        -2000.0,
+        -496.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2000.4063987732802,
+          -498.23519950266007
+        ],
+        [
+          -1997.1552033063522,
+          -498.2351991150872
+        ],
+        [
+          -1997.1552033063522,
+          -493.76480020666037
+        ],
+        [
+          -2000.4063987732802,
+          -493.76480059423324
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2000.4063987732802,
+        "min_y": -498.23519950266007,
+        "max_x": -1997.1552033063522,
+        "max_y": -493.76480020666037
+      },
+      "zspan_xyspan_ratio": 1.7272728464822964,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TCorridorUp",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1761.vmdl",
+      "origin": [
+        -1616.0,
+        -496.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1616.4063992093002,
+          -498.23519950266007
+        ],
+        [
+          -1603.80800192,
+          -498.23519800081374
+        ],
+        [
+          -1603.80800192,
+          -493.7647990923869
+        ],
+        [
+          -1616.4063992093002,
+          -493.76480059423324
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1616.4063992093002,
+        "min_y": -498.23519950266007,
+        "max_x": -1603.80800192,
+        "max_y": -493.7647990923869
+      },
+      "zspan_xyspan_ratio": 0.48387092060395676,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Mid",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1763.vmdl",
+      "origin": [
+        -2000.0,
+        -224.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -2001.6255987750671,
+          -226.23519964800002
+        ],
+        [
+          -1983.3376027208938,
+          -226.23519746790052
+        ],
+        [
+          -1983.3376027208938,
+          -221.7647985594737
+        ],
+        [
+          -2001.6255987750671,
+          -221.76480073957322
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -2001.6255987750671,
+        "min_y": -226.23519964800002,
+        "max_x": -1983.3376027208938,
+        "max_y": -221.7647985594737
+      },
+      "zspan_xyspan_ratio": 0.48888905907856545,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Mid",
+      "model": "maps/de_vertigo/entities/unnamed_2_31020_1765.vmdl",
+      "origin": [
+        -1616.0,
+        -224.0,
+        11864.0
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1606.2464005670672,
+          -226.23519829149367
+        ],
+        [
+          -1600.9632041120797,
+          -226.23519766168732
+        ],
+        [
+          -1600.9632041120797,
+          -221.7647987532605
+        ],
+        [
+          -1606.2464005670672,
+          -221.76479938306684
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1606.2464005670672,
+        "min_y": -226.23519829149367,
+        "max_x": -1600.9632041120797,
+        "max_y": -221.7647987532605
+      },
+      "zspan_xyspan_ratio": 1.8461540824561748,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_vertigo\\vrf\\entities\\maps\\de_vertigo\\entities\\default_ents.vents"
+    }
+  ]
+}

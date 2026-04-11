@@ -1,0 +1,2173 @@
+{
+  "rotation_order": "rz_rx_ry",
+  "count": 46,
+  "missing_models": [],
+  "callouts": [
+    {
+      "name": "Bridge",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_101.vmdl",
+      "origin": [
+        -371.5,
+        -154.0,
+        254.015503
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -374.67499931075525,
+          -155.3525501654895
+        ],
+        [
+          -367.0804008852447,
+          -155.3525492601426
+        ],
+        [
+          -367.0804008852447,
+          -152.6474496861426
+        ],
+        [
+          -374.67499931075525,
+          -152.6474505914895
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -374.67499931075525,
+        "min_y": -155.3525501654895,
+        "max_x": -367.0804008852447,
+        "max_y": -152.6474496861426
+      },
+      "zspan_xyspan_ratio": 0.4180602222950108,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SecondMid",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_1995.vmdl",
+      "origin": [
+        164.0,
+        -119.5,
+        95.375
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          160.4313029479978,
+          -121.7680232585608
+        ],
+        [
+          167.5686970520022,
+          -121.76802240771642
+        ],
+        [
+          167.5686970520022,
+          -117.23026870642985
+        ],
+        [
+          160.4313029479978,
+          -117.23026955727426
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 160.4313029479978,
+        "min_y": -121.7680232585608,
+        "max_x": 167.5686970520022,
+        "max_y": -117.23026870642985
+      },
+      "zspan_xyspan_ratio": 5.608537251243211,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Middle",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_1997.vmdl",
+      "origin": [
+        698.5,
+        540.5,
+        151.75
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          695.4647022871796,
+          538.8994059220254
+        ],
+        [
+          701.5352975765634,
+          538.8994066456974
+        ],
+        [
+          701.5352975765634,
+          542.7095331697008
+        ],
+        [
+          695.4647022871796,
+          542.7095324460288
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 695.4647022871796,
+        "min_y": 538.8994059220254,
+        "max_x": 701.5352975765634,
+        "max_y": 542.7095331697008
+      },
+      "zspan_xyspan_ratio": 5.1882818954926755,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Balcony",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2007.vmdl",
+      "origin": [
+        953.5,
+        -116.5,
+        318.015503
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          951.8871003463514,
+          -117.85254997927267
+        ],
+        [
+          954.4524997364532,
+          -117.85254967345315
+        ],
+        [
+          954.4524997364532,
+          -115.14745009945315
+        ],
+        [
+          951.8871003463514,
+          -115.14745040527266
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 951.8871003463514,
+        "min_y": -117.85254997927267,
+        "max_x": 954.4524997364532,
+        "max_y": -115.14745009945315
+      },
+      "zspan_xyspan_ratio": 0.6384976996074008,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Quad",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2011.vmdl",
+      "origin": [
+        1366.0,
+        -79.0,
+        192.015503
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1364.730000666299,
+          -80.3525499383958
+        ],
+        [
+          1368.311399560302,
+          -80.35254951145964
+        ],
+        [
+          1368.311399560302,
+          -75.12093788416375
+        ],
+        [
+          1364.730000666299,
+          -75.1209383110999
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1364.730000666299,
+        "min_y": -80.3525499383958,
+        "max_x": 1368.311399560302,
+        "max_y": -75.12093788416375
+      },
+      "zspan_xyspan_ratio": 0.8690628931437845,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "CTSpawn",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2016.vmdl",
+      "origin": [
+        1666.0,
+        1671.0,
+        222.015503
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1664.09500310385,
+          1668.4274626292022
+        ],
+        [
+          1698.0293977598503,
+          1668.427466674498
+        ],
+        [
+          1698.0293977598503,
+          1673.1010659384979
+        ],
+        [
+          1698.029394880302,
+          1673.1010659384979
+        ],
+        [
+          1664.09500310385,
+          1673.101061893202
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1664.09500310385,
+        "min_y": 1668.4274626292022,
+        "max_x": 1698.0293977598503,
+        "max_y": 1673.1010659384979
+      },
+      "zspan_xyspan_ratio": 0.7118263033204701,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Deck",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2029.vmdl",
+      "origin": [
+        103.5,
+        58.5,
+        246.015503
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          101.20130099332046,
+          57.756262294269526
+        ],
+        [
+          105.97649915127069,
+          57.75626286351773
+        ],
+        [
+          105.97649915127069,
+          59.85255008222183
+        ],
+        [
+          101.20130099332046,
+          59.852549512973624
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 101.20130099332046,
+        "min_y": 57.756262294269526,
+        "max_x": 105.97649915127069,
+        "max_y": 59.85255008222183
+      },
+      "zspan_xyspan_ratio": 1.914893232234828,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Upstairs",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2033.vmdl",
+      "origin": [
+        -546.5,
+        258.5,
+        174.015656
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -551.135498559954,
+          255.31865382413713
+        ],
+        [
+          -543.6425005635472,
+          255.31865471737237
+        ],
+        [
+          -543.6425005635472,
+          261.6813459639087
+        ],
+        [
+          -551.135498559954,
+          261.6813450706735
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -551.135498559954,
+        "min_y": 255.31865382413713,
+        "max_x": -543.6425005635472,
+        "max_y": 261.6813459639087
+      },
+      "zspan_xyspan_ratio": 0.9220338981864692,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "SecondMid",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2042.vmdl",
+      "origin": [
+        1504.0,
+        160.0,
+        95.375
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1500.4312989269258,
+          157.73197674143918
+        ],
+        [
+          1510.2991966220025,
+          157.73197791778455
+        ],
+        [
+          1510.2991966220025,
+          163.28573145907112
+        ],
+        [
+          1500.4312989269258,
+          163.28573028272575
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1500.4312989269258,
+        "min_y": 157.73197674143918,
+        "max_x": 1510.2991966220025,
+        "max_y": 163.28573145907112
+      },
+      "zspan_xyspan_ratio": 0.6383526568677718,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Middle",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2044.vmdl",
+      "origin": [
+        698.5,
+        784.0,
+        151.75
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          695.4646994409387,
+          782.501006099812
+        ],
+        [
+          702.4623974305636,
+          782.5010069340028
+        ],
+        [
+          702.4623974305636,
+          786.2095334740062
+        ],
+        [
+          695.4646994409387,
+          786.2095326398154
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 695.4646994409387,
+        "min_y": 782.501006099812,
+        "max_x": 702.4623974305636,
+        "max_y": 786.2095334740062
+      },
+      "zspan_xyspan_ratio": 1.0889295845092115,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Apartments",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2047.vmdl",
+      "origin": [
+        -40.0,
+        -508.0,
+        216.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -45.07999801305693,
+          -510.8448001575832
+        ],
+        [
+          -35.32640192294307,
+          -510.8447989948635
+        ],
+        [
+          -35.32640192294307,
+          -505.15519989086346
+        ],
+        [
+          -45.07999801305693,
+          -505.1552010535832
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -45.07999801305693,
+        "min_y": -510.8448001575832,
+        "max_x": -35.32640192294307,
+        "max_y": -505.15519989086346
+      },
+      "zspan_xyspan_ratio": 2.0416662392931153,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2049.vmdl",
+      "origin": [
+        -1552.0,
+        332.0,
+        56.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1565.4111973550869,
+          329.56159878526034
+        ],
+        [
+          -1538.5888026449131,
+          329.56160198273966
+        ],
+        [
+          -1538.5888026449131,
+          334.43840121473966
+        ],
+        [
+          -1565.4111973550869,
+          334.43839801726034
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1565.4111973550869,
+        "min_y": 329.56159878526034,
+        "max_x": -1538.5888026449131,
+        "max_y": 334.43840121473966
+      },
+      "zspan_xyspan_ratio": 0.33333334176227347,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2050.vmdl",
+      "origin": [
+        -1152.0,
+        332.0,
+        56.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1148.3423998008534,
+          329.5616008200199
+        ],
+        [
+          -1145.0912016209131,
+          329.5616012075931
+        ],
+        [
+          -1145.0912016209131,
+          334.4384004395931
+        ],
+        [
+          -1148.3423998008534,
+          334.4384000520199
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1148.3423998008534,
+        "min_y": 329.5616008200199,
+        "max_x": -1145.0912016209131,
+        "max_y": 334.4384004395931
+      },
+      "zspan_xyspan_ratio": 2.2499999403953703,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2052.vmdl",
+      "origin": [
+        -1152.0,
+        188.0,
+        56.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1154.0320001160198,
+          185.56160014176666
+        ],
+        [
+          -1145.90400110534,
+          185.56160111069988
+        ],
+        [
+          -1145.90400110534,
+          190.43840034269988
+        ],
+        [
+          -1154.0320001160198,
+          190.43839937376669
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1154.0320001160198,
+        "min_y": 185.56160014176666,
+        "max_x": -1145.90400110534,
+        "max_y": 190.43840034269988
+      },
+      "zspan_xyspan_ratio": 0.49999999403954387,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TSpawn",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2054.vmdl",
+      "origin": [
+        -1152.0,
+        -436.0,
+        56.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -1152.8128006471463,
+          -438.4383997128934
+        ],
+        [
+          -1142.246401148427,
+          -438.4383984532802
+        ],
+        [
+          -1142.246401148427,
+          -433.5615992212802
+        ],
+        [
+          -1152.8128006471463,
+          -433.5616004808934
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -1152.8128006471463,
+        "min_y": -438.4383997128934,
+        "max_x": -1142.246401148427,
+        "max_y": -433.5615992212802
+      },
+      "zspan_xyspan_ratio": 0.30769230628155886,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LowerMid",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2057.vmdl",
+      "origin": [
+        -840.0,
+        -132.0,
+        88.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -848.9407979864168,
+          -134.43840068182644
+        ],
+        [
+          -831.0592020135832,
+          -134.43839855017356
+        ],
+        [
+          -831.0592020135832,
+          -129.56159931817356
+        ],
+        [
+          -848.9407979864168,
+          -129.56160144982644
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -848.9407979864168,
+        "min_y": -134.43840068182644,
+        "max_x": -831.0592020135832,
+        "max_y": -129.56159931817356
+      },
+      "zspan_xyspan_ratio": 0.5681818122090417,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "LowerMid",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2058.vmdl",
+      "origin": [
+        -840.0,
+        444.0,
+        88.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -840.4063986521636,
+          441.56160033555335
+        ],
+        [
+          -831.0592014322233,
+          441.5616014498264
+        ],
+        [
+          -831.0592014322233,
+          446.4384006818264
+        ],
+        [
+          -840.4063986521636,
+          446.43839956755335
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -840.4063986521636,
+        "min_y": 441.56160033555335,
+        "max_x": -831.0592014322233,
+        "max_y": 446.4384006818264
+      },
+      "zspan_xyspan_ratio": 1.173912941395439,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TRamp",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2060.vmdl",
+      "origin": [
+        -400.0,
+        556.0,
+        88.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -394.3103996121636,
+          553.5616010622532
+        ],
+        [
+          -390.652801472,
+          553.561601498273
+        ],
+        [
+          -390.652801472,
+          558.4384007302731
+        ],
+        [
+          -394.3103996121636,
+          558.4384002942531
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -394.3103996121636,
+        "min_y": 553.5616010622532,
+        "max_x": -390.652801472,
+        "max_y": 558.4384007302731
+      },
+      "zspan_xyspan_ratio": 2.2083332551022385,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TRamp",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2062.vmdl",
+      "origin": [
+        -544.0,
+        556.0,
+        88.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -537.4976005879801,
+          553.5616011591464
+        ],
+        [
+          -534.652801472,
+          553.561601498273
+        ],
+        [
+          -534.652801472,
+          558.4384007302731
+        ],
+        [
+          -537.4976005879801,
+          558.4384003911465
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -537.4976005879801,
+        "min_y": 553.5616011591464,
+        "max_x": -534.652801472,
+        "max_y": 558.4384007302731
+      },
+      "zspan_xyspan_ratio": 0.750000067055224,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Arch",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2065.vmdl",
+      "origin": [
+        1880.0,
+        1116.0,
+        232.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1877.1552012473699,
+          1114.3744000137667
+        ],
+        [
+          1882.844798510397,
+          1114.37440069202
+        ],
+        [
+          1882.844798510397,
+          1117.6255999862333
+        ],
+        [
+          1877.1552012473699,
+          1117.62559930798
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1877.1552012473699,
+        "min_y": 1114.3744000137667,
+        "max_x": 1882.844798510397,
+        "max_y": 1117.6255999862333
+      },
+      "zspan_xyspan_ratio": 2.7142849041492547,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Arch",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2066.vmdl",
+      "origin": [
+        1880.0,
+        1340.0,
+        232.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1877.1552004237767,
+          1338.3744000137667
+        ],
+        [
+          1886.09599867665,
+          1338.374401079593
+        ],
+        [
+          1886.09599867665,
+          1341.6256003738065
+        ],
+        [
+          1877.1552004237767,
+          1341.62559930798
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1877.1552004237767,
+        "min_y": 1338.3744000137667,
+        "max_x": 1886.09599867665,
+        "max_y": 1341.6256003738065
+      },
+      "zspan_xyspan_ratio": 0.31818184946194344,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Library",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2069.vmdl",
+      "origin": [
+        2480.0,
+        1484.0,
+        232.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2477.96800090136,
+          1482.37440011066
+        ],
+        [
+          2482.031999147087,
+          1482.3744005951266
+        ],
+        [
+          2482.031999147087,
+          1485.62559988934
+        ],
+        [
+          2477.96800090136,
+          1485.6255994048734
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2477.96800090136,
+        "min_y": 1482.37440011066,
+        "max_x": 2482.031999147087,
+        "max_y": 1485.62559988934
+      },
+      "zspan_xyspan_ratio": 2.299999464750305,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Library",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2070.vmdl",
+      "origin": [
+        2480.0,
+        1308.0,
+        232.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2474.71680141336,
+          1306.3743997230868
+        ],
+        [
+          2482.4383996644465,
+          1306.3744006435732
+        ],
+        [
+          2482.4383996644465,
+          1309.6255999377865
+        ],
+        [
+          2474.71680141336,
+          1309.6255990173001
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2474.71680141336,
+        "min_y": 1306.3743997230868,
+        "max_x": 2482.4383996644465,
+        "max_y": 1309.6255999377865
+      },
+      "zspan_xyspan_ratio": 0.5789473786578452,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Balcony",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2073.vmdl",
+      "origin": [
+        2048.0,
+        -204.0,
+        328.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2046.57760080536,
+          -205.62559981666996
+        ],
+        [
+          2049.828799808893,
+          -205.6255994290967
+        ],
+        [
+          2049.828799808893,
+          -202.3744001348833
+        ],
+        [
+          2046.57760080536,
+          -202.37440052245654
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2046.57760080536,
+        "min_y": -205.62559981666996,
+        "max_x": 2049.828799808893,
+        "max_y": -202.3744001348833
+      },
+      "zspan_xyspan_ratio": 1.2499999329446791,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Balcony",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2074.vmdl",
+      "origin": [
+        2048.0,
+        -324.0,
+        328.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2046.7808003857867,
+          -325.6255997924467
+        ],
+        [
+          2049.6255998408933,
+          -325.6255994533201
+        ],
+        [
+          2049.6255998408933,
+          -322.3744001591067
+        ],
+        [
+          2046.7808003857867,
+          -322.3744004982333
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2046.7808003857867,
+        "min_y": -325.6255997924467,
+        "max_x": 2049.6255998408933,
+        "max_y": -322.3744001591067
+      },
+      "zspan_xyspan_ratio": 0.25000010803342815,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Pit",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2077.vmdl",
+      "origin": [
+        2360.0,
+        -340.0,
+        160.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2355.52960150337,
+          -341.8288002449132
+        ],
+        [
+          2364.47039849663,
+          -341.8287991790868
+        ],
+        [
+          2364.47039849663,
+          -338.1711997550868
+        ],
+        [
+          2355.52960150337,
+          -338.1712008209132
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2355.52960150337,
+        "min_y": -341.8288002449132,
+        "max_x": 2364.47039849663,
+        "max_y": -338.1711997550868
+      },
+      "zspan_xyspan_ratio": 1.4999997805465537,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Pit",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2078.vmdl",
+      "origin": [
+        2360.0,
+        -212.0,
+        160.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2361.2192006073697,
+          -213.82879956666002
+        ],
+        [
+          2364.8767994984564,
+          -213.82879913064014
+        ],
+        [
+          2364.8767994984564,
+          -210.17119970664012
+        ],
+        [
+          2361.2192006073697,
+          -210.17120014266004
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2361.2192006073697,
+        "min_y": -213.82879956666002,
+        "max_x": 2364.8767994984564,
+        "max_y": -210.17119970664012
+      },
+      "zspan_xyspan_ratio": 1.222222163353458,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2081.vmdl",
+      "origin": [
+        2000.0,
+        292.0,
+        208.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1989.6368028431664,
+          289.7647991166103
+        ],
+        [
+          2010.7695970928337,
+          289.76480163583636
+        ],
+        [
+          2010.7695970928337,
+          294.2352009318364
+        ],
+        [
+          1989.6368028431664,
+          294.23519841261026
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1989.6368028431664,
+        "min_y": 289.7647991166103,
+        "max_x": 2010.7695970928337,
+        "max_y": 294.2352009318364
+      },
+      "zspan_xyspan_ratio": 0.9615383765401179,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2082.vmdl",
+      "origin": [
+        2000.0,
+        796.0,
+        208.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1997.968001579613,
+          793.7648001097667
+        ],
+        [
+          2009.9567989649133,
+          793.7648015389431
+        ],
+        [
+          2009.9567989649133,
+          798.235200834943
+        ],
+        [
+          1997.968001579613,
+          798.2351994057667
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1997.968001579613,
+        "min_y": 793.7648001097667,
+        "max_x": 2009.9567989649133,
+        "max_y": 798.235200834943
+      },
+      "zspan_xyspan_ratio": 0.5084744605892199,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Apartments",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2085.vmdl",
+      "origin": [
+        1136.0,
+        -156.000015,
+        264.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1121.97920264402,
+          -159.65761609540962
+        ],
+        [
+          1149.20799748398,
+          -159.65761284948368
+        ],
+        [
+          1149.20799748398,
+          -152.34241400148366
+        ],
+        [
+          1121.97920264402,
+          -152.34241724740963
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1121.97920264402,
+        "min_y": -159.65761609540962,
+        "max_x": 1149.20799748398,
+        "max_y": -152.34241400148366
+      },
+      "zspan_xyspan_ratio": 0.2686567398401882,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Apartments",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2086.vmdl",
+      "origin": [
+        1456.0,
+        -156.000015,
+        264.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1450.1072027689727,
+          -159.65761512647646
+        ],
+        [
+          1456.2031999195533,
+          -159.6576143997766
+        ],
+        [
+          1456.2031999195533,
+          -152.3424155517766
+        ],
+        [
+          1450.1072027689727,
+          -152.34241627847646
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1450.1072027689727,
+        "min_y": -159.65761512647646,
+        "max_x": 1456.2031999195533,
+        "max_y": -152.3424155517766
+      },
+      "zspan_xyspan_ratio": 2.1666663587093478,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BackAlley",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2089.vmdl",
+      "origin": [
+        704.0,
+        -556.0,
+        160.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          698.5136016391465,
+          -557.8288003660299
+        ],
+        [
+          709.8927982968535,
+          -557.8287990095234
+        ],
+        [
+          709.8927982968535,
+          -554.1711995855235
+        ],
+        [
+          698.5136016391465,
+          -554.1712009420298
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 698.5136016391465,
+        "min_y": -557.8288003660299,
+        "max_x": 709.8927982968535,
+        "max_y": -554.1711995855235
+      },
+      "zspan_xyspan_ratio": 1.1428570254724781,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2091.vmdl",
+      "origin": [
+        512.0,
+        2716.0,
+        240.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          502.65280292539967,
+          2712.951999365727
+        ],
+        [
+          518.9087974586004,
+          2712.952001303593
+        ],
+        [
+          518.9087974586004,
+          2719.0480003435932
+        ],
+        [
+          502.65280292539967,
+          2719.047998405727
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 502.65280292539967,
+        "min_y": 2712.951999365727,
+        "max_x": 518.9087974586004,
+        "max_y": 2719.0480003435932
+      },
+      "zspan_xyspan_ratio": 1.499999776482585,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2092.vmdl",
+      "origin": [
+        512.0,
+        3228.0,
+        240.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          505.9040011537866,
+          3224.9519997533002
+        ],
+        [
+          521.3471970746003,
+          3224.952001594273
+        ],
+        [
+          521.3471970746003,
+          3231.048000634273
+        ],
+        [
+          505.9040011537866,
+          3231.0479987933
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 505.9040011537866,
+        "min_y": 3224.9519997533002,
+        "max_x": 521.3471970746003,
+        "max_y": 3231.048000634273
+      },
+      "zspan_xyspan_ratio": 0.8947367937280818,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteB",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2094.vmdl",
+      "origin": [
+        736.0,
+        3228.0,
+        240.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          739.2511997302332,
+          3224.952000867573
+        ],
+        [
+          745.3471980435335,
+          3224.952001594273
+        ],
+        [
+          745.3471980435335,
+          3231.048000634273
+        ],
+        [
+          739.2511997302332,
+          3231.0479999075733
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 739.2511997302332,
+        "min_y": 3224.952000867573,
+        "max_x": 745.3471980435335,
+        "max_y": 3231.048000634273
+      },
+      "zspan_xyspan_ratio": 0.9999999999999627,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2097.vmdl",
+      "origin": [
+        1000.0,
+        3148.0,
+        192.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          997.1552014411565,
+          3145.3584000768733
+        ],
+        [
+          1003.2511984948436,
+          3145.358400803573
+        ],
+        [
+          1003.2511984948436,
+          3150.641599971573
+        ],
+        [
+          997.1552014411565,
+          3150.6415992448733
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 997.1552014411565,
+        "min_y": 3145.3584000768733,
+        "max_x": 1003.2511984948436,
+        "max_y": 3150.641599971573
+      },
+      "zspan_xyspan_ratio": 2.7333325460223112,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2098.vmdl",
+      "origin": [
+        1000.0,
+        3340.0,
+        192.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          998.3744004740099,
+          3337.3584002222133
+        ],
+        [
+          1002.8447990433101,
+          3337.3584007551267
+        ],
+        [
+          1002.8447990433101,
+          3342.6415999231267
+        ],
+        [
+          998.3744004740099,
+          3342.6415993902133
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 998.3744004740099,
+        "min_y": 3337.3584002222133,
+        "max_x": 1002.8447990433101,
+        "max_y": 3342.6415999231267
+      },
+      "zspan_xyspan_ratio": 1.1538461566676246,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2100.vmdl",
+      "origin": [
+        1000.0,
+        2924.0,
+        192.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          995.9360025051963,
+          2921.3583999315333
+        ],
+        [
+          1002.8448000122432,
+          2921.3584007551267
+        ],
+        [
+          1002.8448000122432,
+          2926.6415999231267
+        ],
+        [
+          995.9360025051963,
+          2926.6415990995333
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 995.9360025051963,
+        "min_y": 2921.3583999315333,
+        "max_x": 1002.8448000122432,
+        "max_y": 2926.6415999231267
+      },
+      "zspan_xyspan_ratio": 1.7058820971980693,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Ruins",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2102.vmdl",
+      "origin": [
+        1000.0,
+        2796.0,
+        192.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          996.3424015691567,
+          2793.3583999799803
+        ],
+        [
+          999.1872002006698,
+          2793.3584003191067
+        ],
+        [
+          999.1872002006698,
+          2798.6415994871068
+        ],
+        [
+          996.3424015691567,
+          2798.6415991479803
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 996.3424015691567,
+        "min_y": 2793.3583999799803,
+        "max_x": 999.1872002006698,
+        "max_y": 2798.6415994871068
+      },
+      "zspan_xyspan_ratio": 1.4615390738086536,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Banana",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2105.vmdl",
+      "origin": [
+        208.0,
+        1396.0,
+        192.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          196.8240025351465,
+          1392.9519993415036
+        ],
+        [
+          219.1759974648535,
+          1392.9520020060697
+        ],
+        [
+          219.1759974648535,
+          1399.0480006584964
+        ],
+        [
+          196.8240025351465,
+          1399.0479979939303
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 196.8240025351465,
+        "min_y": 1392.9519993415036,
+        "max_x": 219.1759974648535,
+        "max_y": 1399.0480006584964
+      },
+      "zspan_xyspan_ratio": 0.5818181739759811,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Banana",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2106.vmdl",
+      "origin": [
+        208.0,
+        1740.0,
+        192.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          210.4384020383328,
+          1736.9520009644666
+        ],
+        [
+          220.5983981128933,
+          1736.952002175633
+        ],
+        [
+          220.5983981128933,
+          1743.0480008280597
+        ],
+        [
+          210.4384020383328,
+          1743.0479996168933
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 210.4384020383328,
+        "min_y": 1736.9520009644666,
+        "max_x": 220.5983981128933,
+        "max_y": 1743.0480008280597
+      },
+      "zspan_xyspan_ratio": 1.9199996320724664,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Kitchen",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2110.vmdl",
+      "origin": [
+        -208.0,
+        204.0,
+        248.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -212.06399921466004,
+          202.37439977153343
+        ],
+        [
+          -203.93600078533996,
+          202.37440074046657
+        ],
+        [
+          -203.93600078533996,
+          205.62560022846657
+        ],
+        [
+          -212.06399921466004,
+          205.62559925953343
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -212.06399921466004,
+        "min_y": 202.37439977153343,
+        "max_x": -203.93600078533996,
+        "max_y": 205.62560022846657
+      },
+      "zspan_xyspan_ratio": 0.3000000369548825,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Kitchen",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2111.vmdl",
+      "origin": [
+        -96.0,
+        204.0,
+        248.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          -94.7807997559801,
+          202.37440040133995
+        ],
+        [
+          -91.93600083378662,
+          202.37440074046657
+        ],
+        [
+          -91.93600083378662,
+          205.62560022846657
+        ],
+        [
+          -94.7807997559801,
+          205.62559988933998
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": -94.7807997559801,
+        "min_y": 202.37440040133995,
+        "max_x": -91.93600083378662,
+        "max_y": 205.62560022846657
+      },
+      "zspan_xyspan_ratio": 1.6249999497085672,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "Underpass",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2114.vmdl",
+      "origin": [
+        264.0,
+        372.0,
+        32.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          255.66880298340936,
+          371.39039910284373
+        ],
+        [
+          273.1439999891761,
+          371.3904011860499
+        ],
+        [
+          273.1439999891761,
+          372.60960099404997
+        ],
+        [
+          255.66880298340936,
+          372.6095989108437
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 255.66880298340936,
+        "min_y": 371.39039910284373,
+        "max_x": 273.1439999891761,
+        "max_y": 372.60960099404997
+      },
+      "zspan_xyspan_ratio": 0.11627907647256255,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "TopofMid",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2116.vmdl",
+      "origin": [
+        1424.0,
+        628.0,
+        216.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          1408.7600026422333,
+          625.9679985032504
+        ],
+        [
+          1439.2399973577667,
+          625.9680021367496
+        ],
+        [
+          1439.2399973577667,
+          630.0320014967496
+        ],
+        [
+          1408.7600026422333,
+          630.0319978632504
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 1408.7600026422333,
+        "min_y": 625.9679985032504,
+        "max_x": 1439.2399973577667,
+        "max_y": 630.0320014967496
+      },
+      "zspan_xyspan_ratio": 0.13333334710862954,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    },
+    {
+      "name": "BombsiteA",
+      "model": "maps/de_inferno/entities/unnamed_13103_4_2117.vmdl",
+      "origin": [
+        2092.0,
+        292.0,
+        208.734497
+      ],
+      "angles": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "scales": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "rotation_order": "rz_rx_ry",
+      "vertices_count": 36,
+      "polygon_2d": [
+        [
+          2088.08840105202,
+          289.7647998857008
+        ],
+        [
+          2093.7780007071005,
+          289.7648005639541
+        ],
+        [
+          2093.7780007071005,
+          294.2351998599541
+        ],
+        [
+          2088.08840105202,
+          294.23519918170086
+        ]
+      ],
+      "bbox_2d": {
+        "min_x": 2088.08840105202,
+        "min_y": 289.7647998857008,
+        "max_x": 2093.7780007071005,
+        "max_y": 294.2351998599541
+      },
+      "zspan_xyspan_ratio": 0.330357178503984,
+      "source": "C:\\Users\\PC\\Downloads\\cs2tool\\.cache\\CS2Callouts\\export\\maps\\de_inferno\\vrf\\entities\\maps\\de_inferno\\entities\\default_ents.vents"
+    }
+  ]
+}
