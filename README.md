@@ -9,7 +9,7 @@ running-jump / crouch) and *click type* (left / right / both) — recovered by
 looking up the player's button state 8 ticks before the `grenade_thrown`
 event, so you know exactly how the pros threw it.
 
-![screenshot-placeholder]
+<img width="1801" height="1184" alt="image" src="https://github.com/user-attachments/assets/c25576d0-0159-4ba6-a404-74a2b93c429c" />
 
 ## What's in the box
 
