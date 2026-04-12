@@ -34,8 +34,14 @@ event, so you know exactly how the pros threw it.
   DBs keep working.
 - `backend/analysis/callouts.py` — nearest-origin callout lookup loaded from
   `backend/data/callouts/*.json` (extracted from CS2Callouts).
+- `backend/analysis/executes.py` — detects coordinated utility combos
+  (e.g. 2 smokes + 1 flash + 1 molotov thrown together in the same round)
+  by finding recurring sets of lineup clusters that co-occur across rounds.
 - `backend/main.py` — FastAPI app with endpoints for lineups, callouts,
-  radar images, ingest triggers, demos-on-disk listing, and RCON practice.
+  radar images, ingest triggers, demos-on-disk listing, match replay
+  timelines, AI-powered insights and lineup descriptions, and RCON
+  practice. Supports both Anthropic (Claude) and OpenRouter free models
+  for AI features.
 
 **Frontend** (React + Vite + Tailwind, HUD theme)
 
@@ -46,11 +52,20 @@ event, so you know exactly how the pros threw it.
 - `ScatterPlot.tsx` — Usage vs Win Rate. Dot size = utility damage, dot
   color = grenade type.
 - `LineupCard.tsx` — rank, win rate, utility damage, technique + click
-  badges, "Copy Console" (dumps a paste-ready `setpos/setang/give` string)
-  and "Practice in Game" (same thing over RCON).
+  badges, "Copy Console" (dumps a paste-ready `setpos/setang/give` string),
+  "Practice in Game" (same thing over RCON), and "AI Describe" (generates
+  a natural-language description of what the lineup does via AI).
 - `RadarView.tsx` — modal overlay that draws every visible lineup on the
   awpy radar PNG with throw→land dashed lines, color-coded by grenade type,
-  with toggleable callout labels.
+  with toggleable callout labels, min-throws/win-rate sliders, and side
+  filter.
+- `MatchReplayViewer.tsx` — full 2D match replay viewer with player
+  positions, health bars, grenade trails (smoke clouds, molotov patches,
+  flash bursts, HE shockwaves), kill lines, bomb events, playback
+  scrubber, round jumping, speed controls (0.5×–4×), and AI-generated
+  match recaps.
+- `DemoPickerPage.tsx` — demo upload/browse page with drag-and-drop
+  upload, demos grouped by map, and delete controls.
 
 ## How a lineup is defined
 
@@ -114,6 +129,12 @@ DEMOS_DIR=demos
 DB_PATH=data/lineups.db
 MIN_WIN_RATE=0.5
 MIN_THROW_COUNT=2
+
+# AI features (pick one)
+OPENROUTER_API_KEY=sk-or-...   # free at https://openrouter.ai/keys
+OPENROUTER_MODEL=google/gemma-3-27b-it:free
+# or
+ANTHROPIC_API_KEY=sk-ant-...   # paid
 ```
 
 ### Run
@@ -144,11 +165,19 @@ A typical BO5 is ~900 MB compressed → ~300 MB uncompressed per map; expect
 | `GET`  | `/api/callouts/{map}`               | Callout origins for a map |
 | `GET`  | `/api/radars/{map}`                 | Radar calibration `{pos_x, pos_y, scale}` |
 | `GET`  | `/api/radars/{map}.png`             | Radar PNG (1024×1024) |
+| `GET`  | `/api/executes/{map}`               | Detected coordinated utility combos |
 | `GET`  | `/api/console/{cluster_id}?map_name=` | Console paste string |
+| `GET`  | `/api/replay/{cluster_id}?map_name=` | Playdemo + demo_goto strings for replay |
+| `POST` | `/api/lineups/{id}/describe?map_name=` | AI-generated lineup description |
 | `POST` | `/api/practice`                     | RCON teleport + give grenade |
 | `POST` | `/api/ingest/hltv`                  | Queue an HLTV scrape + pipeline run |
 | `POST` | `/api/ingest/run`                   | Re-run the pipeline on existing demos |
 | `GET`  | `/api/ingest/status`                | Poll pipeline progress |
+| `GET`  | `/api/match-replay/demos`           | List all demos for match replay |
+| `POST` | `/api/match-replay/upload`          | Upload a .dem file |
+| `DELETE` | `/api/match-replay/{file}`        | Delete a demo + cached timeline |
+| `GET`  | `/api/match-replay/{file}/timeline` | Parse demo into 2D playback timeline |
+| `POST` | `/api/match-replay/{file}/insights` | AI-generated match narrative recap |
 | `DELETE` | `/api/data`                       | Wipe `lineups.db` (demos on disk are kept) |
 | `GET`  | `/api/stats`                        | Totals summary |
 
@@ -156,14 +185,19 @@ Interactive docs at `http://localhost:8000/docs`.
 
 ## Practicing a lineup
 
-Each card exposes two actions:
+Each card exposes four actions:
 
 - **Copy Console** → copies a single-line
   `setpos X Y Z; setang P Y 0; give weapon_smokegrenade` string. Paste it
   into the CS2 console. No RCON required.
+- **Replay** → two-step flow: first click copies `playdemo <file>`, second
+  click copies `demo_goto <tick> 0 1` to seek to the throw. Demo must be
+  in `game/csgo/`.
 - **Practice in Game** → sends those same commands over RCON. Requires
   CS2 launched with `-netconport 27015` and `rcon_password` set to match
   your `.env`.
+- **AI Describe** → generates a 1–2 sentence description of what the
+  lineup does using OpenRouter (free) or Claude.
 
 `sv_cheats 1` must be on for `setpos`/`setang` to work.
 
@@ -182,7 +216,8 @@ cs2tool/
 ├── frontend/
 │   └── src/
 │       ├── api/client.ts     typed Axios client
-│       └── components/       Dashboard, ScatterPlot, LineupCard, RadarView, IngestPanel
+│       └── components/       Dashboard, ScatterPlot, LineupCard, RadarView,
+│                             IngestPanel, MatchReplayViewer, DemoPickerPage
 ├── scripts/              one-off probes + callout extractor
 ├── demos/                .dem files (gitignored)
 ├── data/                 SQLite DB (gitignored)
@@ -192,12 +227,36 @@ cs2tool/
 └── requirements.txt
 ```
 
+## Match Replay
+
+Click **Match Replay** in the header to open the 2D match viewer:
+
+1. Upload a `.dem` file or pick from existing demos
+2. The viewer renders a top-down radar with live player positions, health
+   bars, grenade trails, smoke clouds, molotov patches, kill lines, and
+   bomb events
+3. Controls: play/pause, timeline scrubber, round jump buttons
+   (color-coded by who won), speed (0.5×–4×)
+4. Click **Generate** in the AI Recap panel for a 3–5 paragraph narrative
+   summary of the match (requires OpenRouter or Anthropic key)
+
+Timelines are cached to `data/timelines/{demo}.json` — delete to force
+a re-parse.
+
+## Execute Combos
+
+Toggle **Executes** in the filter bar to see detected coordinated utility
+patterns — sets of grenade lineups that pros frequently throw together in
+the same round (e.g. an A-site execute with 2 smokes + 1 flash + 1 molotov).
+Each combo shows its member grenades, side, round count, and win rate.
+
 ## Credits
 
 - **demoparser2** — Rust-based CS2 demo parser (LaihoE)
 - **awpy** — radar assets + calibration data
 - **CS2Callouts** — `env_cs_place` origin extraction
 - **HLTV.org** — match + demo sourcing
+- **OpenRouter** — free AI model access (Gemma 3 27B)
 
 ---
 
