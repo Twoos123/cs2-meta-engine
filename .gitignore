@@ -23,10 +23,17 @@ yarn-error.log*
 
 # ---- Project data (runtime, not source) ----
 demos/
+data/
+backend/data/lineup_data.db
 data/lineups.db
 data/*.db
 data/*.db-journal
 .cache/
+
+# ---- Testing / temp ----
+.playwright-mcp/
+test-*.png
+skills.md
 
 # ---- Secrets / env ----
 .env
