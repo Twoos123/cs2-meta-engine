@@ -227,6 +227,11 @@ class TimelinePosition(BaseModel):
     yaw: float
     alive: bool
     hp: int
+    w: Optional[str] = None  # active weapon
+    ar: Optional[int] = None # armor
+    hl: Optional[bool] = None # helmet
+    tn: Optional[int] = None # team_num
+    inv: Optional[List[str]] = Field(default_factory=list) # full inventory
 
 
 class TimelineGrenade(BaseModel):

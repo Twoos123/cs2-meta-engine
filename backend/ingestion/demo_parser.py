@@ -884,7 +884,7 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
     try:
         ticks_df = parser.parse_ticks(
             ["X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num",
-             "active_weapon_name", "armor_value", "has_helmet"]
+             "active_weapon_name", "armor_value", "has_helmet", "inventory"]
         )
     except Exception as exc:
         logger.error("parse_ticks failed: %s", exc)
@@ -940,6 +940,26 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                 armor = int(getattr(row, "armor_value", 0) or 0)
                 helmet = bool(getattr(row, "has_helmet", False))
                 tn = int(getattr(row, "team_num", 0) or 0)
+
+                # Extract inventory if present. Demoparser2 often returns a list or a string.
+                inv_raw = getattr(row, "inventory", None)
+                inv_list = []
+                if isinstance(inv_raw, str):
+                    try:
+                        import json
+                        # Try to use json for performance, replacing single quotes with double
+                        # just in case it is a python repr of list of strings.
+                        if inv_raw.startswith('[') and inv_raw.endswith(']'):
+                            inv_raw = json.loads(inv_raw.replace("'", '"'))
+                    except Exception:
+                        pass
+                if isinstance(inv_raw, list):
+                    for w in inv_raw:
+                        w_str = str(w)
+                        if w_str.startswith("weapon_"):
+                            w_str = w_str[7:]
+                        inv_list.append(w_str)
+
                 samples.append(
                     {
                         "t": int(getattr(row, "tick")),
@@ -952,6 +972,7 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                         "ar": armor,
                         "hl": helmet,
                         "tn": tn,
+                        "inv": inv_list,
                     }
                 )
             positions[sid] = samples
