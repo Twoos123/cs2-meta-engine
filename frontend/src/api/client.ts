@@ -36,6 +36,11 @@ export interface LineupCluster {
   technique_agreement: number;
   primary_click: string | null;
   click_agreement: number;
+  side: string | null;   // "T" | "CT" | null
+  demo_file: string | null;
+  demo_tick: number | null;
+  demo_thrower_name: string | null;
+  trajectory: number[][] | null;
 }
 
 export interface LineupRanking {
@@ -84,11 +89,12 @@ export interface RunPipelineRequest {
 export const getTopLineups = async (
   mapName: string,
   grenadeType: string,
-  limit = 10
+  limit = 10,
+  side?: "T" | "CT"
 ): Promise<TopLineupsResponse> => {
   const { data } = await api.get<TopLineupsResponse>(
     `/lineups/${mapName}/${grenadeType}`,
-    { params: { limit } }
+    { params: { limit, ...(side ? { side } : {}) } }
   );
   return data;
 };
@@ -171,6 +177,34 @@ export const getConsoleString = async (
   return data;
 };
 
+export interface ReplayStringResponse {
+  cluster_id: number;
+  map_name: string;
+  demo_file: string;
+  demo_tick: number;
+  demo_thrower_name: string | null;
+  load_string: string;
+  seek_string: string;
+  console_string: string;
+}
+
+export const getReplayString = async (
+  clusterId: number,
+  mapName: string,
+  playerName?: string,
+): Promise<ReplayStringResponse> => {
+  const { data } = await api.get<ReplayStringResponse>(
+    `/replay/${clusterId}`,
+    {
+      params: {
+        map_name: mapName,
+        ...(playerName ? { player: playerName } : {}),
+      },
+    },
+  );
+  return data;
+};
+
 export const practiceLineup = async (
   clusterId: number,
   mapName: string
@@ -212,5 +246,166 @@ export const clearAllData = async (): Promise<{
   status: string;
 }> => {
   const { data } = await api.delete("/data");
+  return data;
+};
+
+// ---------------------------------------------------------------------------
+// Match replay (full-match 2D viewer)
+// ---------------------------------------------------------------------------
+
+export interface MatchDemoEntry {
+  demo_file: string;
+  map_name: string;
+  match_id: number | null;
+  size_bytes: number;
+  mtime: number;
+}
+
+export interface TimelinePlayer {
+  steamid: string;
+  name: string;
+  team_num: number;        // 2 = T, 3 = CT
+}
+
+export interface TimelinePosition {
+  t: number;               // tick
+  x: number;
+  y: number;
+  yaw: number;
+  alive: boolean;
+  hp: number;
+}
+
+export interface TimelineGrenade {
+  type: string;
+  thrower: string;         // steamid
+  points: number[][];      // [[tick, x, y], ...]
+  detonate_tick: number | null;
+}
+
+export interface TimelineEvent {
+  type: string;            // death | fire | bomb_plant | bomb_defuse | round_start | round_end
+  tick: number;
+  data: Record<string, string>;
+}
+
+export interface TimelineRound {
+  num: number;
+  start_tick: number;
+  end_tick: number;
+  winner: string | null;
+}
+
+export interface MatchTimeline {
+  map_name: string;
+  tick_rate: number;
+  decimation: number;
+  tick_max: number;
+  players: TimelinePlayer[];
+  positions: Record<string, TimelinePosition[]>;
+  grenades: TimelineGrenade[];
+  events: TimelineEvent[];
+  rounds: TimelineRound[];
+}
+
+export interface MatchInsightsResponse {
+  demo_file: string;
+  summary: string;
+  model: string;
+}
+
+// ---------------------------------------------------------------------------
+// Execute detection (coordinated utility combos)
+// ---------------------------------------------------------------------------
+
+export interface ExecuteComboMember {
+  cluster_id: number;
+  grenade_type: string;
+  label: string | null;
+}
+
+export interface ExecuteCombo {
+  execute_id: number;
+  map_name: string;
+  name: string;
+  members: ExecuteComboMember[];
+  occurrence_count: number;
+  round_win_rate: number;
+  side: string | null;
+  grenade_summary: string;
+}
+
+export const getExecutes = async (mapName: string): Promise<ExecuteCombo[]> => {
+  const { data } = await api.get<ExecuteCombo[]>(`/executes/${mapName}`);
+  return data;
+};
+
+// ---------------------------------------------------------------------------
+// AI lineup description
+// ---------------------------------------------------------------------------
+
+export interface LineupDescriptionResponse {
+  cluster_id: number;
+  map_name: string;
+  description: string;
+  model: string;
+}
+
+export const describeLineup = async (
+  clusterId: number,
+  mapName: string,
+): Promise<LineupDescriptionResponse> => {
+  const { data } = await api.post<LineupDescriptionResponse>(
+    `/lineups/${clusterId}/describe`,
+    null,
+    { params: { map_name: mapName } },
+  );
+  return data;
+};
+
+// ---------------------------------------------------------------------------
+// Match replay (full-match 2D viewer)
+// ---------------------------------------------------------------------------
+
+export const getMatchReplayDemos = async (): Promise<MatchDemoEntry[]> => {
+  const { data } = await api.get<MatchDemoEntry[]>("/match-replay/demos");
+  return data;
+};
+
+export const uploadDemo = async (
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<MatchDemoEntry> => {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await api.post<MatchDemoEntry>("/match-replay/upload", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+    timeout: 600000, // 10 min for large demos
+  });
+  return data;
+};
+
+export const deleteDemo = async (demoFile: string): Promise<void> => {
+  await api.delete(`/match-replay/${encodeURIComponent(demoFile)}`);
+};
+
+export const getMatchReplayTimeline = async (
+  demoFile: string,
+): Promise<MatchTimeline> => {
+  const { data } = await api.get<MatchTimeline>(
+    `/match-replay/${encodeURIComponent(demoFile)}/timeline`,
+  );
+  return data;
+};
+
+export const getMatchReplayInsights = async (
+  demoFile: string,
+): Promise<MatchInsightsResponse> => {
+  const { data } = await api.post<MatchInsightsResponse>(
+    `/match-replay/${encodeURIComponent(demoFile)}/insights`,
+  );
   return data;
 };

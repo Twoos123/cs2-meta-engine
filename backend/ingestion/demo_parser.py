@@ -251,10 +251,22 @@ class DemoParser:
 
         df = pd.concat(merged_parts, ignore_index=True)
 
+        # Real trajectory polylines from parse_grenades() — per-tick projectile
+        # positions, decimated and attached to each throw so the radar can draw
+        # a curved flight path instead of a straight throw→land line. Failures
+        # here are non-fatal: the radar falls back to the straight line when
+        # trajectory is None.
+        traj_df = self._extract_grenade_trajectories(parser)
+        df = self._attach_trajectories(df, traj_df)
+
+        traj_count = 0
+        if "trajectory" in df.columns:
+            traj_count = int(df["trajectory"].map(lambda v: isinstance(v, list)).sum())
         logger.info(
-            "  grenade_thrown: %d throws, %d matched to landings",
+            "  grenade_thrown: %d throws, %d matched to landings, %d with trajectories",
             len(df),
             df[["land_x", "land_y", "land_z"]].notna().all(axis=1).sum(),
+            traj_count,
         )
         return df
 
@@ -479,6 +491,139 @@ class DemoParser:
         )
         return df
 
+    def _extract_grenade_trajectories(self, parser) -> pd.DataFrame:
+        """
+        Pull per-tick projectile positions via `parse_grenades()` and reduce
+        them to one row per grenade entity with the decimated 2D flight path.
+
+        parse_grenades() returns, per tick per projectile:
+            grenade_type, grenade_entity_id, x, y, z, tick, steamid, name
+        Most rows are NaN — demoparser2 emits a row for every entity on every
+        tick regardless of whether that entity exists yet — so we drop those
+        first, then group by entity_id and take the coordinate list. Per-entity
+        paths are decimated to at most 50 points (always keeping first/last)
+        to keep the final JSON payload small.
+
+        Columns in the returned frame:
+            entity_id, grenade_type, steamid, first_tick, trajectory
+        where `trajectory` is a list of [x, y] float pairs in tick order.
+        The frame is empty when parse_grenades() is unavailable or errored;
+        callers should treat that as "no trajectories" rather than a fault.
+        """
+        empty_cols = ["entity_id", "grenade_type", "steamid", "first_tick", "trajectory"]
+        try:
+            raw = parser.parse_grenades()
+        except Exception as exc:
+            logger.warning("parse_grenades() failed: %s", exc)
+            return pd.DataFrame(columns=empty_cols)
+
+        if raw is None or len(raw) == 0 or not hasattr(raw, "columns"):
+            return pd.DataFrame(columns=empty_cols)
+
+        needed = {"grenade_type", "grenade_entity_id", "x", "y", "tick", "steamid"}
+        if not needed.issubset(raw.columns):
+            logger.warning(
+                "parse_grenades() returned unexpected columns: %s", list(raw.columns)
+            )
+            return pd.DataFrame(columns=empty_cols)
+
+        raw = raw.dropna(subset=["x", "y"])
+        if raw.empty:
+            return pd.DataFrame(columns=empty_cols)
+
+        # Normalise the grenade_type string so it lines up with the keys used
+        # by grenade_thrown. parse_grenades() has historically returned values
+        # like "smoke_grenade", "smokegrenade", or "smoke" depending on the
+        # CS2 build, so we squash separators and try each variant.
+        raw = raw.copy()
+        gtype_raw = raw["grenade_type"].astype(str).str.lower()
+        gtype_squashed = gtype_raw.str.replace("_", "", regex=False)
+        gtype_mapped = gtype_squashed.map(WEAPON_TO_TYPE)
+        fallback = gtype_raw.str.replace("_", "", regex=False) + "grenade"
+        gtype_mapped = gtype_mapped.fillna(fallback.map(WEAPON_TO_TYPE))
+        raw["grenade_type"] = gtype_mapped
+        raw = raw.dropna(subset=["grenade_type"])
+        if raw.empty:
+            return pd.DataFrame(columns=empty_cols)
+
+        raw = raw.sort_values(["grenade_entity_id", "tick"])
+
+        rows: list[dict] = []
+        for entity_id, group in raw.groupby("grenade_entity_id", sort=False):
+            if len(group) < 2:
+                continue
+            pts = group[["x", "y"]].to_numpy(dtype=float)
+            if len(pts) > 50:
+                stride = max(1, len(pts) // 50)
+                idx = list(range(0, len(pts), stride))
+                if idx[-1] != len(pts) - 1:
+                    idx.append(len(pts) - 1)
+                pts = pts[idx]
+            trajectory = [[round(float(x), 1), round(float(y), 1)] for x, y in pts]
+            rows.append(
+                {
+                    "entity_id": int(entity_id),
+                    "grenade_type": str(group["grenade_type"].iloc[0]),
+                    "steamid": str(group["steamid"].iloc[0]),
+                    "first_tick": int(group["tick"].iloc[0]),
+                    "trajectory": trajectory,
+                }
+            )
+
+        if not rows:
+            return pd.DataFrame(columns=empty_cols)
+        return pd.DataFrame(rows)
+
+    def _attach_trajectories(
+        self,
+        throws: pd.DataFrame,
+        traj_df: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Attach the matching projectile flight path to each throw.
+
+        Matching rule: for each (thrower_steamid, grenade_type, throw_tick),
+        find the trajectory entity whose `first_tick >= throw_tick` and is
+        within 32 ticks (~0.5 s at 64-tick) of it. The grenade_thrown event
+        fires at the moment the player releases the pin; the entity's first
+        visible tick is the same tick or a couple later once the projectile
+        spawns in-world. Using merge_asof direction="forward" with a tight
+        tolerance picks the right entity without cross-matching earlier ones.
+        """
+        out = throws.copy()
+        out["trajectory"] = None
+
+        if out.empty or traj_df is None or traj_df.empty:
+            return out
+
+        left = out[["tick", "thrower_steamid", "grenade_type"]].copy()
+        left["_throw_idx"] = np.arange(len(left))
+        left["_sid"] = left["thrower_steamid"].astype(str)
+        left = left.sort_values(["_sid", "grenade_type", "tick"]).reset_index(drop=True)
+
+        right = traj_df.rename(columns={"steamid": "_sid"}).copy()
+        right["_sid"] = right["_sid"].astype(str)
+        right = right[["first_tick", "_sid", "grenade_type", "trajectory"]]
+        right = right.sort_values(["_sid", "grenade_type", "first_tick"]).reset_index(drop=True)
+
+        try:
+            merged = pd.merge_asof(
+                left,
+                right,
+                left_on="tick",
+                right_on="first_tick",
+                by=["_sid", "grenade_type"],
+                direction="forward",
+                tolerance=32,
+            )
+        except Exception as exc:
+            logger.warning("trajectory merge_asof failed: %s", exc)
+            return out
+
+        merged = merged.sort_values("_throw_idx")
+        out.loc[:, "trajectory"] = merged["trajectory"].tolist()
+        return out
+
     def _extract_grenade_landings(self, parser) -> pd.DataFrame:
         """
         One row per grenade detonation: (land_tick, thrower_steamid, x, y, z, grenade_type).
@@ -657,6 +802,11 @@ class DemoParser:
             if col not in grenades.columns:
                 grenades[col] = None
 
+        # Trajectory is a list-valued object column; if the extractor never
+        # ran (empty parse_grenades, older DB) it simply stays None per row.
+        if "trajectory" not in grenades.columns:
+            grenades["trajectory"] = None
+
         desired = [
             "tick", "round_number", "thrower_steamid", "thrower_name",
             "team_num", "grenade_type", "map_name",
@@ -664,6 +814,7 @@ class DemoParser:
             "land_x", "land_y", "land_z",
             "pitch", "yaw",
             "throw_technique", "click_type",
+            "trajectory",
             "round_winner", "utility_damage",
         ]
         for col in desired:
@@ -679,3 +830,370 @@ class DemoParser:
             return header.get("map_name", "unknown")
         except Exception:
             return "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Full-match timeline extraction (Match Replay viewer)
+# ---------------------------------------------------------------------------
+# This sits alongside DemoParser.parse_demo — it does NOT share the grenade
+# clustering pipeline. That path only needs grenade_thrown + detonate + round
+# events; the replay viewer needs every player's per-tick position plus kills,
+# shots, bombs, and grenade trails. Parsing all of that is an order of magnitude
+# heavier, so we keep it as a separate entrypoint that the /match-replay
+# endpoint calls on-demand and caches to disk.
+
+def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
+    """
+    Parse a single .dem into a JSON-serializable timeline bundle for the
+    in-browser 2D replay viewer.
+
+    Shape returned (matches backend.models.schemas.MatchTimeline):
+        {
+          "map_name": "de_mirage",
+          "tick_rate": 64,
+          "decimation": 8,
+          "tick_max": 152300,
+          "players": [{steamid, name, team_num}, ...],
+          "positions": {steamid: [{t, x, y, yaw, alive, hp}, ...]},
+          "grenades": [{type, thrower, points: [[t, x, y], ...], detonate_tick}],
+          "events": [{type, tick, data: {...}}],
+          "rounds": [{num, start_tick, end_tick, winner}],
+        }
+
+    `decimation` controls how aggressively per-tick position samples are
+    thinned — 8 means every 8th tick (~8 Hz at 64-tick), which yields ~4 MB of
+    JSON for a full match and is fine to interpolate on the frontend.
+    """
+    try:
+        from demoparser2 import DemoParser as _DP  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError(
+            "demoparser2 is not installed. Run: pip install demoparser2"
+        ) from exc
+
+    parser = _DP(str(demo_path))
+
+    # ---- header / map --------------------------------------------------
+    try:
+        header = parser.parse_header()
+        map_name = str(header.get("map_name", "unknown"))
+    except Exception:
+        map_name = "unknown"
+
+    # ---- per-tick positions --------------------------------------------
+    try:
+        ticks_df = parser.parse_ticks(
+            ["X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num"]
+        )
+    except Exception as exc:
+        logger.error("parse_ticks failed: %s", exc)
+        ticks_df = pd.DataFrame()
+
+    positions: dict[str, list[dict]] = {}
+    players: list[dict] = []
+    tick_max = 0
+
+    if ticks_df is not None and len(ticks_df) > 0:
+        df = ticks_df.copy()
+        if "tick" in df.columns:
+            df = df[df["tick"] % decimation == 0]
+        df["steamid"] = df["steamid"].astype(str)
+
+        if len(df) > 0:
+            tick_max = int(df["tick"].max())
+
+        # Build the player roster once using the mode of name/team per steamid.
+        roster_rows: list[dict] = []
+        for sid, group in df.groupby("steamid", sort=False):
+            name_series = group.get("name")
+            if name_series is None:
+                continue
+            name = str(name_series.mode().iloc[0]) if len(name_series.mode()) else ""
+            team_series = group.get("team_num")
+            team_num = 0
+            if team_series is not None and len(team_series):
+                try:
+                    team_num = int(team_series.mode().iloc[0])
+                except Exception:
+                    team_num = 0
+            roster_rows.append(
+                {"steamid": sid, "name": name, "team_num": team_num}
+            )
+        # Drop any bot/spec rows that show no team (team_num 0/1) if we also
+        # have real players — this matches the frontend's expectation that
+        # `players` is a clean 10-slot list.
+        real = [r for r in roster_rows if r["team_num"] in (2, 3)]
+        players = real if real else roster_rows
+
+        real_sids = {r["steamid"] for r in players}
+        for sid, group in df.groupby("steamid", sort=False):
+            if sid not in real_sids:
+                continue
+            group = group.sort_values("tick")
+            samples: list[dict] = []
+            for row in group.itertuples(index=False):
+                samples.append(
+                    {
+                        "t": int(getattr(row, "tick")),
+                        "x": round(float(getattr(row, "X", 0.0) or 0.0), 1),
+                        "y": round(float(getattr(row, "Y", 0.0) or 0.0), 1),
+                        "yaw": round(float(getattr(row, "yaw", 0.0) or 0.0), 1),
+                        "alive": bool(getattr(row, "is_alive", False)),
+                        "hp": int(getattr(row, "health", 0) or 0),
+                    }
+                )
+            positions[sid] = samples
+
+    # ---- events --------------------------------------------------------
+    events: list[dict] = []
+
+    def _push_events(raw_name: str, mapper):
+        try:
+            edf = parser.parse_event(raw_name)
+        except Exception as exc:
+            logger.debug("%s parse failed: %s", raw_name, exc)
+            return
+        if edf is None or len(edf) == 0:
+            return
+        for row in edf.to_dict(orient="records"):
+            tick = row.get("tick")
+            if tick is None:
+                continue
+            try:
+                payload = mapper(row)
+            except Exception as exc:
+                logger.debug("%s mapper failed: %s", raw_name, exc)
+                continue
+            if payload is None:
+                continue
+            events.append({"type": payload[0], "tick": int(tick), "data": payload[1]})
+
+    def _str(v) -> str:
+        if v is None:
+            return ""
+        try:
+            if pd.isna(v):
+                return ""
+        except Exception:
+            pass
+        return str(v)
+
+    _push_events(
+        "player_death",
+        lambda r: (
+            "death",
+            {
+                "attacker": _str(r.get("attacker_steamid")),
+                "victim": _str(r.get("user_steamid")),
+                "weapon": _str(r.get("weapon")),
+                "headshot": _str(r.get("headshot")),
+            },
+        ),
+    )
+    _push_events(
+        "weapon_fire",
+        lambda r: (
+            "fire",
+            {
+                "shooter": _str(r.get("user_steamid")),
+                "weapon": _str(r.get("weapon")),
+            },
+        ),
+    )
+    _push_events(
+        "bomb_planted",
+        lambda r: (
+            "bomb_plant",
+            {
+                "planter": _str(r.get("user_steamid")),
+                "site": _str(r.get("site")),
+            },
+        ),
+    )
+    _push_events(
+        "bomb_defused",
+        lambda r: (
+            "bomb_defuse",
+            {
+                "defuser": _str(r.get("user_steamid")),
+                "site": _str(r.get("site")),
+            },
+        ),
+    )
+
+    # Rounds — use round_start / round_end to build a rounds list, and also
+    # push the raw events so the frontend can render start/end markers.
+    rounds: list[dict] = []
+    try:
+        starts = parser.parse_event("round_start")
+    except Exception:
+        starts = None
+    try:
+        ends = parser.parse_event("round_end")
+    except Exception:
+        ends = None
+
+    start_ticks: list[int] = []
+    if starts is not None and len(starts):
+        # Filter out the warmup round_start at tick 0 to match the round_end
+        # filter below — otherwise the round pairing is off by one.
+        start_ticks = sorted(int(t) for t in starts["tick"].tolist() if int(t) > 0)
+        for t in start_ticks:
+            events.append({"type": "round_start", "tick": int(t), "data": {}})
+
+    end_rows: list[dict] = []
+    if ends is not None and len(ends):
+        for row in ends.to_dict(orient="records"):
+            t = row.get("tick")
+            if t is None:
+                continue
+            winner = _str(row.get("winner")) or None
+            # Skip warmup / pre-match dummy events: tick 0 or no winner.
+            # demoparser2 emits a round_end at tick=0 with winner=nan for the
+            # pre-game phase. Including it off-by-ones every round number.
+            if int(t) == 0 or not winner:
+                continue
+            end_rows.append({"tick": int(t), "winner": winner})
+            events.append(
+                {"type": "round_end", "tick": int(t), "data": {"winner": winner or ""}}
+            )
+        end_rows.sort(key=lambda r: r["tick"])
+
+    # Pair starts/ends into numbered rounds. If starts are missing (rare on
+    # old demos), fall back to using the previous end_tick as the start.
+    prev_end = 0
+    for i, er in enumerate(end_rows):
+        start_tick = 0
+        if start_ticks:
+            before = [s for s in start_ticks if s <= er["tick"]]
+            if before:
+                start_tick = before[-1]
+        if start_tick == 0:
+            start_tick = prev_end
+        rounds.append(
+            {
+                "num": i + 1,
+                "start_tick": int(start_tick),
+                "end_tick": int(er["tick"]),
+                "winner": er["winner"],
+            }
+        )
+        prev_end = er["tick"]
+
+    events.sort(key=lambda e: e["tick"])
+
+    # ---- grenade trails ------------------------------------------------
+    grenades: list[dict] = []
+    try:
+        raw_gren = parser.parse_grenades()
+    except Exception as exc:
+        logger.debug("parse_grenades failed: %s", exc)
+        raw_gren = None
+
+    if raw_gren is not None and len(raw_gren) > 0 and hasattr(raw_gren, "columns"):
+        needed = {"grenade_type", "grenade_entity_id", "x", "y", "tick", "steamid"}
+        if needed.issubset(raw_gren.columns):
+            g = raw_gren.dropna(subset=["x", "y"]).copy()
+            g["steamid"] = g["steamid"].astype(str)
+            # parse_grenades() returns class names like CSmokeGrenade,
+            # CMolotovProjectile, CHEGrenadeProjectile, CFlashbang, etc.
+            # Normalize to the tokens WEAPON_TO_TYPE expects: smokegrenade,
+            # hegrenade, flashbang, molotov, decoy.
+            gtype_raw = g["grenade_type"].astype(str).str.lower()
+            # Strip leading "c", trailing "projectile", and underscores.
+            gtype_clean = (
+                gtype_raw
+                .str.replace("projectile", "", regex=False)
+                .str.replace("_", "", regex=False)
+                .str.replace(r"^c(?=smoke|he|flash|molotov|decoy|incendiary)", "", regex=True)
+            )
+            g["grenade_type"] = gtype_clean.map(WEAPON_TO_TYPE)
+            # Also try adding "grenade" suffix for types like "smoke" → "smokegrenade"
+            fallback = (gtype_clean + "grenade").map(WEAPON_TO_TYPE)
+            g["grenade_type"] = g["grenade_type"].fillna(fallback)
+            g = g.dropna(subset=["grenade_type"])
+            g = g.sort_values(["grenade_entity_id", "tick"])
+            # grenade_entity_id is recycled by the engine — the same ID can
+            # appear for completely different grenades in later rounds. Split
+            # each entity group on large tick gaps (>192 = 3 seconds) to
+            # isolate individual grenade lifetimes.
+            GAP_THRESHOLD = 192  # 3 seconds at 64 tick/s
+            STILL_THRESHOLD_SQ = 4.0  # 2² game-units squared
+            STILL_COUNT = 3
+
+            for _entity_id, entity_group in g.groupby("grenade_entity_id", sort=False):
+                entity_pts = entity_group[["tick", "x", "y"]].to_numpy(dtype=float)
+                entity_meta = entity_group[["grenade_type", "steamid"]]
+                if len(entity_pts) < 2:
+                    continue
+
+                # Sub-split on tick gaps to handle recycled entity IDs
+                splits: list[tuple[int, int]] = []  # (start_idx, end_idx) exclusive
+                seg_start = 0
+                for pi in range(1, len(entity_pts)):
+                    if entity_pts[pi][0] - entity_pts[pi - 1][0] > GAP_THRESHOLD:
+                        splits.append((seg_start, pi))
+                        seg_start = pi
+                splits.append((seg_start, len(entity_pts)))
+
+                for seg_start_idx, seg_end_idx in splits:
+                    pts_raw = entity_pts[seg_start_idx:seg_end_idx]
+                    if len(pts_raw) < 2:
+                        continue
+
+                    # Detect landing: first tick where position stays within
+                    # 2 game-units of the previous sample for 3+ consecutive
+                    # frames. This runs on raw per-tick data BEFORE decimation.
+                    det_idx = len(pts_raw) - 1
+                    still_run = 0
+                    for pi in range(1, len(pts_raw)):
+                        dx = pts_raw[pi][1] - pts_raw[pi - 1][1]
+                        dy = pts_raw[pi][2] - pts_raw[pi - 1][2]
+                        if (dx * dx + dy * dy) < STILL_THRESHOLD_SQ:
+                            still_run += 1
+                            if still_run >= STILL_COUNT:
+                                det_idx = pi - STILL_COUNT
+                                break
+                        else:
+                            still_run = 0
+
+                    detonate_tick = int(pts_raw[det_idx][0])
+                    flight_pts = pts_raw[: det_idx + 1]
+                    if len(flight_pts) < 2:
+                        flight_pts = pts_raw[:2]
+
+                    # Decimate: at most 60 points per projectile
+                    if len(flight_pts) > 60:
+                        stride = max(1, len(flight_pts) // 60)
+                        idx = list(range(0, len(flight_pts), stride))
+                        if idx[-1] != len(flight_pts) - 1:
+                            idx.append(len(flight_pts) - 1)
+                        flight_pts = flight_pts[idx]
+
+                    points = [
+                        [int(t), round(float(x), 1), round(float(y), 1)]
+                        for t, x, y in flight_pts
+                    ]
+                    meta_row = entity_meta.iloc[
+                        min(seg_start_idx, len(entity_meta) - 1)
+                    ]
+                    grenades.append(
+                        {
+                            "type": str(meta_row["grenade_type"]),
+                            "thrower": str(meta_row["steamid"]),
+                            "points": points,
+                            "detonate_tick": detonate_tick,
+                        }
+                    )
+
+    return {
+        "map_name": map_name,
+        "tick_rate": 64,
+        "decimation": decimation,
+        "tick_max": tick_max,
+        "players": players,
+        "positions": positions,
+        "grenades": grenades,
+        "events": events,
+        "rounds": rounds,
+    }

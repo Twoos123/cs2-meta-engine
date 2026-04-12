@@ -10,7 +10,10 @@
 import { useState } from "react";
 import {
   LineupRanking,
+  ReplayStringResponse,
+  describeLineup,
   getConsoleString,
+  getReplayString,
   practiceLineup,
 } from "../api/client";
 
@@ -40,15 +43,34 @@ const CLICK_LABEL: Record<string, string> = {
 interface Props {
   ranking: LineupRanking;
   selected?: boolean;
+  // Active player filter from the dashboard. When set, the Replay button
+  // forwards it to /api/replay so the seek jumps to that player's own
+  // throw in this cluster (and spec_player locks to them).
+  activePlayer?: string | null;
 }
 
 type ButtonState = "idle" | "loading" | "success" | "error";
 
-export default function LineupCard({ ranking, selected = false }: Props) {
+export default function LineupCard({
+  ranking,
+  selected = false,
+  activePlayer = null,
+}: Props) {
   const { rank, cluster, impact_score } = ranking;
   const [copyState, setCopyState] = useState<ButtonState>("idle");
+  const [replayState, setReplayState] = useState<ButtonState>("idle");
   const [practiceState, setPracticeState] = useState<ButtonState>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Two-step replay flow: after a successful load-string copy we enter
+  // "seek" phase and the same button copies demo_goto on the next click.
+  // Chaining playdemo+demo_goto into one paste races CS2's async loader and
+  // drops the seek; splitting it lets the user wait for the demo to load.
+  const [replayPhase, setReplayPhase] = useState<"load" | "seek">("load");
+  const [replayData, setReplayData] = useState<ReplayStringResponse | null>(
+    null,
+  );
+  const [aiDesc, setAiDesc] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const flashState = (
     setter: (s: ButtonState) => void,
@@ -72,6 +94,41 @@ export default function LineupCard({ ranking, selected = false }: Props) {
     }
   };
 
+  const handleReplay = async () => {
+    setErrorMsg(null);
+    if (replayPhase === "seek" && replayData) {
+      try {
+        await navigator.clipboard.writeText(replayData.seek_string);
+        setReplayState("success");
+        setTimeout(() => {
+          setReplayState("idle");
+          setReplayPhase("load");
+          setReplayData(null);
+        }, 1800);
+      } catch {
+        setErrorMsg("Clipboard write failed");
+        flashState(setReplayState, "error");
+      }
+      return;
+    }
+    setReplayState("loading");
+    try {
+      const res = await getReplayString(
+        cluster.cluster_id,
+        cluster.map_name,
+        activePlayer ?? undefined,
+      );
+      await navigator.clipboard.writeText(res.load_string);
+      setReplayData(res);
+      setReplayPhase("seek");
+      setReplayState("success");
+      setTimeout(() => setReplayState("idle"), 1800);
+    } catch (e: any) {
+      setErrorMsg(e?.response?.data?.detail ?? "Replay lookup failed");
+      flashState(setReplayState, "error");
+    }
+  };
+
   const handlePractice = async () => {
     setPracticeState("loading");
     setErrorMsg(null);
@@ -86,6 +143,19 @@ export default function LineupCard({ ranking, selected = false }: Props) {
     } catch {
       setErrorMsg("RCON connection failed — is CS2 running?");
       flashState(setPracticeState, "error");
+    }
+  };
+
+  const handleDescribe = async () => {
+    if (aiDesc || aiLoading) return;
+    setAiLoading(true);
+    try {
+      const res = await describeLineup(cluster.cluster_id, cluster.map_name);
+      setAiDesc(res.description);
+    } catch {
+      setAiDesc("Failed to generate description.");
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -117,6 +187,21 @@ export default function LineupCard({ ranking, selected = false }: Props) {
       : practiceState === "error"
       ? "RCON error"
       : "Practice";
+
+  const hasDemoPointer =
+    cluster.demo_file != null && cluster.demo_tick != null;
+  const replayLabel =
+    replayState === "loading"
+      ? "…"
+      : replayState === "error"
+      ? "Failed"
+      : replayState === "success"
+      ? replayPhase === "seek"
+        ? "Load ✓ → Seek"
+        : "Seek ✓"
+      : replayPhase === "seek"
+      ? "Copy Seek"
+      : "Replay";
 
   return (
     <div
@@ -245,6 +330,21 @@ export default function LineupCard({ ranking, selected = false }: Props) {
         </div>
       )}
 
+      {/* AI description */}
+      {aiDesc ? (
+        <p className="text-[10px] text-gray-300 leading-relaxed border-l-2 border-cs2-accent/40 pl-2 italic">
+          {aiDesc}
+        </p>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); handleDescribe(); }}
+          disabled={aiLoading}
+          className="text-[10px] text-cs2-muted hover:text-cs2-accent transition self-start"
+        >
+          {aiLoading ? "Generating..." : "AI Describe"}
+        </button>
+      )}
+
       {/* Error message — shown inline so it never overlaps buttons */}
       {errorMsg && (
         <p className="text-[10px] text-cs2-red border-l-2 border-cs2-red/50 pl-2">
@@ -252,29 +352,51 @@ export default function LineupCard({ ranking, selected = false }: Props) {
         </p>
       )}
 
-      {/* Action buttons */}
-      <div className="flex gap-2 mt-auto pt-1">
+      {/* Action buttons — three-up: Copy, Replay, Practice. Each button is
+          text-[10px] with flex-1 min-w-0 so they don't overflow the card at
+          narrow grid widths. */}
+      <div className="flex gap-1.5 mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={handleCopy}
           disabled={copyState === "loading"}
-          className={
+          className={`flex-1 min-w-0 text-[10px] ${
             copyState === "success"
-              ? "hud-btn-primary flex-1"
+              ? "hud-btn-primary"
               : copyState === "error"
-              ? "hud-btn-danger flex-1"
-              : "hud-btn flex-1"
-          }
+                ? "hud-btn-danger"
+                : "hud-btn"
+          }`}
         >
           {copyLabel}
         </button>
         <button
+          onClick={handleReplay}
+          disabled={!hasDemoPointer || replayState === "loading"}
+          title={
+            hasDemoPointer
+              ? replayPhase === "seek"
+                ? "Step 2: paste this `demo_goto … 0 1; spec_player <slot>` into CS2 console after the demo has loaded. It parks playback paused ~5s before the throw AND locks the camera to the thrower — spacebar to watch."
+                : "Step 1: copies `playdemo <file>`. Paste into CS2 console, wait for the demo to load, then click this button again to copy the seek + spectate command. Demo file must be in game/csgo/."
+              : "No demo pointer stored — re-run the pipeline for this map."
+          }
+          className={`flex-1 min-w-0 text-[10px] ${
+            !hasDemoPointer
+              ? "hud-btn opacity-40 cursor-not-allowed"
+              : replayState === "error"
+                ? "hud-btn-danger"
+                : replayState === "success" || replayPhase === "seek"
+                  ? "hud-btn-primary"
+                  : "hud-btn"
+          }`}
+        >
+          {replayLabel}
+        </button>
+        <button
           onClick={handlePractice}
           disabled={practiceState === "loading"}
-          className={
-            practiceState === "error"
-              ? "hud-btn-danger flex-1"
-              : "hud-btn-primary flex-1"
-          }
+          className={`flex-1 min-w-0 text-[10px] ${
+            practiceState === "error" ? "hud-btn-danger" : "hud-btn-primary"
+          }`}
         >
           {practiceLabel}
         </button>

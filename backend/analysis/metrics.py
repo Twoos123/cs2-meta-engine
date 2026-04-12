@@ -28,7 +28,13 @@ import pandas as pd
 from backend.config import settings
 from backend.ingestion.demo_parser import DemoParser
 from backend.analysis.clustering import GrenadeClusterer
-from backend.models.schemas import LineupCluster, LineupRanking, TopThrower
+from backend.models.schemas import (
+    ExecuteCombo,
+    ExecuteComboMember,
+    LineupCluster,
+    LineupRanking,
+    TopThrower,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +62,31 @@ CREATE TABLE IF NOT EXISTS lineup_clusters (
     technique_agreement   REAL,
     primary_click         TEXT,
     click_agreement       REAL,
+    side                  TEXT,
+    demo_file             TEXT,
+    demo_tick             INTEGER,
+    demo_thrower_name     TEXT,
+    trajectory            TEXT,
     impact_score          REAL,
     rank_position         INTEGER,
     created_at            TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_map_type ON lineup_clusters (map_name, grenade_type);
+
+CREATE TABLE IF NOT EXISTS execute_combos (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    map_name          TEXT NOT NULL,
+    name              TEXT,
+    members           TEXT,
+    occurrence_count  INTEGER,
+    round_win_rate    REAL,
+    side              TEXT,
+    grenade_summary   TEXT,
+    created_at        TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_exec_map ON execute_combos (map_name);
 """
 
 
@@ -145,6 +170,26 @@ class MetricsPipeline:
                     self._persist_rankings(rankings)
                     all_rankings.extend(rankings)
 
+        # ----------------------------------------------------------
+        # Execute detection — find coordinated utility combos
+        # ----------------------------------------------------------
+        for m in maps:
+            all_clusters_for_map = []
+            for g in types:
+                all_clusters_for_map.extend(
+                    self.get_top_lineups(map_name=m, grenade_type=g, limit=9999)
+                )
+            if len(all_clusters_for_map) >= 3:
+                from backend.analysis.executes import detect_executes
+
+                executes = detect_executes(
+                    df, [r.cluster for r in all_clusters_for_map], m,
+                )
+                if clear_existing:
+                    self._delete_executes(map_name=m)
+                if executes:
+                    self._persist_executes(executes, m)
+
         logger.info("Pipeline complete — %d ranked lineups stored.", len(all_rankings))
         return all_rankings
 
@@ -158,18 +203,24 @@ class MetricsPipeline:
         map_name: str,
         grenade_type: str,
         limit: int = 10,
+        side: Optional[str] = None,
     ) -> List[LineupRanking]:
-        """Return the top `limit` ranked lineups from the DB."""
+        """Return the top `limit` ranked lineups from the DB.
+
+        `side` filters to "T" or "CT" — older rows (where side wasn't yet
+        persisted) are NULL and excluded by the filter so the user doesn't
+        see ghosts from before the column existed.
+        """
+        sql = "SELECT * FROM lineup_clusters WHERE map_name = ? AND grenade_type = ?"
+        params: list = [map_name, grenade_type]
+        if side in ("T", "CT"):
+            sql += " AND side = ?"
+            params.append(side)
+        sql += " ORDER BY rank_position ASC LIMIT ?"
+        params.append(limit)
+
         with self._connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT * FROM lineup_clusters
-                WHERE map_name = ? AND grenade_type = ?
-                ORDER BY rank_position ASC
-                LIMIT ?
-                """,
-                (map_name, grenade_type, limit),
-            ).fetchall()
+            rows = conn.execute(sql, tuple(params)).fetchall()
 
         return [self._row_to_ranking(r) for r in rows]
 
@@ -248,6 +299,11 @@ class MetricsPipeline:
                 ("technique_agreement", "ALTER TABLE lineup_clusters ADD COLUMN technique_agreement REAL"),
                 ("primary_click",       "ALTER TABLE lineup_clusters ADD COLUMN primary_click TEXT"),
                 ("click_agreement",     "ALTER TABLE lineup_clusters ADD COLUMN click_agreement REAL"),
+                ("side",                "ALTER TABLE lineup_clusters ADD COLUMN side TEXT"),
+                ("demo_file",           "ALTER TABLE lineup_clusters ADD COLUMN demo_file TEXT"),
+                ("demo_tick",           "ALTER TABLE lineup_clusters ADD COLUMN demo_tick INTEGER"),
+                ("demo_thrower_name",   "ALTER TABLE lineup_clusters ADD COLUMN demo_thrower_name TEXT"),
+                ("trajectory",          "ALTER TABLE lineup_clusters ADD COLUMN trajectory TEXT"),
             ]
             for col, stmt in migrations:
                 if col in existing:
@@ -290,6 +346,11 @@ class MetricsPipeline:
                     c.technique_agreement,
                     c.primary_click,
                     c.click_agreement,
+                    c.side,
+                    c.demo_file,
+                    c.demo_tick,
+                    c.demo_thrower_name,
+                    json.dumps(c.trajectory) if c.trajectory else None,
                     r.impact_score,
                     r.rank,
                 )
@@ -306,8 +367,9 @@ class MetricsPipeline:
                    label, top_throwers,
                    primary_technique, technique_agreement,
                    primary_click, click_agreement,
+                   side, demo_file, demo_tick, demo_thrower_name, trajectory,
                    impact_score, rank_position)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 rows,
             )
@@ -322,13 +384,80 @@ class MetricsPipeline:
             conn.commit()
 
     def clear_all(self) -> int:
-        """Drop every row from lineup_clusters. Returns the number deleted."""
+        """Drop every row from lineup_clusters and execute_combos."""
         with self._connect() as conn:
             cur = conn.execute("DELETE FROM lineup_clusters")
             deleted = cur.rowcount
+            conn.execute("DELETE FROM execute_combos")
             conn.commit()
         logger.info("Cleared %d rows from lineup_clusters", deleted)
         return deleted
+
+    # ------------------------------------------------------------------
+    # Execute combos — persistence and read
+    # ------------------------------------------------------------------
+
+    def get_executes(self, *, map_name: str) -> List[ExecuteCombo]:
+        """Return all detected execute combos for a map."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM execute_combos WHERE map_name = ? ORDER BY occurrence_count DESC",
+                (map_name,),
+            ).fetchall()
+
+        results: List[ExecuteCombo] = []
+        for row in rows:
+            members: List[ExecuteComboMember] = []
+            raw = row["members"]
+            if raw:
+                try:
+                    members = [ExecuteComboMember(**m) for m in json.loads(raw)]
+                except Exception:
+                    members = []
+            results.append(ExecuteCombo(
+                execute_id=row["id"],
+                map_name=row["map_name"],
+                name=row["name"] or "",
+                members=members,
+                occurrence_count=row["occurrence_count"] or 0,
+                round_win_rate=row["round_win_rate"] or 0.0,
+                side=row["side"],
+                grenade_summary=row["grenade_summary"] or "",
+            ))
+        return results
+
+    def _persist_executes(self, executes: List[ExecuteCombo], map_name: str) -> None:
+        rows = []
+        for e in executes:
+            rows.append((
+                map_name,
+                e.name,
+                json.dumps([m.model_dump() for m in e.members]),
+                e.occurrence_count,
+                e.round_win_rate,
+                e.side,
+                e.grenade_summary,
+            ))
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO execute_combos
+                    (map_name, name, members, occurrence_count,
+                     round_win_rate, side, grenade_summary)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            conn.commit()
+        logger.info("Persisted %d execute combos for %s", len(rows), map_name)
+
+    def _delete_executes(self, *, map_name: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM execute_combos WHERE map_name = ?",
+                (map_name,),
+            )
+            conn.commit()
 
     @staticmethod
     def _row_to_ranking(row: sqlite3.Row) -> LineupRanking:
@@ -343,6 +472,17 @@ class MetricsPipeline:
 
         def _opt(col: str):
             return row[col] if col in keys else None
+
+        def _load_trajectory(raw) -> Optional[List[List[float]]]:
+            if not raw:
+                return None
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                return None
+            if not isinstance(parsed, list) or len(parsed) < 2:
+                return None
+            return parsed
 
         cluster = LineupCluster(
             cluster_id=row["id"],
@@ -366,6 +506,11 @@ class MetricsPipeline:
             technique_agreement=_opt("technique_agreement") or 0.0,
             primary_click=_opt("primary_click"),
             click_agreement=_opt("click_agreement") or 0.0,
+            side=_opt("side"),
+            demo_file=_opt("demo_file"),
+            demo_tick=_opt("demo_tick"),
+            demo_thrower_name=_opt("demo_thrower_name"),
+            trajectory=_load_trajectory(_opt("trajectory")),
         )
         return LineupRanking(
             rank=row["rank_position"],

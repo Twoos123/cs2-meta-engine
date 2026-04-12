@@ -36,16 +36,21 @@ from backend.analysis import callouts
 from backend.models.schemas import LineupCluster, LineupRanking, TopThrower
 
 # Bucket tolerances for merging "the same lineup". A CS2 character is ~32
-# units wide, so 50u lets a pro adjust their stance by up to half a body
-# without fragmenting into two rows; 3° on the aim angles is roughly the
-# precision a player can consistently reproduce by eye.
-POS_BUCKET = 50.0  # world units
-ANG_BUCKET = 3.0   # degrees
+# units wide, so 75u lets a pro adjust their stance by a couple body-widths
+# without fragmenting into two rows, and 6° on the aim angles absorbs the
+# usual 2–4° of human aim jitter between pros reproducing the same lineup.
+# These sizes were tuned after observing ~80% singletons at 50u/3° on a
+# batch of 9 Mirage demos — tight bucketing was fracturing lineups on
+# rounding boundaries instead of merging them.
+POS_BUCKET = 75.0  # world units
+ANG_BUCKET = 6.0   # degrees
 
 # Minimum round win rate required for a lineup to survive the post-filter.
-# 50% means "helped win at least as often as it lost" — anything below
-# that is cut as "useless".
-MIN_WIN_RATE = 0.5
+# 0.0 means "show every unique lineup" — the frontend scatter is the right
+# place to filter by win rate since it can do it interactively. Hard-cutting
+# at 50% here used to drop ~40% of the raw buckets (any singleton from a
+# losing round) even though those throws are still valid reference data.
+MIN_WIN_RATE = 0.0
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +302,7 @@ class GrenadeClusterer:
         # closest to the mean — so the coordinates are guaranteed to be a
         # real standing position from a real demo tick. Angles come from that
         # same throw because averaging yaw wraps around 180° incorrectly.
+        medoid_row = None
         if "throw_x" in group.columns and len(group) > 0:
             tx = group["throw_x"].to_numpy(dtype=float)
             ty = group["throw_y"].to_numpy(dtype=float)
@@ -314,6 +320,34 @@ class GrenadeClusterer:
         else:
             throw_cx = throw_cy = throw_cz = 0.0
             avg_pitch = avg_yaw = 0.0
+
+        # Pointer to the exact throw the medoid came from, for demo_goto.
+        # These are optional because older parse runs may not have a
+        # source_demo column (e.g. single-file parse_demo() calls); the
+        # frontend hides the replay button when either field is missing.
+        demo_file: Optional[str] = None
+        demo_tick: Optional[int] = None
+        demo_thrower_name: Optional[str] = None
+        trajectory: Optional[list] = None
+        if medoid_row is not None:
+            if "source_demo" in group.columns:
+                raw = medoid_row.get("source_demo")
+                if raw is not None and pd.notna(raw):
+                    demo_file = str(raw) or None
+            if "tick" in group.columns:
+                raw_tick = medoid_row.get("tick")
+                if raw_tick is not None and pd.notna(raw_tick):
+                    demo_tick = int(raw_tick)
+            if "thrower_name" in group.columns:
+                raw_name = medoid_row.get("thrower_name")
+                if raw_name is not None and pd.notna(raw_name):
+                    demo_thrower_name = str(raw_name) or None
+            # Trajectory is a list-of-lists; pd.notna on a list returns an
+            # array of bools, so we have to type-check instead of using notna.
+            if "trajectory" in group.columns:
+                raw_traj = medoid_row.get("trajectory")
+                if isinstance(raw_traj, list) and len(raw_traj) >= 2:
+                    trajectory = raw_traj
 
         throw_count = len(group)
 
@@ -345,7 +379,22 @@ class GrenadeClusterer:
             group.get("click_type"), drop_values={"none"}
         )
 
-        # Who actually threw this lineup? Top 3 most frequent thrower names.
+        # Team side of the throwers. team_num 2=T, 3=CT. Because throw
+        # position is already in the bucket key, a single bucket is
+        # overwhelmingly one side; we just pick the mode.
+        side: Optional[str] = None
+        if "team_num" in group.columns:
+            tn = group["team_num"].dropna()
+            if not tn.empty:
+                top = int(tn.mode().iloc[0])
+                side = {2: "T", 3: "CT"}.get(top)
+
+        # Who actually threw this lineup? Top 3 most frequent thrower names,
+        # each carrying a pointer to a real throw BY that player so the
+        # replay flow can seek to the right take when the dashboard's player
+        # filter is active. Per-player medoid = the row closest to that
+        # player's own throw-position mean (guarantees a real tick, not an
+        # averaged ghost). Single-throw players get their one row directly.
         top_throwers: List[TopThrower] = []
         if "thrower_name" in group.columns:
             vc = (
@@ -355,11 +404,36 @@ class GrenadeClusterer:
                 .value_counts()
                 .head(3)
             )
-            top_throwers = [
-                TopThrower(name=str(name), count=int(count))
-                for name, count in vc.items()
-                if name and name.lower() != "nan"
-            ]
+            for name, count in vc.items():
+                if not name or name.lower() == "nan":
+                    continue
+                player_rows = group[group["thrower_name"].astype(str) == name]
+                player_file: Optional[str] = None
+                player_tick: Optional[int] = None
+                if len(player_rows) and "throw_x" in player_rows.columns:
+                    ptx = player_rows["throw_x"].to_numpy(dtype=float)
+                    pty = player_rows["throw_y"].to_numpy(dtype=float)
+                    ptz = player_rows["throw_z"].to_numpy(dtype=float)
+                    pmx, pmy, pmz = ptx.mean(), pty.mean(), ptz.mean()
+                    pdists = (ptx - pmx) ** 2 + (pty - pmy) ** 2 + (ptz - pmz) ** 2
+                    pidx = int(np.argmin(pdists))
+                    prow = player_rows.iloc[pidx]
+                    if "source_demo" in player_rows.columns:
+                        raw = prow.get("source_demo")
+                        if raw is not None and pd.notna(raw):
+                            player_file = str(raw) or None
+                    if "tick" in player_rows.columns:
+                        raw_tick = prow.get("tick")
+                        if raw_tick is not None and pd.notna(raw_tick):
+                            player_tick = int(raw_tick)
+                top_throwers.append(
+                    TopThrower(
+                        name=str(name),
+                        count=int(count),
+                        demo_file=player_file,
+                        demo_tick=player_tick,
+                    )
+                )
 
         label = self._auto_label(
             map_name=map_name,
@@ -390,6 +464,11 @@ class GrenadeClusterer:
             technique_agreement=technique_agreement,
             primary_click=primary_click,
             click_agreement=click_agreement,
+            side=side,
+            demo_file=demo_file,
+            demo_tick=demo_tick,
+            demo_thrower_name=demo_thrower_name,
+            trajectory=trajectory,
         )
 
     def _auto_label(

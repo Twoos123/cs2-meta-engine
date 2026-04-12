@@ -11,6 +11,8 @@ GET  /api/console/{cluster_id}?map_name=de_mirage     Console string
 POST /api/practice                                     RCON teleport
 POST /api/ingest/hltv                                  Scrape + download demos
 POST /api/ingest/run                                   Run analysis pipeline
+POST /api/match-replay/upload                          Upload a .dem file
+DELETE /api/match-replay/{demo_file}                   Delete a demo + cache
 GET  /api/health                                       Health check
 """
 from __future__ import annotations
@@ -21,7 +23,9 @@ import logging
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+import httpx
+
+from fastapi import FastAPI, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -34,6 +38,11 @@ from backend.models.schemas import (
     PracticeRequest,
     PracticeResponse,
     IngestionStatusResponse,
+    DemoListEntry,
+    MatchTimeline,
+    MatchInsightsResponse,
+    ExecuteCombo,
+    LineupDescriptionResponse,
 )
 from backend.analysis.metrics import MetricsPipeline
 from backend.rcon.bridge import RCONBridge, generate_console_string
@@ -61,6 +70,87 @@ app.add_middleware(
 # Singleton pipeline (shared across requests)
 _pipeline = MetricsPipeline()
 _rcon = RCONBridge()
+
+
+# ---------------------------------------------------------------------------
+# LLM helper — uses Anthropic if configured, otherwise OpenRouter free models
+# ---------------------------------------------------------------------------
+
+async def _llm_complete(prompt: str, max_tokens: int = 1500) -> str:
+    """Send a prompt to the configured LLM and return the text response."""
+
+    # Try Anthropic first (if key is set)
+    if settings.anthropic_api_key:
+        try:
+            from anthropic import Anthropic
+        except ImportError:
+            raise HTTPException(
+                status_code=503,
+                detail="anthropic SDK not installed. Run: pip install anthropic",
+            )
+        client = Anthropic(api_key=settings.anthropic_api_key)
+        message = await asyncio.to_thread(
+            client.messages.create,
+            model=settings.anthropic_model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        parts: list[str] = []
+        for block in getattr(message, "content", []) or []:
+            text = getattr(block, "text", None)
+            if text:
+                parts.append(text)
+        return "\n\n".join(parts).strip() or "(empty response)"
+
+    # Fall back to OpenRouter (free models)
+    if settings.openrouter_api_key:
+        headers = {
+            "Authorization": f"Bearer {settings.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:5173",
+            "X-Title": "CS2 Meta Engine",
+        }
+        body = {
+            "model": settings.openrouter_model,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        for attempt in range(5):
+            async with httpx.AsyncClient(timeout=90) as client:
+                resp = await client.post(
+                    f"{settings.openrouter_base_url}/chat/completions",
+                    headers=headers,
+                    json=body,
+                )
+                if resp.status_code == 429:
+                    delay = 5 * (attempt + 1)  # 5s, 10s, 15s, 20s, 25s
+                    logger.info("OpenRouter 429, retrying in %ds (attempt %d/5)", delay, attempt + 1)
+                    await asyncio.sleep(delay)
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
+                choices = data.get("choices", [])
+                if choices:
+                    return choices[0].get("message", {}).get("content", "").strip() or "(empty response)"
+                return "(empty response)"
+        raise HTTPException(
+            status_code=429,
+            detail="OpenRouter free-tier rate limit — wait ~30s and try again.",
+        )
+
+    raise HTTPException(
+        status_code=503,
+        detail="No AI API key configured. Set OPENROUTER_API_KEY (free) or ANTHROPIC_API_KEY in your .env file.",
+    )
+
+
+def _get_ai_model_name() -> str:
+    """Return the model name currently in use."""
+    if settings.anthropic_api_key:
+        return settings.anthropic_model
+    if settings.openrouter_api_key:
+        return settings.openrouter_model
+    return "none"
 
 # Concurrency guard — only one ingest job may run at a time
 _ingest_lock = asyncio.Lock()
@@ -117,32 +207,28 @@ async def get_top_lineups(
     map_name: str,
     grenade_type: str,
     limit: int = Query(10, ge=1, le=2000),
+    side: Optional[str] = Query(None, pattern="^(T|CT)$"),
 ):
     """
     Returns the top `limit` ranked grenade lineups for the given map and type.
 
     - **map_name**: e.g. `de_mirage`, `de_dust2`
     - **grenade_type**: `smokegrenade`, `hegrenade`, `flashbang`, `molotov`
-    - **limit**: number of results (1–100, default 10)
+    - **limit**: number of results (1–2000, default 10)
+    - **side**: optional T or CT filter
     """
     lineups = _pipeline.get_top_lineups(
         map_name=map_name,
         grenade_type=grenade_type,
         limit=limit,
+        side=side,
     )
-
-    if not lineups:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No lineups found for map={map_name}, type={grenade_type}. "
-                   "Run the ingestion pipeline first.",
-        )
 
     return TopLineupsResponse(
         map_name=map_name,
         grenade_type=grenade_type,
-        lineups=lineups,
-        total_clusters=len(lineups),
+        lineups=lineups or [],
+        total_clusters=len(lineups) if lineups else 0,
     )
 
 
@@ -158,7 +244,7 @@ async def get_all_types_for_map(
     """Returns ranked lineups for every grenade type available on this map."""
     types = _pipeline.list_available_types(map_name)
     if not types:
-        raise HTTPException(status_code=404, detail=f"No data found for map={map_name}")
+        return []
 
     results = []
     for gtype in types:
@@ -327,6 +413,580 @@ async def get_console_string(
         "label": cluster.label,
         "console_string": console_string,
     }
+
+
+# ---------------------------------------------------------------------------
+# Demo replay endpoint
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/replay/{cluster_id}",
+    summary="Get playdemo + demo_goto console strings for a lineup",
+)
+async def get_replay_string(
+    cluster_id: int,
+    map_name: str = Query(..., description="e.g. de_mirage"),
+    player: Optional[str] = Query(
+        None,
+        description="When set, override demo pointer + spec_player to this player if present in top_throwers",
+    ),
+):
+    """
+    Return the two console strings needed to watch a lineup in-game.
+
+    We return them SPLIT instead of chained because `playdemo X; demo_goto N`
+    in a single console paste races CS2's async demo loader: the seek fires
+    before the demo finishes loading and gets silently dropped, so playback
+    starts at tick 0. Handing the user two separate strings (load first,
+    then seek once the viewer is up) eliminates the race entirely.
+
+    When `player` is set (the dashboard's player filter), we look that
+    player up in the cluster's top_throwers list. If found AND that player
+    has a per-thrower demo pointer stored, we switch to their demo/tick —
+    so filtering to "zywoo" seeks to a real zywoo throw, not some medoid
+    teammate's. If the player is in top_throwers but without a pointer
+    (pre-migration rows) we keep the cluster medoid tick but still
+    override spec_player to their name so the camera at least locks to
+    them. If the player isn't in top_throwers at all we do the same —
+    spec-only override.
+
+    Returns 404 when the cluster doesn't exist or when the medoid pointer
+    wasn't persisted (pre-migration rows — re-run the pipeline to refresh).
+    """
+    cluster = _pipeline.get_cluster_by_id(cluster_id, map_name)
+    if cluster is None:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    if not cluster.demo_file or cluster.demo_tick is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No demo pointer stored for this cluster — re-run the pipeline.",
+        )
+
+    demo_file = cluster.demo_file
+    demo_tick = cluster.demo_tick
+    thrower_name = cluster.demo_thrower_name
+
+    if player:
+        needle = player.strip().lower()
+        match = next(
+            (
+                t
+                for t in (cluster.top_throwers or [])
+                if t.name and t.name.lower() == needle
+            ),
+            None,
+        )
+        if match:
+            if match.demo_file and match.demo_tick is not None:
+                demo_file = match.demo_file
+                demo_tick = match.demo_tick
+            thrower_name = match.name
+        else:
+            thrower_name = player.strip() or thrower_name
+
+    lead_in_tick = max(0, demo_tick - 320)
+    load_string = f"playdemo {demo_file}"
+    # CS2 demo playback ignores spec_player "name" but reliably accepts
+    # numeric 1-based slot indices (spec_player 1 through spec_player 10).
+    # We resolve the thrower's name to their slot via entity_id ordering
+    # from parse_ticks — same approach as CS2DemoVoices.
+    seek_parts = [f"demo_goto {lead_in_tick} 0 1"]
+    if thrower_name and demo_file:
+        slots = _get_player_slots(demo_file)
+        slot = slots.get(thrower_name.strip().lower())
+        if slot is not None:
+            seek_parts.append(f"spec_player {slot}")
+    seek_string = "; ".join(seek_parts)
+    return {
+        "cluster_id": cluster_id,
+        "map_name": map_name,
+        "demo_file": demo_file,
+        "demo_tick": demo_tick,
+        "demo_thrower_name": thrower_name,
+        "load_string": load_string,
+        "seek_string": seek_string,
+        "console_string": f"{load_string}; {seek_string}",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Player slot lookup (spec_player needs numeric index, not name)
+# ---------------------------------------------------------------------------
+# CS2 demo playback ignores `spec_player "name"` but reliably accepts numeric
+# 1-based slot indices (`spec_player 1` through `spec_player 10`). The slot
+# order is determined by sorting unique entity_ids in parse_ticks — the same
+# order the CS2DemoVoices tool relies on.
+
+_SLOT_CACHE: dict[str, dict[str, int]] = {}  # demo_file → {name_lower: slot}
+
+
+def _get_player_slots(demo_file: str) -> dict[str, int]:
+    """
+    Return a {lowercase_name: 1-based_slot} dict for the given demo file.
+    Cached so repeated calls (e.g. multiple clusters from the same demo)
+    don't re-parse. Returns an empty dict if the demo can't be read.
+    """
+    if demo_file in _SLOT_CACHE:
+        return _SLOT_CACHE[demo_file]
+
+    demo_path = settings.demo_dir / demo_file
+    if not demo_path.exists():
+        _SLOT_CACHE[demo_file] = {}
+        return {}
+
+    try:
+        from demoparser2 import DemoParser as _DP  # type: ignore
+        parser = _DP(str(demo_path))
+        df = parser.parse_ticks(["entity_id", "team_num"], ticks=[5000])
+    except Exception as exc:
+        logger.warning("slot lookup failed for %s: %s", demo_file, exc)
+        _SLOT_CACHE[demo_file] = {}
+        return {}
+
+    if df is None or len(df) == 0:
+        _SLOT_CACHE[demo_file] = {}
+        return {}
+
+    # Unique players sorted by entity_id → slot 1, 2, … 10.
+    unique = (
+        df.drop_duplicates("steamid")[["entity_id", "name", "team_num"]]
+        .sort_values("entity_id")
+        .reset_index(drop=True)
+    )
+    # Only keep real players (team_num 2=T or 3=CT).
+    unique = unique[unique["team_num"].isin([2, 3])]
+    mapping: dict[str, int] = {}
+    for slot_1based, (_, row) in enumerate(unique.iterrows(), start=1):
+        name = str(row.get("name", "")).strip().lower()
+        if name:
+            mapping[name] = slot_1based
+
+    _SLOT_CACHE[demo_file] = mapping
+    return mapping
+
+
+# ---------------------------------------------------------------------------
+# Match replay endpoints (full-match 2D viewer)
+# ---------------------------------------------------------------------------
+# Listing, timeline extraction, and Claude-generated narrative recap. Lives
+# alongside the cluster-replay endpoint above but is logically separate — it
+# parses every demo on demand (heavy) and caches the result to disk so the
+# second open is a fast disk read.
+
+_TIMELINE_CACHE_DIR = Path("data/timelines")
+_INSIGHTS_CACHE: dict[str, MatchInsightsResponse] = {}
+
+
+def _safe_demo_name(demo_file: str) -> str:
+    """
+    Validate that `demo_file` is a plain filename with no path components,
+    so an attacker can't escape settings.demo_dir via /api/match-replay/..%2Fetc..
+    Returns the bare name on success or raises HTTPException(400).
+    """
+    name = demo_file.strip()
+    if not name or "/" in name or "\\" in name or ".." in name:
+        raise HTTPException(status_code=400, detail="Invalid demo filename")
+    if not name.lower().endswith(".dem"):
+        raise HTTPException(status_code=400, detail="Not a .dem file")
+    return name
+
+
+def _parse_match_id(stem: str) -> Optional[int]:
+    """HLTV scraper writes filenames like '2391769_mirage' — pull the int."""
+    if "_" in stem:
+        head, _, _ = stem.partition("_")
+    else:
+        head = stem
+    try:
+        return int(head)
+    except ValueError:
+        return None
+
+
+@app.get(
+    "/api/match-replay/demos",
+    response_model=List[DemoListEntry],
+    summary="Flat list of every scraped .dem for the match-replay picker",
+)
+async def list_match_replay_demos():
+    demo_dir = settings.demo_dir
+    if not demo_dir.exists():
+        return []
+
+    out: list[DemoListEntry] = []
+    for p in sorted(demo_dir.glob("*.dem")):
+        stem = p.stem
+        map_token = ""
+        if "_" in stem:
+            _, _, map_token = stem.partition("_")
+            map_token = map_token.strip().lower()
+        map_name = f"de_{map_token}" if map_token else "unknown"
+        try:
+            stat = p.stat()
+        except OSError:
+            continue
+        out.append(
+            DemoListEntry(
+                demo_file=p.name,
+                map_name=map_name,
+                match_id=_parse_match_id(stem),
+                size_bytes=int(stat.st_size),
+                mtime=float(stat.st_mtime),
+            )
+        )
+    out.sort(key=lambda d: d.mtime, reverse=True)
+    return out
+
+
+@app.post(
+    "/api/match-replay/upload",
+    summary="Upload a .dem file to the demo directory",
+)
+async def upload_demo(file: UploadFile):
+    """
+    Accepts a multipart .dem upload, streams it to settings.demo_dir.
+    Returns the saved filename so the frontend can open it in the viewer.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Sanitise: only allow plain .dem filenames
+    name = file.filename.strip().replace("\\", "/").rsplit("/", 1)[-1]
+    if not name.lower().endswith(".dem"):
+        raise HTTPException(status_code=400, detail="Only .dem files are accepted")
+    if ".." in name or "/" in name or "\\" in name:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    demo_dir = settings.demo_dir
+    demo_dir.mkdir(parents=True, exist_ok=True)
+    dest = demo_dir / name
+
+    # Stream to disk in 1 MiB chunks to avoid loading 500 MB into RAM
+    max_bytes = settings.max_demo_size_mb * 1024 * 1024
+    written = 0
+    try:
+        with open(dest, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > max_bytes:
+                    f.close()
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File exceeds {settings.max_demo_size_mb} MB limit",
+                    )
+                f.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Upload failed: {exc}")
+
+    # Stat the saved file for the response
+    stat = dest.stat()
+    stem = dest.stem
+    map_token = ""
+    if "_" in stem:
+        _, _, map_token = stem.partition("_")
+        map_token = map_token.strip().lower()
+    map_name = f"de_{map_token}" if map_token else "unknown"
+
+    return DemoListEntry(
+        demo_file=dest.name,
+        map_name=map_name,
+        match_id=_parse_match_id(stem),
+        size_bytes=int(stat.st_size),
+        mtime=float(stat.st_mtime),
+    )
+
+
+@app.delete(
+    "/api/match-replay/{demo_file}",
+    summary="Delete a demo file and its cached timeline",
+)
+async def delete_demo(demo_file: str):
+    name = _safe_demo_name(demo_file)
+    path = settings.demo_dir / name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Demo not found")
+    path.unlink()
+    # Also remove cached timeline if any
+    cache_file = _TIMELINE_CACHE_DIR / f"{name}.json"
+    cache_file.unlink(missing_ok=True)
+    return {"deleted": name}
+
+
+@app.get(
+    "/api/match-replay/{demo_file}/timeline",
+    response_model=MatchTimeline,
+    summary="Parse a demo into a 2D playback timeline (cached to disk)",
+)
+async def get_match_replay_timeline(demo_file: str):
+    name = _safe_demo_name(demo_file)
+    demo_path = settings.demo_dir / name
+    if not demo_path.exists():
+        raise HTTPException(status_code=404, detail=f"Demo not found: {name}")
+
+    _TIMELINE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_path = _TIMELINE_CACHE_DIR / f"{name}.json"
+    if cache_path.exists():
+        try:
+            with cache_path.open("r", encoding="utf-8") as f:
+                return MatchTimeline.model_validate(json.load(f))
+        except Exception as exc:
+            logger.warning("Cached timeline %s unreadable, re-parsing: %s", cache_path, exc)
+
+    # Heavy: ~5–15 s per demo. Run in a worker thread so the event loop
+    # stays responsive for other requests in the meantime.
+    from backend.ingestion.demo_parser import extract_match_timeline
+
+    try:
+        bundle = await asyncio.to_thread(extract_match_timeline, demo_path)
+    except Exception as exc:
+        logger.exception("extract_match_timeline failed for %s", name)
+        raise HTTPException(status_code=500, detail=f"Timeline parse failed: {exc}")
+
+    try:
+        with cache_path.open("w", encoding="utf-8") as f:
+            json.dump(bundle, f, separators=(",", ":"))
+    except Exception as exc:
+        logger.warning("Could not cache timeline to %s: %s", cache_path, exc)
+
+    return MatchTimeline.model_validate(bundle)
+
+
+def _build_match_digest(name: str, bundle: dict) -> str:
+    """
+    Collapse a full timeline into a compact text summary for the Claude
+    prompt. Sending the raw JSON would cost ~800 KB of numbers Claude can't
+    reason about — a few KB of round-by-round prose is plenty.
+    """
+    map_name = bundle.get("map_name", "unknown")
+    rounds = bundle.get("rounds", []) or []
+    events = bundle.get("events", []) or []
+    players = bundle.get("players", []) or []
+    grenades = bundle.get("grenades", []) or []
+
+    sid_to_name = {p["steamid"]: p.get("name", p["steamid"]) for p in players}
+    sid_to_team = {p["steamid"]: p.get("team_num", 0) for p in players}
+
+    # Per-player kill / death tallies and per-round narrative.
+    kills: dict[str, int] = {}
+    deaths: dict[str, int] = {}
+    by_tick = sorted(events, key=lambda e: e.get("tick", 0))
+
+    round_lines: list[str] = []
+    t_score = 0
+    ct_score = 0
+    for r in rounds:
+        start, end = r.get("start_tick", 0), r.get("end_tick", 0)
+        winner = r.get("winner") or "?"
+        if winner == "T":
+            t_score += 1
+        elif winner == "CT":
+            ct_score += 1
+
+        round_kills: dict[str, int] = {}
+        nades_in_round = 0
+        bomb = ""
+        for e in by_tick:
+            tick = e.get("tick", 0)
+            if tick < start or tick > end:
+                continue
+            if e["type"] == "death":
+                a = e["data"].get("attacker", "")
+                v = e["data"].get("victim", "")
+                if a and a != v:
+                    kills[a] = kills.get(a, 0) + 1
+                    round_kills[a] = round_kills.get(a, 0) + 1
+                if v:
+                    deaths[v] = deaths.get(v, 0) + 1
+            elif e["type"] == "bomb_plant":
+                bomb = "planted"
+            elif e["type"] == "bomb_defuse":
+                bomb = "defused"
+        for g in grenades:
+            pts = g.get("points") or []
+            if pts and start <= pts[0][0] <= end:
+                nades_in_round += 1
+
+        top_in_round = sorted(round_kills.items(), key=lambda kv: -kv[1])[:2]
+        top_str = ", ".join(
+            f"{sid_to_name.get(sid, sid)}({n})" for sid, n in top_in_round
+        ) or "—"
+        round_lines.append(
+            f"Round {r['num']}: {winner} win"
+            + (f" ({bomb})" if bomb else "")
+            + f". Top: {top_str}. Nades: {nades_in_round}."
+        )
+
+    # Top fraggers across the whole match.
+    top_fraggers = sorted(kills.items(), key=lambda kv: -kv[1])[:5]
+    fragger_lines = [
+        f"  {sid_to_name.get(sid, sid)} ({'CT' if sid_to_team.get(sid)==3 else 'T'}): "
+        f"{n}K / {deaths.get(sid, 0)}D"
+        for sid, n in top_fraggers
+    ]
+
+    # Roster split by team.
+    t_side = [p["name"] for p in players if p.get("team_num") == 2]
+    ct_side = [p["name"] for p in players if p.get("team_num") == 3]
+
+    digest = [
+        f"Match: {name}",
+        f"Map: {map_name}",
+        f"Final score: T {t_score} – {ct_score} CT",
+        f"T side roster: {', '.join(t_side) or '—'}",
+        f"CT side roster: {', '.join(ct_side) or '—'}",
+        "",
+        "Top fraggers:",
+        *fragger_lines,
+        "",
+        "Round by round:",
+        *round_lines,
+    ]
+    return "\n".join(digest)
+
+
+@app.post(
+    "/api/match-replay/{demo_file}/insights",
+    response_model=MatchInsightsResponse,
+    summary="Claude-generated narrative recap for a match",
+)
+async def get_match_replay_insights(demo_file: str):
+    name = _safe_demo_name(demo_file)
+    if name in _INSIGHTS_CACHE:
+        return _INSIGHTS_CACHE[name]
+
+    cache_path = _TIMELINE_CACHE_DIR / f"{name}.json"
+    if not cache_path.exists():
+        # Force a parse first so the digest builder has data.
+        await get_match_replay_timeline(name)
+    if not cache_path.exists():
+        raise HTTPException(status_code=500, detail="Timeline cache missing after parse")
+
+    with cache_path.open("r", encoding="utf-8") as f:
+        bundle = json.load(f)
+
+    digest = _build_match_digest(name, bundle)
+
+    prompt = (
+        "You are a CS2 post-game analyst. Below is a structured digest of a "
+        "professional Counter-Strike 2 match. Write a 3–5 paragraph narrative "
+        "recap aimed at a fan who didn't watch live: call out the turning "
+        "points, standout players, and any interesting utility or bomb-site "
+        "trends. Plain prose, no markdown headers, no bullet lists.\n\n"
+        f"---\n{digest}\n---"
+    )
+
+    try:
+        summary = await _llm_complete(prompt, max_tokens=1500)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("LLM call failed for %s", name)
+        raise HTTPException(status_code=502, detail=f"AI error: {exc}")
+
+    resp = MatchInsightsResponse(
+        demo_file=name,
+        summary=summary,
+        model=_get_ai_model_name(),
+    )
+    _INSIGHTS_CACHE[name] = resp
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# Execute detection endpoint
+# ---------------------------------------------------------------------------
+
+@app.get(
+    "/api/executes/{map_name}",
+    response_model=List[ExecuteCombo],
+    summary="Detected coordinated utility combos for a map",
+)
+async def get_executes(map_name: str):
+    """
+    Returns recurring coordinated utility patterns detected across rounds.
+    Each combo represents a set of lineup clusters that pros frequently
+    throw together in the same round (e.g. a B site execute with 2 smokes
+    + 1 flash + 1 molotov).
+    """
+    return _pipeline.get_executes(map_name=map_name)
+
+
+# ---------------------------------------------------------------------------
+# AI lineup description endpoint
+# ---------------------------------------------------------------------------
+
+_DESCRIPTION_CACHE: dict[str, str] = {}  # "cluster_id:map_name" → description
+
+
+@app.post(
+    "/api/lineups/{cluster_id}/describe",
+    response_model=LineupDescriptionResponse,
+    summary="Generate an AI description for a lineup cluster",
+)
+async def describe_lineup(
+    cluster_id: int,
+    map_name: str = Query(..., description="e.g. de_mirage"),
+):
+    """
+    Uses Claude to generate a concise natural-language description of what
+    a lineup does and why it's effective. Cached per cluster so repeated
+    clicks are free.
+    """
+    cache_key = f"{cluster_id}:{map_name}"
+    if cache_key in _DESCRIPTION_CACHE:
+        return LineupDescriptionResponse(
+            cluster_id=cluster_id,
+            map_name=map_name,
+            description=_DESCRIPTION_CACHE[cache_key],
+            model=_get_ai_model_name(),
+        )
+
+    cluster = _pipeline.get_cluster_by_id(cluster_id, map_name)
+    if cluster is None:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+
+    throwers = ", ".join(t.name for t in (cluster.top_throwers or []) if t.name) or "unknown"
+    prompt = (
+        "You are a CS2 utility analyst writing for a player guide. "
+        "Describe this grenade lineup in 1–2 sentences: what it blocks or "
+        "clears, why it's effective, and when a team would use it. "
+        "Be specific about CS2 map geometry.\n\n"
+        f"Map: {cluster.map_name}\n"
+        f"Type: {cluster.grenade_type}\n"
+        f"Label: {cluster.label}\n"
+        f"Thrown from: ({cluster.throw_centroid_x:.0f}, {cluster.throw_centroid_y:.0f})\n"
+        f"Lands at: ({cluster.land_centroid_x:.0f}, {cluster.land_centroid_y:.0f})\n"
+        f"Technique: {cluster.primary_technique or 'unknown'}\n"
+        f"Click: {cluster.primary_click or 'unknown'}\n"
+        f"Side: {cluster.side or 'unknown'}\n"
+        f"Win rate: {cluster.round_win_rate * 100:.1f}%\n"
+        f"Throw count: {cluster.throw_count}\n"
+        f"Avg utility damage: {cluster.avg_utility_damage:.1f}\n"
+        f"Top throwers: {throwers}"
+    )
+
+    try:
+        description = await _llm_complete(prompt, max_tokens=300)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("LLM call failed for cluster %d", cluster_id)
+        raise HTTPException(status_code=502, detail=f"AI error: {exc}")
+    _DESCRIPTION_CACHE[cache_key] = description
+
+    return LineupDescriptionResponse(
+        cluster_id=cluster_id,
+        map_name=map_name,
+        description=description,
+        model=_get_ai_model_name(),
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
+    # Anthropic (Claude) API for match-replay AI insights
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-opus-4-6"
+
+    # OpenRouter free API (used when anthropic_api_key is not set)
+    openrouter_api_key: str = ""
+    openrouter_model: str = "google/gemma-3-27b-it:free"
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -44,6 +44,9 @@ const GRENADE_LABEL: Record<string, string> = {
 interface Props {
   mapName: string;
   onClose: () => void;
+  // Called when the user clicks a plotted lineup. Dashboard uses this to
+  // switch the grenade-type tab and focus the grid on the clicked nade.
+  onSelect?: (clusterId: number, grenadeType: string) => void;
 }
 
 interface FlatLineup {
@@ -51,7 +54,7 @@ interface FlatLineup {
   type: string;
 }
 
-export default function RadarView({ mapName, onClose }: Props) {
+export default function RadarView({ mapName, onClose, onSelect }: Props) {
   const [radarInfo, setRadarInfo] = useState<RadarInfo | null>(null);
   const [callouts, setCallouts] = useState<Callout[]>([]);
   const [lineups, setLineups] = useState<FlatLineup[]>([]);
@@ -60,6 +63,12 @@ export default function RadarView({ mapName, onClose }: Props) {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [showCallouts, setShowCallouts] = useState(true);
   const [hoverId, setHoverId] = useState<number | null>(null);
+
+  // Filter controls
+  const [minThrows, setMinThrows] = useState(1);
+  const [minWinRate, setMinWinRate] = useState(0);
+  const [sideFilter, setSideFilter] = useState<"all" | "T" | "CT">("all");
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,8 +115,16 @@ export default function RadarView({ mapName, onClose }: Props) {
   }, [radarInfo]);
 
   const visibleLineups = useMemo(
-    () => lineups.filter((l) => !hidden.has(l.type)),
-    [lineups, hidden],
+    () =>
+      lineups.filter((l) => {
+        if (hidden.has(l.type)) return false;
+        const c = l.ranking.cluster;
+        if (c.throw_count < minThrows) return false;
+        if (c.round_win_rate * 100 < minWinRate) return false;
+        if (sideFilter !== "all" && c.side !== sideFilter) return false;
+        return true;
+      }),
+    [lineups, hidden, minThrows, minWinRate, sideFilter],
   );
 
   const typesPresent = useMemo(
@@ -182,6 +199,17 @@ export default function RadarView({ mapName, onClose }: Props) {
               </button>
             )}
             <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`text-xs px-2 py-1 rounded-full border transition-opacity ${
+                showFilters
+                  ? "border-cs2-accent text-cs2-accent opacity-100"
+                  : "border-gray-500 text-gray-300 opacity-70"
+              }`}
+              title="Toggle filter controls"
+            >
+              Filters
+            </button>
+            <button
               onClick={onClose}
               className="text-gray-400 hover:text-white px-2 py-1 text-lg leading-none"
               title="Close"
@@ -190,6 +218,53 @@ export default function RadarView({ mapName, onClose }: Props) {
             </button>
           </div>
         </div>
+
+        {/* Filter controls panel */}
+        {showFilters && (
+          <div className="px-5 py-3 border-b border-cs2-border flex items-center gap-6 flex-wrap bg-cs2-panel/50">
+            <label className="flex items-center gap-2 text-[11px] text-cs2-muted">
+              <span className="uppercase tracking-[0.1em] w-20">Min throws</span>
+              <input
+                type="range"
+                min={1}
+                max={20}
+                value={minThrows}
+                onChange={(e) => setMinThrows(Number(e.target.value))}
+                className="w-24 accent-cs2-accent"
+              />
+              <span className="font-mono text-cs2-accent w-6 text-right">{minThrows}</span>
+            </label>
+            <label className="flex items-center gap-2 text-[11px] text-cs2-muted">
+              <span className="uppercase tracking-[0.1em] w-20">Min win %</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={minWinRate}
+                onChange={(e) => setMinWinRate(Number(e.target.value))}
+                className="w-24 accent-cs2-accent"
+              />
+              <span className="font-mono text-cs2-accent w-8 text-right">{minWinRate}%</span>
+            </label>
+            <div className="flex items-center gap-1 text-[11px]">
+              <span className="text-cs2-muted uppercase tracking-[0.1em] mr-1">Side</span>
+              {(["all", "T", "CT"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSideFilter(s)}
+                  className={`px-2 py-0.5 rounded border font-mono text-[10px] transition ${
+                    sideFilter === s
+                      ? "border-cs2-accent text-cs2-accent bg-cs2-accent/10"
+                      : "border-cs2-border text-cs2-muted hover:text-gray-300"
+                  }`}
+                >
+                  {s === "all" ? "Both" : s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Body */}
         <div className="relative flex-1 overflow-auto bg-black flex items-center justify-center">
@@ -254,18 +329,41 @@ export default function RadarView({ mapName, onClose }: Props) {
                     key={c.cluster_id}
                     onMouseEnter={() => setHoverId(c.cluster_id)}
                     onMouseLeave={() => setHoverId(null)}
-                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      if (onSelect) {
+                        onSelect(c.cluster_id, l.type);
+                        onClose();
+                      }
+                    }}
+                    style={{ cursor: onSelect ? "pointer" : "default" }}
                   >
-                    <line
-                      x1={tx}
-                      y1={ty}
-                      x2={lx}
-                      y2={ly}
-                      stroke={color}
-                      strokeWidth={isHover ? 3 : 1.5}
-                      opacity={isHover ? 0.95 : 0.55}
-                      strokeDasharray="4 3"
-                    />
+                    {c.trajectory && c.trajectory.length >= 2 ? (
+                      <polyline
+                        points={c.trajectory
+                          .map((p) => {
+                            const [px, py] = project(p[0], p[1]);
+                            return `${px},${py}`;
+                          })
+                          .join(" ")}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={isHover ? 3 : 1.5}
+                        opacity={isHover ? 0.95 : 0.55}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ) : (
+                      <line
+                        x1={tx}
+                        y1={ty}
+                        x2={lx}
+                        y2={ly}
+                        stroke={color}
+                        strokeWidth={isHover ? 3 : 1.5}
+                        opacity={isHover ? 0.95 : 0.55}
+                        strokeDasharray="4 3"
+                      />
+                    )}
                     {/* Throw position (small dot) */}
                     <circle
                       cx={tx}
