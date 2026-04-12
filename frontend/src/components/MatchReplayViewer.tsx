@@ -2094,7 +2094,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
                             <div className="flex flex-wrap items-center gap-2 px-2.5 pb-1.5 pt-0"
                               style={{ marginLeft: "calc(1.75rem + 0.5rem)" /* align under name */ }}
                             >
-                              {p.inventory.filter((invWpn) => invWpn && invWpn !== "nan" && invWpn !== "" && !invWpn.toLowerCase().includes("c4") && !invWpn.toLowerCase().includes("knife")).map((invWpn, idx) => {
+                              {p.inventory.filter((invWpn) => invWpn && invWpn !== "nan" && invWpn !== "" && !invWpn.toLowerCase().includes("knife")).map((invWpn, idx) => {
                                 const invIcon = weaponIconPath(invWpn);
                                 const isActive = p.weapon && invWpn.toLowerCase() === p.weapon.toLowerCase();
                                 return invIcon ? (
