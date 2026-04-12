@@ -320,6 +320,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
         armor: b.ar ?? 0,
         helmet: b.hl ?? false,
         hasBomb: (b.w ?? "").toLowerCase().includes("c4"),
+        inventory: b.inv ?? [],
       };
     }).filter((p): p is NonNullable<typeof p> => p !== null);
   }, [timeline, currentTick]);
@@ -1111,8 +1112,8 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
             const liveCTAlive = isCurrent ? playerStates.filter((p) => p.team === 3 && p.alive).length : ro.ctAlive;
             // For future rounds (not yet played), show all 5
             const isPlayed = ro.endTick <= currentTick;
-            const tBars = isPlayed || isCurrent ? liveTAlive : 5;
-            const ctBars = isPlayed || isCurrent ? liveCTAlive : 5;
+            const tBars = isCurrent ? liveTAlive : (isPlayed ? ro.tAlive : 5);
+            const ctBars = isCurrent ? liveCTAlive : (isPlayed ? ro.ctAlive : 5);
             return (
               <React.Fragment key={ro.num}>
                 {ro.num === 13 && (
@@ -2088,21 +2089,28 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
                               />
                             )}
                           </div>
-                          {/* Bottom row: Active weapon (icon + name) */}
-                          {p.alive && p.weapon && p.weapon !== "nan" && p.weapon !== "" && (
-                            <div className="flex items-center gap-2 px-2.5 pb-1.5 pt-0"
+                          {/* Bottom row: Full inventory */}
+                          {p.alive && p.inventory && p.inventory.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 px-2.5 pb-1.5 pt-0"
                               style={{ marginLeft: "calc(1.75rem + 0.5rem)" /* align under name */ }}
                             >
-                              {wpnIcon && !p.weapon.toLowerCase().includes("c4") && (
-                                <img
-                                  src={wpnIcon}
-                                  alt={p.weapon}
-                                  className="h-5 max-w-[80px] object-contain shrink-0"
-                                  style={{ filter: "brightness(0) invert(0.9)" }}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                                />
-                              )}
-                              <span className="text-xs text-gray-400 font-mono truncate">{p.weapon}</span>
+                              {p.inventory.filter((invWpn) => invWpn && invWpn !== "nan" && invWpn !== "" && !invWpn.toLowerCase().includes("c4") && !invWpn.toLowerCase().includes("knife")).map((invWpn, idx) => {
+                                const invIcon = weaponIconPath(invWpn);
+                                const isActive = p.weapon && invWpn.toLowerCase() === p.weapon.toLowerCase();
+                                return invIcon ? (
+                                  <img
+                                    key={idx}
+                                    src={invIcon}
+                                    alt={invWpn}
+                                    className={`h-4 max-w-[60px] object-contain shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}
+                                    style={{ filter: "brightness(0) invert(0.9)" }}
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                    title={invWpn}
+                                  />
+                                ) : (
+                                  <span key={idx} className={`text-[10px] font-mono truncate ${isActive ? "text-gray-200" : "text-gray-500"}`}>{invWpn}</span>
+                                );
+                              })}
                             </div>
                           )}
                         </div>

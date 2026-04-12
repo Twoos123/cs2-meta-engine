@@ -278,6 +278,7 @@ export interface TimelinePosition {
   ar?: number;             // armor value (0-100)
   hl?: boolean;            // has helmet
   tn?: number;             // team_num at this tick (2=T, 3=CT) — swaps at halftime
+  inv?: string[];          // full inventory (e.g. ["ak47", "glock", "smokegrenade"])
 }
 
 export interface TimelineGrenade {
