@@ -518,6 +518,8 @@ class HLTVScraper:
                     json.dumps(
                         {
                             "match_id": match.match_id,
+                            "event": match.event or "",
+                            "date": match.date or "",
                             "team1": {
                                 "name": match.team1,
                                 "players": list(match.team1_players),

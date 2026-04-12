@@ -127,14 +127,18 @@ Edit `.env` in the repo root:
 RCON_PASSWORD=changeme
 DEMOS_DIR=demos
 DB_PATH=data/lineups.db
-MIN_WIN_RATE=0.5
-MIN_THROW_COUNT=2
 
 # AI features (pick one)
 OPENROUTER_API_KEY=sk-or-...   # free at https://openrouter.ai/keys
 OPENROUTER_MODEL=google/gemma-3-27b-it:free
 # or
 ANTHROPIC_API_KEY=sk-ant-...   # paid
+
+# Database — Supabase (optional, defaults to local SQLite)
+# DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+# CS2 path (optional, auto-detected from Steam registry)
+# CS2_GAME_DIR=C:/Program Files (x86)/Steam/.../game/csgo
 ```
 
 ### Run
@@ -178,6 +182,10 @@ A typical BO5 is ~900 MB compressed → ~300 MB uncompressed per map; expect
 | `DELETE` | `/api/match-replay/{file}`        | Delete a demo + cached timeline |
 | `GET`  | `/api/match-replay/{file}/timeline` | Parse demo into 2D playback timeline |
 | `POST` | `/api/match-replay/{file}/insights` | AI-generated match narrative recap |
+| `GET`  | `/api/settings/cs2-path`            | CS2 path + demo link status |
+| `POST` | `/api/settings/cs2-path`            | Save CS2 game directory path |
+| `POST` | `/api/demos/link-to-cs2`            | Create directory junction to CS2 |
+| `DELETE` | `/api/demos/link-to-cs2`          | Remove the junction |
 | `DELETE` | `/api/data`                       | Wipe `lineups.db` (demos on disk are kept) |
 | `GET`  | `/api/stats`                        | Totals summary |
 
@@ -249,6 +257,39 @@ Toggle **Executes** in the filter bar to see detected coordinated utility
 patterns — sets of grenade lineups that pros frequently throw together in
 the same round (e.g. an A-site execute with 2 smokes + 1 flash + 1 molotov).
 Each combo shows its member grenades, side, round count, and win rate.
+
+## Database
+
+By default the engine uses a local **SQLite** database at `data/lineups.db`
+(zero config). To store data in the cloud, set `DATABASE_URL` to a
+PostgreSQL connection string — e.g. a free **Supabase** project:
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to **Settings → Database → Connection string → URI**
+3. Copy the URI and set it in `.env`:
+   ```
+   DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+   ```
+4. Restart the backend — tables are auto-created on first startup
+
+When `DATABASE_URL` is not set, SQLite is used automatically.
+
+## Replay Integration
+
+The **Settings** panel (gear icon in the header) lets you link your
+`demos/` directory into CS2's `game/csgo/` folder via a Windows directory
+junction so the Replay button works without manually copying files:
+
+1. Open **Settings** — the CS2 install path is auto-detected from the
+   Steam registry (or you can set it manually)
+2. Click **Link Demos to CS2** — creates a junction at
+   `game/csgo/cs2tool_demos/` pointing to your `demos/` directory
+3. The Replay button now copies
+   `playdemo cs2tool_demos/<file>.dem` — paste into the CS2 console
+   and it just works
+
+No admin privileges required (Windows NTFS junctions are unprivileged).
+Click **Unlink** to remove the junction without deleting any demos.
 
 ## Credits
 

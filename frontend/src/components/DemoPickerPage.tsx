@@ -9,8 +9,12 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Cs2PathResponse,
   MatchDemoEntry,
+  MatchInfoResponse,
   deleteDemo,
+  getCs2Path,
+  getMatchInfo,
   getMatchReplayDemos,
   uploadDemo,
 } from "../api/client";
@@ -47,6 +51,12 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
   // Delete state
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  // CS2 link status
+  const [linkInfo, setLinkInfo] = useState<Cs2PathResponse | null>(null);
+
+  // Match info cache: demo_file → match info (team names etc.)
+  const [matchInfoMap, setMatchInfoMap] = useState<Record<string, MatchInfoResponse>>({});
+
   const loadDemos = useCallback(() => {
     setError(null);
     getMatchReplayDemos()
@@ -57,6 +67,36 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
   }, []);
 
   useEffect(() => { loadDemos(); }, [loadDemos]);
+  useEffect(() => { getCs2Path().then(setLinkInfo).catch(() => {}); }, []);
+
+  // Fetch match info for all demos (team names from roster files)
+  useEffect(() => {
+    if (!demos || demos.length === 0) return;
+    const toFetch = demos.filter((d) => d.match_id !== null && !matchInfoMap[d.demo_file]);
+    // Deduplicate by match_id (multiple demos can share a match)
+    const seen = new Set<number>();
+    const unique = toFetch.filter((d) => {
+      if (seen.has(d.match_id!)) return false;
+      seen.add(d.match_id!);
+      return true;
+    });
+    if (unique.length === 0) return;
+    // Fetch in parallel, max ~10 at a time
+    Promise.allSettled(unique.map((d) => getMatchInfo(d.demo_file))).then((results) => {
+      const next: Record<string, MatchInfoResponse> = { ...matchInfoMap };
+      for (const r of results) {
+        if (r.status === "fulfilled") next[r.value.demo_file] = r.value;
+      }
+      // Also map other demos with the same match_id to the same info
+      for (const d of demos) {
+        if (!next[d.demo_file] && d.match_id !== null) {
+          const match = Object.values(next).find((mi) => mi.match_id === d.match_id);
+          if (match) next[d.demo_file] = match;
+        }
+      }
+      setMatchInfoMap(next);
+    });
+  }, [demos]);
 
   const handleUpload = useCallback(async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".dem")) {
@@ -127,6 +167,38 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
           ← Back
         </button>
       </div>
+
+      {/* ── CS2 link status banner ── */}
+      {linkInfo && (
+        <div
+          className={`hud-panel px-4 py-2 flex items-center gap-2 text-[11px] border-l-2 ${
+            linkInfo.link_active
+              ? "border-cs2-green text-cs2-green"
+              : "border-cs2-muted text-cs2-muted"
+          }`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${
+              linkInfo.link_active ? "bg-cs2-green" : "bg-cs2-red"
+            }`}
+          />
+          {linkInfo.link_active ? (
+            <span>
+              Demos linked to CS2 at{" "}
+              <span className="font-mono text-gray-300">
+                game/csgo/{linkInfo.link_name}/
+              </span>{" "}
+              — Replay buttons use the correct path automatically.
+            </span>
+          ) : (
+            <span>
+              Demos not linked to CS2. Go to{" "}
+              <span className="text-cs2-accent">Settings</span> to enable
+              one-click replay.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ── Upload zone ── */}
       <div
@@ -212,14 +284,29 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
             </span>
           </header>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {list.map((d) => (
+            {list.map((d) => {
+              const mi = matchInfoMap[d.demo_file];
+              const title = mi?.team1 && mi?.team2
+                ? `${mi.team1.name} vs ${mi.team2.name}`
+                : d.demo_file;
+              return (
               <div
                 key={d.demo_file}
                 className="text-left hud-panel p-3 hover:border-cs2-accent hover:shadow-[0_0_18px_rgba(34,211,238,0.18)] hover:-translate-y-0.5 transition-all flex flex-col"
               >
-                <p className="text-[12px] text-white font-mono truncate">
-                  {d.demo_file}
+                <p className="text-[12px] text-white font-semibold truncate">
+                  {title}
                 </p>
+                {mi?.event && (
+                  <p className="text-[10px] text-cs2-accent/70 mt-0.5 truncate">
+                    {mi.event}
+                  </p>
+                )}
+                {mi?.team1 && mi?.team2 && (
+                  <p className="text-[9px] text-cs2-muted font-mono mt-0.5 truncate">
+                    {d.demo_file}
+                  </p>
+                )}
                 <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-cs2-muted uppercase tracking-[0.08em]">
                   {d.match_id !== null && (
                     <>
@@ -235,7 +322,7 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
                   </span>
                   <span>Date</span>
                   <span className="text-right text-gray-300 font-mono normal-case tracking-normal">
-                    {formatDate(d.mtime)}
+                    {mi?.date || formatDate(d.mtime)}
                   </span>
                 </div>
                 <div className="flex gap-1.5 mt-2 pt-1">
@@ -258,7 +345,7 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
                   </button>
                 </div>
               </div>
-            ))}
+            ); })}
           </div>
         </section>
       ))}

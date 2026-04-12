@@ -274,6 +274,10 @@ export interface TimelinePosition {
   yaw: number;
   alive: boolean;
   hp: number;
+  w?: string;              // active weapon name (e.g. "ak47", "awp")
+  ar?: number;             // armor value (0-100)
+  hl?: boolean;            // has helmet
+  tn?: number;             // team_num at this tick (2=T, 3=CT) — swaps at halftime
 }
 
 export interface TimelineGrenade {
@@ -367,6 +371,30 @@ export const describeLineup = async (
 // Match replay (full-match 2D viewer)
 // ---------------------------------------------------------------------------
 
+export interface MatchTeamInfo {
+  name: string;
+  players: string[];
+}
+
+export interface MatchInfoResponse {
+  demo_file: string;
+  match_id: number | null;
+  map_name: string;
+  team1: MatchTeamInfo | null;
+  team2: MatchTeamInfo | null;
+  event: string | null;
+  date: string | null;
+}
+
+export const getMatchInfo = async (
+  demoFile: string,
+): Promise<MatchInfoResponse> => {
+  const { data } = await api.get<MatchInfoResponse>(
+    `/match-info/${encodeURIComponent(demoFile)}`,
+  );
+  return data;
+};
+
 export const getMatchReplayDemos = async (): Promise<MatchDemoEntry[]> => {
   const { data } = await api.get<MatchDemoEntry[]>("/match-replay/demos");
   return data;
@@ -407,5 +435,47 @@ export const getMatchReplayInsights = async (
   const { data } = await api.post<MatchInsightsResponse>(
     `/match-replay/${encodeURIComponent(demoFile)}/insights`,
   );
+  return data;
+};
+
+// ---------------------------------------------------------------------------
+// CS2 replay integration (settings + demo junction)
+// ---------------------------------------------------------------------------
+
+export interface Cs2PathResponse {
+  configured_path: string | null;
+  detected_path: string | null;
+  active_path: string | null;
+  link_active: boolean;
+  link_path: string | null;
+  link_name: string;
+}
+
+export const getCs2Path = async (): Promise<Cs2PathResponse> => {
+  const { data } = await api.get<Cs2PathResponse>("/settings/cs2-path");
+  return data;
+};
+
+export const setCs2Path = async (
+  cs2GameDir: string,
+): Promise<{ status: string; cs2_game_dir: string }> => {
+  const { data } = await api.post("/settings/cs2-path", {
+    cs2_game_dir: cs2GameDir,
+  });
+  return data;
+};
+
+export const linkDemosToCs2 = async (): Promise<{
+  status: string;
+  link_path: string;
+}> => {
+  const { data } = await api.post("/demos/link-to-cs2");
+  return data;
+};
+
+export const unlinkDemosFromCs2 = async (): Promise<{
+  status: string;
+}> => {
+  const { data } = await api.delete("/demos/link-to-cs2");
   return data;
 };

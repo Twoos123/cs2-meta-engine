@@ -883,7 +883,8 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
     # ---- per-tick positions --------------------------------------------
     try:
         ticks_df = parser.parse_ticks(
-            ["X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num"]
+            ["X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num",
+             "active_weapon_name", "armor_value", "has_helmet"]
         )
     except Exception as exc:
         logger.error("parse_ticks failed: %s", exc)
@@ -932,6 +933,13 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
             group = group.sort_values("tick")
             samples: list[dict] = []
             for row in group.itertuples(index=False):
+                wpn = str(getattr(row, "active_weapon_name", "") or "")
+                # Strip "weapon_" prefix if present
+                if wpn.startswith("weapon_"):
+                    wpn = wpn[7:]
+                armor = int(getattr(row, "armor_value", 0) or 0)
+                helmet = bool(getattr(row, "has_helmet", False))
+                tn = int(getattr(row, "team_num", 0) or 0)
                 samples.append(
                     {
                         "t": int(getattr(row, "tick")),
@@ -940,6 +948,10 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                         "yaw": round(float(getattr(row, "yaw", 0.0) or 0.0), 1),
                         "alive": bool(getattr(row, "is_alive", False)),
                         "hp": int(getattr(row, "health", 0) or 0),
+                        "w": wpn if wpn else "",
+                        "ar": armor,
+                        "hl": helmet,
+                        "tn": tn,
                     }
                 )
             positions[sid] = samples
@@ -987,6 +999,12 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                 "victim": _str(r.get("user_steamid")),
                 "weapon": _str(r.get("weapon")),
                 "headshot": _str(r.get("headshot")),
+                "penetrated": _str(r.get("penetrated")),
+                "noscope": _str(r.get("noscope")),
+                "attackerblind": _str(r.get("attackerblind")),
+                "thrusmoke": _str(r.get("thrusmoke")),
+                "dominated": _str(r.get("dominated")),
+                "revenge": _str(r.get("revenge")),
             },
         ),
     )
@@ -1000,13 +1018,41 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
             },
         ),
     )
+    # demoparser2 returns bomb site as an entity index (e.g. 504, 505).
+    # Track the first two unique indices seen and map them to A / B.
+    _bomb_site_ids: dict[str, str] = {}
+
+    def _site_label(raw: str) -> str:
+        """Convert a demoparser2 site entity index to 'A' or 'B'."""
+        if raw in ("A", "B", "a", "b"):
+            return raw.upper()
+        if raw not in _bomb_site_ids:
+            if len(_bomb_site_ids) == 0:
+                _bomb_site_ids[raw] = "A"
+            elif len(_bomb_site_ids) == 1:
+                # Lower entity ID → A, higher → B
+                existing_raw = next(iter(_bomb_site_ids))
+                try:
+                    if int(raw) < int(existing_raw):
+                        _bomb_site_ids[existing_raw] = "B"
+                        _bomb_site_ids[raw] = "A"
+                    else:
+                        _bomb_site_ids[raw] = "B"
+                except ValueError:
+                    _bomb_site_ids[raw] = "B"
+            else:
+                _bomb_site_ids[raw] = "?"
+        return _bomb_site_ids.get(raw, "?")
+
     _push_events(
         "bomb_planted",
         lambda r: (
             "bomb_plant",
             {
                 "planter": _str(r.get("user_steamid")),
-                "site": _str(r.get("site")),
+                "site": _site_label(_str(r.get("site"))),
+                "x": _str(r.get("user_X", "")),
+                "y": _str(r.get("user_Y", "")),
             },
         ),
     )
@@ -1016,7 +1062,7 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
             "bomb_defuse",
             {
                 "defuser": _str(r.get("user_steamid")),
-                "site": _str(r.get("site")),
+                "site": _site_label(_str(r.get("site"))),
             },
         ),
     )

@@ -20,6 +20,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -485,7 +488,13 @@ async def get_replay_string(
             thrower_name = player.strip() or thrower_name
 
     lead_in_tick = max(0, demo_tick - 320)
-    load_string = f"playdemo {demo_file}"
+    # When the demos→CS2 junction is active, prefix the path so CS2 finds
+    # the file at game/csgo/<link_name>/<demo>.dem
+    link_active, _ = _is_demo_link_active()
+    if link_active:
+        load_string = f"playdemo {settings.cs2_demo_link_name}/{demo_file}"
+    else:
+        load_string = f"playdemo {demo_file}"
     # CS2 demo playback ignores spec_player "name" but reliably accepts
     # numeric 1-based slot indices (spec_player 1 through spec_player 10).
     # We resolve the thrower's name to their slot via entity_id ordering
@@ -601,6 +610,42 @@ def _parse_match_id(stem: str) -> Optional[int]:
         return int(head)
     except ValueError:
         return None
+
+
+def _load_roster(match_id: Optional[int]) -> Optional[dict]:
+    """Load roster sidecar file for a match, if it exists."""
+    if match_id is None:
+        return None
+    roster_path = settings.demo_dir / f"{match_id}.roster.json"
+    if not roster_path.exists():
+        return None
+    try:
+        return json.loads(roster_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+@app.get("/api/match-info/{demo_file}", summary="Match metadata from roster sidecar")
+async def get_match_info(demo_file: str):
+    """Return team names and rosters for a demo file, parsed from the HLTV
+    roster sidecar written during scraping."""
+    name = _safe_demo_name(demo_file)
+    stem = Path(name).stem
+    match_id = _parse_match_id(stem)
+    roster = _load_roster(match_id)
+    map_token = ""
+    if "_" in stem:
+        _, _, map_token = stem.partition("_")
+        map_token = map_token.strip().lower()
+    return {
+        "demo_file": name,
+        "match_id": match_id,
+        "map_name": f"de_{map_token}" if map_token else "unknown",
+        "team1": roster.get("team1") if roster else None,
+        "team2": roster.get("team2") if roster else None,
+        "event": roster.get("event", "") if roster else None,
+        "date": roster.get("date", "") if roster else None,
+    }
 
 
 @app.get(
@@ -897,6 +942,158 @@ async def get_match_replay_insights(demo_file: str):
     )
     _INSIGHTS_CACHE[name] = resp
     return resp
+
+
+# ---------------------------------------------------------------------------
+# CS2 replay integration — directory junction + path settings
+# ---------------------------------------------------------------------------
+
+_USER_SETTINGS_PATH = Path("data/user_settings.json")
+
+
+def _resolve_cs2_dir() -> Optional[str]:
+    """Return the active CS2 game/csgo path from user settings, env, or auto-detect."""
+    # 1. User settings file (set via POST /api/settings/cs2-path)
+    if _USER_SETTINGS_PATH.exists():
+        try:
+            data = json.loads(_USER_SETTINGS_PATH.read_text(encoding="utf-8"))
+            saved = data.get("cs2_game_dir", "").strip()
+            if saved and Path(saved).is_dir():
+                return saved
+        except Exception:
+            pass
+
+    # 2. Environment variable
+    if settings.cs2_game_dir and Path(settings.cs2_game_dir).is_dir():
+        return settings.cs2_game_dir
+
+    # 3. Auto-detect from Steam registry (Windows only)
+    try:
+        from backend.utils.cs2_detect import detect_cs2_game_dir
+        detected = detect_cs2_game_dir()
+        if detected:
+            return str(detected)
+    except Exception:
+        pass
+
+    return None
+
+
+def _is_demo_link_active() -> tuple[bool, Optional[str]]:
+    """Check if the demos→CS2 junction is active. Returns (active, link_path)."""
+    cs2_dir = _resolve_cs2_dir()
+    if not cs2_dir:
+        return False, None
+    link_path = Path(cs2_dir) / settings.cs2_demo_link_name
+    return link_path.exists(), str(link_path)
+
+
+@app.get("/api/settings/cs2-path", summary="Get CS2 path and demo link status")
+async def get_cs2_path():
+    configured = settings.cs2_game_dir or None
+    if _USER_SETTINGS_PATH.exists():
+        try:
+            data = json.loads(_USER_SETTINGS_PATH.read_text(encoding="utf-8"))
+            configured = data.get("cs2_game_dir") or configured
+        except Exception:
+            pass
+
+    detected = None
+    try:
+        from backend.utils.cs2_detect import detect_cs2_game_dir
+        det = detect_cs2_game_dir()
+        if det:
+            detected = str(det)
+    except Exception:
+        pass
+
+    active_path = _resolve_cs2_dir()
+    link_active, link_path = _is_demo_link_active()
+
+    return {
+        "configured_path": configured,
+        "detected_path": detected,
+        "active_path": active_path,
+        "link_active": link_active,
+        "link_path": link_path,
+        "link_name": settings.cs2_demo_link_name,
+    }
+
+
+@app.post("/api/settings/cs2-path", summary="Save CS2 game directory path")
+async def set_cs2_path(body: dict):
+    path = body.get("cs2_game_dir", "").strip()
+    if path and not Path(path).is_dir():
+        raise HTTPException(status_code=400, detail="Directory does not exist")
+
+    _USER_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    current: dict = {}
+    if _USER_SETTINGS_PATH.exists():
+        try:
+            current = json.loads(_USER_SETTINGS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    current["cs2_game_dir"] = path
+    _USER_SETTINGS_PATH.write_text(json.dumps(current, indent=2), encoding="utf-8")
+    return {"status": "saved", "cs2_game_dir": path}
+
+
+@app.post("/api/demos/link-to-cs2", summary="Create directory junction from demos to CS2 game/csgo")
+async def link_demos_to_cs2():
+    cs2_dir = _resolve_cs2_dir()
+    if not cs2_dir:
+        raise HTTPException(
+            status_code=400,
+            detail="CS2 game directory not configured or detected. Set it in Settings first.",
+        )
+
+    demo_dir = settings.demo_dir.resolve()
+    if not demo_dir.exists():
+        demo_dir.mkdir(parents=True, exist_ok=True)
+
+    link_path = Path(cs2_dir) / settings.cs2_demo_link_name
+    if link_path.exists():
+        return {"status": "already_linked", "link_path": str(link_path)}
+
+    if sys.platform == "win32":
+        # mklink /J creates a junction — no admin privileges needed on NTFS
+        result = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link_path), str(demo_dir)],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Junction creation failed: {result.stderr.strip()}",
+            )
+    else:
+        try:
+            os.symlink(str(demo_dir), str(link_path))
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"Symlink creation failed: {exc}")
+
+    logger.info("Created demo junction: %s → %s", link_path, demo_dir)
+    return {"status": "linked", "link_path": str(link_path)}
+
+
+@app.delete("/api/demos/link-to-cs2", summary="Remove the demos→CS2 directory junction")
+async def unlink_demos_from_cs2():
+    cs2_dir = _resolve_cs2_dir()
+    if not cs2_dir:
+        raise HTTPException(status_code=400, detail="CS2 directory not configured")
+
+    link_path = Path(cs2_dir) / settings.cs2_demo_link_name
+    if not link_path.exists():
+        return {"status": "not_linked"}
+
+    try:
+        # os.rmdir removes junctions/symlinks without deleting the target contents
+        os.rmdir(str(link_path))
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Unlink failed: {exc}")
+
+    logger.info("Removed demo junction: %s", link_path)
+    return {"status": "unlinked"}
 
 
 # ---------------------------------------------------------------------------

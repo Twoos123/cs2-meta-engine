@@ -17,9 +17,9 @@ import {
 import LineupCard from "./LineupCard";
 import ScatterPlot from "./ScatterPlot";
 import IngestPanel from "./IngestPanel";
-import RadarView from "./RadarView";
 import DemoPickerPage from "./DemoPickerPage";
 import MatchReplayViewer from "./MatchReplayViewer";
+import SettingsPanel from "./SettingsPanel";
 
 const GRENADE_TYPES = [
   { id: "smokegrenade", label: "Smoke" },
@@ -52,7 +52,6 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [selectedClusterId, setSelectedClusterId] = useState<number | undefined>();
   const [showIngest, setShowIngest] = useState(false);
-  const [showRadar, setShowRadar] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [callouts, setCallouts] = useState<Callout[]>([]);
   const [groupByThrowFrom, setGroupByThrowFrom] = useState(true);
@@ -61,12 +60,9 @@ export default function Dashboard() {
   const [hideNoise, setHideNoise] = useState(false);
   const [executes, setExecutes] = useState<ExecuteCombo[]>([]);
   const [showExecutes, setShowExecutes] = useState(false);
-  // Holds a cluster_id the radar picker wants selected after a grenade-type
-  // change triggers a new fetch. Applied (and cleared) when the fresh
-  // lineups arrive in the effect below.
-  const [pendingSelectId, setPendingSelectId] = useState<number | null>(null);
   const [ingestedMaps, setIngestedMaps] = useState<Set<string>>(new Set());
   const [downloadedMaps, setDownloadedMaps] = useState<DownloadedMap[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     getMaps()
@@ -319,20 +315,6 @@ export default function Dashboard() {
       .catch(() => setExecutes([]));
   }, [fetchLineups, selectedMap]);
 
-  // Apply a radar-initiated selection as soon as the fresh lineups arrive.
-  // If the pending id isn't in the new list (e.g. it was for a different
-  // side or player filter) we just drop it rather than leaving a ghost.
-  useEffect(() => {
-    if (pendingSelectId === null || loading) return;
-    const exists = lineups.some(
-      (r) => r.cluster.cluster_id === pendingSelectId,
-    );
-    if (exists) {
-      setSelectedClusterId(pendingSelectId);
-    }
-    setPendingSelectId(null);
-  }, [pendingSelectId, loading, lineups]);
-
   const handleClearData = async () => {
     if (
       !window.confirm(
@@ -361,9 +343,11 @@ export default function Dashboard() {
     : "—";
 
   return (
-    <div className="min-h-screen text-cs2-text p-4 md:p-8 space-y-6 max-w-[1400px] mx-auto">
-      {/* ── Header ── */}
-      <header className="hud-panel hud-corner px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className={`text-cs2-text mx-auto max-w-full ${
+      view === "replay" ? "p-0 h-screen overflow-hidden" : "min-h-screen space-y-6 p-4 md:p-6"
+    }`}>
+      {/* ── Header (hidden in replay mode) ── */}
+      <header className={`hud-panel hud-corner px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 ${view === "replay" ? "hidden" : ""}`}>
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg border border-cs2-accent/60 flex items-center justify-center bg-cs2-accent/10 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
             <span className="text-cs2-accent font-mono font-bold text-sm">CS2</span>
@@ -407,23 +391,7 @@ export default function Dashboard() {
           </select>
 
           <button
-            onClick={() => setShowRadar(true)}
-            disabled={lineups.length === 0}
-            className="hud-btn"
-            title={
-              lineups.length === 0
-                ? "No lineups loaded — ingest demos first"
-                : "Show every unique lineup on a radar"
-            }
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cs2-accent" />
-              Radar
-            </span>
-          </button>
-
-          <button
-            onClick={() => { setView("picker"); setShowRadar(false); }}
+            onClick={() => setView("picker")}
             className={view !== "grid" ? "hud-btn-primary" : "hud-btn"}
           >
             <span className="inline-flex items-center gap-1.5">
@@ -432,11 +400,20 @@ export default function Dashboard() {
             </span>
           </button>
 
+          {view === "grid" && (
+            <button
+              onClick={() => setShowIngest((s) => !s)}
+              className={showIngest ? "hud-btn-primary" : "hud-btn"}
+            >
+              {showIngest ? "Hide Ingest" : "Ingest"}
+            </button>
+          )}
+
           <button
-            onClick={() => setShowIngest((s) => !s)}
-            className={showIngest ? "hud-btn-primary" : "hud-btn"}
+            onClick={() => setShowSettings(true)}
+            className="hud-btn"
           >
-            {showIngest ? "Hide Ingest" : "Ingest"}
+            Settings
           </button>
 
           <button
@@ -810,28 +787,9 @@ export default function Dashboard() {
         CS2 Meta Engine
       </footer>
 
-      {/* ── Radar modal ── */}
-      {showRadar && (
-        <RadarView
-          mapName={selectedMap}
-          onClose={() => setShowRadar(false)}
-          onSelect={(clusterId, grenadeType) => {
-            // Switching the grenade-type tab refires fetchLineups, which
-            // wipes the current lineups and starts loading. Setting
-            // selectedClusterId here would race the new fetch and usually
-            // land on an id that isn't in the fresh list yet. We stash it
-            // in pendingSelectId and a useEffect applies it once the load
-            // for the new type finishes.
-            if (grenadeType !== selectedType) {
-              setPendingSelectId(clusterId);
-              setSelectedType(grenadeType);
-            } else {
-              setSelectedClusterId(clusterId);
-            }
-            setShowRadar(false);
-          }}
-        />
-      )}
+      {/* ── Settings modal ── */}
+      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
+
     </div>
   );
 }

@@ -1,7 +1,12 @@
 """
 Metrics pipeline — orchestrates parsing → clustering → ranking for a full
-analysis run, and persists results to a lightweight SQLite database so the
-FastAPI layer can serve them without re-running the pipeline.
+analysis run, and persists results to a database so the FastAPI layer can
+serve them without re-running the pipeline.
+
+Supports two backends:
+  - **SQLite** (default) — zero-config local file at ``data/lineups.db``
+  - **PostgreSQL / Supabase** — set ``DATABASE_URL`` env var to a
+    ``postgresql://…`` connection string
 
 Usage
 -----
@@ -38,7 +43,11 @@ from backend.models.schemas import (
 
 logger = logging.getLogger(__name__)
 
-DB_SCHEMA = """
+# ---------------------------------------------------------------------------
+# Schema definitions (one per backend)
+# ---------------------------------------------------------------------------
+
+_SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS lineup_clusters (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     cluster_id            INTEGER NOT NULL,
@@ -89,6 +98,72 @@ CREATE TABLE IF NOT EXISTS execute_combos (
 CREATE INDEX IF NOT EXISTS idx_exec_map ON execute_combos (map_name);
 """
 
+_PG_SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS lineup_clusters (
+        id                    SERIAL PRIMARY KEY,
+        cluster_id            INTEGER NOT NULL,
+        map_name              TEXT NOT NULL,
+        grenade_type          TEXT NOT NULL,
+        land_cx               DOUBLE PRECISION,
+        land_cy               DOUBLE PRECISION,
+        land_cz               DOUBLE PRECISION,
+        throw_cx              DOUBLE PRECISION,
+        throw_cy              DOUBLE PRECISION,
+        throw_cz              DOUBLE PRECISION,
+        avg_pitch             DOUBLE PRECISION,
+        avg_yaw               DOUBLE PRECISION,
+        throw_count           INTEGER,
+        round_win_rate        DOUBLE PRECISION,
+        total_ud              DOUBLE PRECISION,
+        avg_ud                DOUBLE PRECISION,
+        label                 TEXT,
+        top_throwers          JSONB,
+        primary_technique     TEXT,
+        technique_agreement   DOUBLE PRECISION,
+        primary_click         TEXT,
+        click_agreement       DOUBLE PRECISION,
+        side                  TEXT,
+        demo_file             TEXT,
+        demo_tick             INTEGER,
+        demo_thrower_name     TEXT,
+        trajectory            JSONB,
+        impact_score          DOUBLE PRECISION,
+        rank_position         INTEGER,
+        created_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_map_type ON lineup_clusters (map_name, grenade_type)",
+    """
+    CREATE TABLE IF NOT EXISTS execute_combos (
+        id                SERIAL PRIMARY KEY,
+        map_name          TEXT NOT NULL,
+        name              TEXT,
+        members           JSONB,
+        occurrence_count  INTEGER,
+        round_win_rate    DOUBLE PRECISION,
+        side              TEXT,
+        grenade_summary   TEXT,
+        created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_exec_map ON execute_combos (map_name)",
+]
+
+# Columns that may be missing on older DBs (migration list)
+_MIGRATION_COLS_CLUSTERS = [
+    ("top_throwers",        "TEXT",    "JSONB"),
+    ("primary_technique",   "TEXT",    "TEXT"),
+    ("technique_agreement", "REAL",    "DOUBLE PRECISION"),
+    ("primary_click",       "TEXT",    "TEXT"),
+    ("click_agreement",     "REAL",    "DOUBLE PRECISION"),
+    ("side",                "TEXT",    "TEXT"),
+    ("demo_file",           "TEXT",    "TEXT"),
+    ("demo_tick",           "INTEGER", "INTEGER"),
+    ("demo_thrower_name",   "TEXT",    "TEXT"),
+    ("trajectory",          "TEXT",    "JSONB"),
+]
+
 
 class MetricsPipeline:
     """
@@ -96,13 +171,50 @@ class MetricsPipeline:
     Also provides read methods for the FastAPI layer.
     """
 
-    def __init__(self, db_path: Optional[Path] = None) -> None:
-        self.db_path = db_path or settings.db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(
+        self,
+        db_path: Optional[Path] = None,
+        database_url: Optional[str] = None,
+    ) -> None:
+        self._database_url = database_url or settings.database_url
+        self._use_pg = bool(self._database_url)
+
+        if not self._use_pg:
+            self.db_path = db_path or settings.db_path
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
         self._init_db()
 
         self._parser = DemoParser()
         self._clusterer = GrenadeClusterer()
+
+    # ------------------------------------------------------------------
+    # SQL dialect helpers
+    # ------------------------------------------------------------------
+
+    def _q(self, sql: str) -> str:
+        """Convert ``?`` parameter placeholders to ``%s`` for PostgreSQL."""
+        if self._use_pg:
+            return sql.replace("?", "%s")
+        return sql
+
+    def _json_val(self, obj):
+        """Wrap a Python object for insertion into a JSON/JSONB column."""
+        if self._use_pg:
+            from psycopg2.extras import Json
+            return Json(obj)
+        return json.dumps(obj)
+
+    def _json_read(self, raw):
+        """Deserialize a JSON column value to a Python object."""
+        if raw is None:
+            return None
+        if isinstance(raw, (dict, list)):
+            return raw  # psycopg2 JSONB → already decoded
+        try:
+            return json.loads(raw)
+        except Exception:
+            return None
 
     # ------------------------------------------------------------------
     # Public API — write path
@@ -122,7 +234,7 @@ class MetricsPipeline:
           1. Parse all .dem files in demo_dir
           2. Cluster by (map, grenade_type)
           3. Rank by impact score
-          4. Persist to SQLite
+          4. Persist to database
 
         Parameters
         ----------
@@ -220,7 +332,9 @@ class MetricsPipeline:
         params.append(limit)
 
         with self._connect() as conn:
-            rows = conn.execute(sql, tuple(params)).fetchall()
+            cur = self._cursor(conn)
+            cur.execute(self._q(sql), tuple(params))
+            rows = cur.fetchall()
 
         return [self._row_to_ranking(r) for r in rows]
 
@@ -232,23 +346,18 @@ class MetricsPipeline:
         """
         Look up a single cluster by its row id.
 
-        `cluster_id` is the SQLite autoincrement `id` column, which is unique
-        per row. We used to key on the raw DBSCAN label (0, 1, 2…) which
-        collides across grenade types — every type restarts labels at 0, so
-        requesting cluster 0 on Mirage could return the Smoke OR HE OR Flash
-        lineup depending on insertion order. `_row_to_ranking` now exposes
-        the row id as `cluster.cluster_id`, so the frontend's existing
-        references resolve to the correct type automatically.
+        `cluster_id` is the auto-increment `id` column, which is unique
+        per row.
         """
         with self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT * FROM lineup_clusters
-                WHERE id = ? AND map_name = ?
-                LIMIT 1
-                """,
+            cur = self._cursor(conn)
+            cur.execute(
+                self._q(
+                    "SELECT * FROM lineup_clusters WHERE id = ? AND map_name = ? LIMIT 1"
+                ),
                 (cluster_id, map_name),
-            ).fetchone()
+            )
+            row = cur.fetchone()
 
         if row is None:
             return None
@@ -256,27 +365,28 @@ class MetricsPipeline:
 
     def list_available_maps(self) -> List[str]:
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT DISTINCT map_name FROM lineup_clusters ORDER BY map_name"
-            ).fetchall()
+            cur = self._cursor(conn)
+            cur.execute("SELECT DISTINCT map_name FROM lineup_clusters ORDER BY map_name")
+            rows = cur.fetchall()
         return [r["map_name"] for r in rows]
 
     def list_available_types(self, map_name: str) -> List[str]:
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT DISTINCT grenade_type FROM lineup_clusters WHERE map_name = ?",
+            cur = self._cursor(conn)
+            cur.execute(
+                self._q("SELECT DISTINCT grenade_type FROM lineup_clusters WHERE map_name = ?"),
                 (map_name,),
-            ).fetchall()
+            )
+            rows = cur.fetchall()
         return [r["grenade_type"] for r in rows]
 
     def get_stats(self) -> dict:
         with self._connect() as conn:
-            total = conn.execute(
-                "SELECT COUNT(*) as n FROM lineup_clusters"
-            ).fetchone()["n"]
-            maps = conn.execute(
-                "SELECT COUNT(DISTINCT map_name) as n FROM lineup_clusters"
-            ).fetchone()["n"]
+            cur = self._cursor(conn)
+            cur.execute("SELECT COUNT(*) as n FROM lineup_clusters")
+            total = cur.fetchone()["n"]
+            cur.execute("SELECT COUNT(DISTINCT map_name) as n FROM lineup_clusters")
+            maps = cur.fetchone()["n"]
         return {"total_lineups": total, "total_maps": maps}
 
     # ------------------------------------------------------------------
@@ -285,39 +395,64 @@ class MetricsPipeline:
 
     def _init_db(self) -> None:
         with self._connect() as conn:
-            conn.executescript(DB_SCHEMA)
-            # Add columns to older DBs. SQLite has no IF NOT EXISTS for
-            # ADD COLUMN, so we guard each call with a column-list probe and
-            # still swallow the duplicate-column error as a belt-and-braces.
-            existing = {
-                r["name"]
-                for r in conn.execute("PRAGMA table_info(lineup_clusters)").fetchall()
-            }
-            migrations = [
-                ("top_throwers",        "ALTER TABLE lineup_clusters ADD COLUMN top_throwers TEXT"),
-                ("primary_technique",   "ALTER TABLE lineup_clusters ADD COLUMN primary_technique TEXT"),
-                ("technique_agreement", "ALTER TABLE lineup_clusters ADD COLUMN technique_agreement REAL"),
-                ("primary_click",       "ALTER TABLE lineup_clusters ADD COLUMN primary_click TEXT"),
-                ("click_agreement",     "ALTER TABLE lineup_clusters ADD COLUMN click_agreement REAL"),
-                ("side",                "ALTER TABLE lineup_clusters ADD COLUMN side TEXT"),
-                ("demo_file",           "ALTER TABLE lineup_clusters ADD COLUMN demo_file TEXT"),
-                ("demo_tick",           "ALTER TABLE lineup_clusters ADD COLUMN demo_tick INTEGER"),
-                ("demo_thrower_name",   "ALTER TABLE lineup_clusters ADD COLUMN demo_thrower_name TEXT"),
-                ("trajectory",          "ALTER TABLE lineup_clusters ADD COLUMN trajectory TEXT"),
-            ]
-            for col, stmt in migrations:
-                if col in existing:
-                    continue
-                try:
-                    conn.execute(stmt)
-                except sqlite3.OperationalError:
-                    pass
-            conn.commit()
+            if self._use_pg:
+                cur = self._cursor(conn)
+                for stmt in _PG_SCHEMA_STATEMENTS:
+                    cur.execute(stmt)
+                conn.commit()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+                # Migration: add missing columns
+                cur.execute(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name = 'lineup_clusters'"
+                )
+                existing = {r["column_name"] for r in cur.fetchall()}
+                for col, _sqlite_type, pg_type in _MIGRATION_COLS_CLUSTERS:
+                    if col not in existing:
+                        try:
+                            cur.execute(
+                                f"ALTER TABLE lineup_clusters ADD COLUMN {col} {pg_type}"
+                            )
+                        except Exception:
+                            pass
+                conn.commit()
+            else:
+                conn.executescript(_SQLITE_SCHEMA)
+                existing = {
+                    r["name"]
+                    for r in conn.execute("PRAGMA table_info(lineup_clusters)").fetchall()
+                }
+                for col, sqlite_type, _pg_type in _MIGRATION_COLS_CLUSTERS:
+                    if col in existing:
+                        continue
+                    try:
+                        conn.execute(
+                            f"ALTER TABLE lineup_clusters ADD COLUMN {col} {sqlite_type}"
+                        )
+                    except sqlite3.OperationalError:
+                        pass
+                conn.commit()
+
+    def _connect(self):
+        """Return a DB connection (SQLite or PostgreSQL)."""
+        if self._use_pg:
+            import psycopg2
+            conn = psycopg2.connect(self._database_url)
+            return conn
+        else:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            return conn
+
+    def _cursor(self, conn):
+        """Return a dict-style cursor for the connection."""
+        if self._use_pg:
+            from psycopg2.extras import RealDictCursor
+            return conn.cursor(cursor_factory=RealDictCursor)
+        # SQLite: conn.row_factory is already sqlite3.Row, so the cursor
+        # returned by conn.cursor() will yield Row objects with dict-style
+        # access via row["column_name"].
+        return conn.cursor()
 
     def _persist_rankings(self, rankings: List[LineupRanking]) -> None:
         rows = []
@@ -341,7 +476,7 @@ class MetricsPipeline:
                     c.total_utility_damage,
                     c.avg_utility_damage,
                     c.label,
-                    json.dumps([t.model_dump() for t in c.top_throwers]),
+                    self._json_val([t.model_dump() for t in c.top_throwers]),
                     c.primary_technique,
                     c.technique_agreement,
                     c.primary_click,
@@ -350,35 +485,43 @@ class MetricsPipeline:
                     c.demo_file,
                     c.demo_tick,
                     c.demo_thrower_name,
-                    json.dumps(c.trajectory) if c.trajectory else None,
+                    self._json_val(c.trajectory) if c.trajectory else None,
                     r.impact_score,
                     r.rank,
                 )
             )
+
+        insert_sql = self._q(
+            """
+            INSERT INTO lineup_clusters
+              (cluster_id, map_name, grenade_type,
+               land_cx, land_cy, land_cz,
+               throw_cx, throw_cy, throw_cz,
+               avg_pitch, avg_yaw,
+               throw_count, round_win_rate, total_ud, avg_ud,
+               label, top_throwers,
+               primary_technique, technique_agreement,
+               primary_click, click_agreement,
+               side, demo_file, demo_tick, demo_thrower_name, trajectory,
+               impact_score, rank_position)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """
+        )
+
         with self._connect() as conn:
-            conn.executemany(
-                """
-                INSERT INTO lineup_clusters
-                  (cluster_id, map_name, grenade_type,
-                   land_cx, land_cy, land_cz,
-                   throw_cx, throw_cy, throw_cz,
-                   avg_pitch, avg_yaw,
-                   throw_count, round_win_rate, total_ud, avg_ud,
-                   label, top_throwers,
-                   primary_technique, technique_agreement,
-                   primary_click, click_agreement,
-                   side, demo_file, demo_tick, demo_thrower_name, trajectory,
-                   impact_score, rank_position)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """,
-                rows,
-            )
+            cur = self._cursor(conn)
+            if self._use_pg:
+                for row in rows:
+                    cur.execute(insert_sql, row)
+            else:
+                cur.executemany(insert_sql, rows)
             conn.commit()
 
     def _delete_clusters(self, *, map_name: str, grenade_type: str) -> None:
         with self._connect() as conn:
-            conn.execute(
-                "DELETE FROM lineup_clusters WHERE map_name=? AND grenade_type=?",
+            cur = self._cursor(conn)
+            cur.execute(
+                self._q("DELETE FROM lineup_clusters WHERE map_name=? AND grenade_type=?"),
                 (map_name, grenade_type),
             )
             conn.commit()
@@ -386,9 +529,10 @@ class MetricsPipeline:
     def clear_all(self) -> int:
         """Drop every row from lineup_clusters and execute_combos."""
         with self._connect() as conn:
-            cur = conn.execute("DELETE FROM lineup_clusters")
+            cur = self._cursor(conn)
+            cur.execute("DELETE FROM lineup_clusters")
             deleted = cur.rowcount
-            conn.execute("DELETE FROM execute_combos")
+            cur.execute("DELETE FROM execute_combos")
             conn.commit()
         logger.info("Cleared %d rows from lineup_clusters", deleted)
         return deleted
@@ -400,18 +544,21 @@ class MetricsPipeline:
     def get_executes(self, *, map_name: str) -> List[ExecuteCombo]:
         """Return all detected execute combos for a map."""
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM execute_combos WHERE map_name = ? ORDER BY occurrence_count DESC",
+            cur = self._cursor(conn)
+            cur.execute(
+                self._q("SELECT * FROM execute_combos WHERE map_name = ? ORDER BY occurrence_count DESC"),
                 (map_name,),
-            ).fetchall()
+            )
+            rows = cur.fetchall()
 
         results: List[ExecuteCombo] = []
         for row in rows:
             members: List[ExecuteComboMember] = []
             raw = row["members"]
-            if raw:
+            parsed = self._json_read(raw)
+            if parsed and isinstance(parsed, list):
                 try:
-                    members = [ExecuteComboMember(**m) for m in json.loads(raw)]
+                    members = [ExecuteComboMember(**m) for m in parsed]
                 except Exception:
                     members = []
             results.append(ExecuteCombo(
@@ -432,57 +579,64 @@ class MetricsPipeline:
             rows.append((
                 map_name,
                 e.name,
-                json.dumps([m.model_dump() for m in e.members]),
+                self._json_val([m.model_dump() for m in e.members]),
                 e.occurrence_count,
                 e.round_win_rate,
                 e.side,
                 e.grenade_summary,
             ))
+
+        insert_sql = self._q(
+            """
+            INSERT INTO execute_combos
+                (map_name, name, members, occurrence_count,
+                 round_win_rate, side, grenade_summary)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+        )
+
         with self._connect() as conn:
-            conn.executemany(
-                """
-                INSERT INTO execute_combos
-                    (map_name, name, members, occurrence_count,
-                     round_win_rate, side, grenade_summary)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                rows,
-            )
+            cur = self._cursor(conn)
+            if self._use_pg:
+                for row in rows:
+                    cur.execute(insert_sql, row)
+            else:
+                cur.executemany(insert_sql, rows)
             conn.commit()
         logger.info("Persisted %d execute combos for %s", len(rows), map_name)
 
     def _delete_executes(self, *, map_name: str) -> None:
         with self._connect() as conn:
-            conn.execute(
-                "DELETE FROM execute_combos WHERE map_name = ?",
+            cur = self._cursor(conn)
+            cur.execute(
+                self._q("DELETE FROM execute_combos WHERE map_name = ?"),
                 (map_name,),
             )
             conn.commit()
 
-    @staticmethod
-    def _row_to_ranking(row: sqlite3.Row) -> LineupRanking:
+    # ------------------------------------------------------------------
+    # Row → Pydantic conversion
+    # ------------------------------------------------------------------
+
+    def _row_to_ranking(self, row) -> LineupRanking:
         keys = set(row.keys())
         raw_tt = row["top_throwers"] if "top_throwers" in keys else None
         throwers: List[TopThrower] = []
-        if raw_tt:
+        parsed_tt = self._json_read(raw_tt)
+        if parsed_tt and isinstance(parsed_tt, list):
             try:
-                throwers = [TopThrower(**t) for t in json.loads(raw_tt)]
+                throwers = [TopThrower(**t) for t in parsed_tt]
             except Exception:
                 throwers = []
 
         def _opt(col: str):
             return row[col] if col in keys else None
 
-        def _load_trajectory(raw) -> Optional[List[List[float]]]:
-            if not raw:
-                return None
-            try:
-                parsed = json.loads(raw)
-            except Exception:
-                return None
-            if not isinstance(parsed, list) or len(parsed) < 2:
-                return None
-            return parsed
+        raw_traj = _opt("trajectory")
+        parsed_traj = self._json_read(raw_traj)
+        trajectory: Optional[List[List[float]]] = None
+        if isinstance(parsed_traj, list) and len(parsed_traj) >= 2:
+            trajectory = parsed_traj
 
         cluster = LineupCluster(
             cluster_id=row["id"],
@@ -510,7 +664,7 @@ class MetricsPipeline:
             demo_file=_opt("demo_file"),
             demo_tick=_opt("demo_tick"),
             demo_thrower_name=_opt("demo_thrower_name"),
-            trajectory=_load_trajectory(_opt("trajectory")),
+            trajectory=trajectory,
         )
         return LineupRanking(
             rank=row["rank_position"],

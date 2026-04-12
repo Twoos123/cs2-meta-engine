@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     openrouter_model: str = "google/gemma-3-27b-it:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
+    # Database — set DATABASE_URL for Supabase/PostgreSQL; leave empty for SQLite
+    database_url: str = ""
+
+    # CS2 replay integration
+    cs2_game_dir: str = ""           # e.g. C:/Program Files (x86)/Steam/.../game/csgo
+    cs2_demo_link_name: str = "cs2tool_demos"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
