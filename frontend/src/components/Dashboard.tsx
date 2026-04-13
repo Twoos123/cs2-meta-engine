@@ -341,24 +341,12 @@ export default function Dashboard() {
     : "—";
 
   return (
-    <div className="text-cs2-text mx-auto max-w-full min-h-screen space-y-6 p-4 md:p-6">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
       {/* ── Header ── */}
-      <header className="hud-panel hud-corner px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg border border-cs2-accent/60 flex items-center justify-center bg-cs2-accent/10 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
-            <span className="text-cs2-accent font-mono font-bold text-sm">CS2</span>
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-white tracking-tight leading-none">
-              Meta Engine
-            </h1>
-            <p className="text-[11px] text-cs2-muted mt-1 tracking-wide">
-              Pro lineup intelligence &middot; demoparser2 + clustering
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
+      <nav className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-cs2-border/50 bg-[#0a0e18]">
+        <button onClick={() => navigate("/")} className="hud-btn text-xs py-1 px-2" title="Home">←</button>
+        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Grenade Lineups</h1>
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
           <select
             value={selectedMap}
             onChange={(e) => setSelectedMap(e.target.value)}
@@ -387,26 +375,6 @@ export default function Dashboard() {
           </select>
 
           <button
-            onClick={() => navigate("/replay")}
-            className="hud-btn"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cs2-green" />
-              Match Replay
-            </span>
-          </button>
-
-          <button
-            onClick={() => navigate("/anti-strat")}
-            className="hud-btn"
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cs2-red" />
-              Anti-Strat
-            </span>
-          </button>
-
-          <button
             onClick={() => setShowIngest((s) => !s)}
             className={showIngest ? "hud-btn-primary" : "hud-btn"}
           >
@@ -428,8 +396,9 @@ export default function Dashboard() {
             {clearing ? "Clearing…" : "Clear"}
           </button>
         </div>
-      </header>
+      </nav>
 
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-6 p-4 md:p-6" style={{ scrollbarWidth: "thin" }}>
       {/* ── Grenade type tabs + side filter ── */}
       <>
       <div className="flex items-center gap-3 flex-wrap px-1">
@@ -768,11 +737,7 @@ export default function Dashboard() {
       )}
 
       </>
-
-      {/* ── Footer ── */}
-      <footer className="text-center text-[10px] text-cs2-muted/60 pt-6 pb-2 tracking-[0.15em] uppercase">
-        CS2 Meta Engine
-      </footer>
+      </div>{/* /scrollable content */}
 
       {/* ── Settings modal ── */}
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />

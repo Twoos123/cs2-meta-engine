@@ -137,7 +137,8 @@ Open `http://localhost:5173`
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | Dashboard | Lineup grid, scatter plot, ingest controls, execute combos |
+| `/` | Landing Page | Hub linking to lineups, replay, and anti-strat |
+| `/lineups` | Grenade Lineups | Lineup grid, scatter plot, ingest controls, execute combos |
 | `/replay` | Demo Picker | Upload/browse demos, grouped by map |
 | `/replay/:file` | Match Replay | 2D viewer with playback controls |
 | `/replay/:file/economy` | Economy | Equipment graph + round-by-round buy analysis |

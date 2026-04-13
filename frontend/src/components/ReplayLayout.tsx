@@ -104,7 +104,7 @@ export default function ReplayLayout() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#05070d]">
       {/* Tab bar */}
-      <nav className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-cs2-border/50 bg-[#0a0e18]">
+      <nav className="shrink-0 flex items-center gap-1 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
         <button
           onClick={() => navigate("/replay")}
           className="hud-btn text-xs mr-2 py-1 px-2"

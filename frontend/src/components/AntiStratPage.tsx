@@ -671,24 +671,16 @@ export default function AntiStratPage() {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#05070d] text-cs2-text">
+    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
+      {/* Header — consistent with all pages */}
+      <nav className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
+        <button onClick={() => navigate("/")} className="hud-btn text-xs py-1 px-2" title="Home">←</button>
+        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Anti-Strat</h1>
+      </nav>
+
+      <div className="flex-1 min-h-0 flex overflow-hidden">
       {/* ── Sidebar ── */}
       <aside className="w-80 shrink-0 border-r border-cs2-border/50 flex flex-col overflow-y-auto" style={{ scrollbarWidth: "thin", backgroundColor: "rgba(15, 20, 32, 0.8)" }}>
-        {/* Sidebar header */}
-        <div className="px-4 pt-4 pb-3 border-b border-cs2-border/30">
-          <button onClick={() => navigate("/")} className="hud-btn text-xs mb-3">← Dashboard</button>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg border border-cs2-red/50 flex items-center justify-center bg-cs2-red/10">
-              <svg viewBox="0 0 16 16" className="w-4 h-4" fill="#f87171">
-                <path d="M8 1l2.3 4.6L15 6.4l-3.5 3.4.8 4.8L8 12.4l-4.3 2.2.8-4.8L1 6.4l4.7-.8z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white">Anti-Strat Report</h2>
-              <p className="text-[10px] text-cs2-muted">Opponent tendency analysis</p>
-            </div>
-          </div>
-        </div>
 
         {/* Controls */}
         <div className="px-4 py-4 space-y-4 border-b border-cs2-border/30">
@@ -1042,6 +1034,7 @@ export default function AntiStratPage() {
           </div>
         )}
       </main>
+      </div>{/* /flex content area */}
     </div>
   );
 }

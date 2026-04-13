@@ -3,7 +3,7 @@
 ## Stack
 - **Backend**: FastAPI + demoparser2 (Rust-backed) + SQLite + Anthropic SDK
 - **Frontend**: React 18 + Vite + Tailwind CSS (custom HUD theme)
-- **No React Router** — view switching via state in Dashboard.tsx (`view: "grid" | "picker" | "replay"`)
+- **React Router** — `/` landing page, `/lineups` Dashboard, `/replay` demo picker, `/replay/:file/*` replay tabs, `/anti-strat` opponent scouting
 
 ## How to run
 ```bash
@@ -38,7 +38,8 @@ backend/
 frontend/src/
   api/client.ts        — typed API client (axios)
   components/
-    Dashboard.tsx      — main view, all state management
+    LandingPage.tsx    — home page hub linking to lineups, replay, anti-strat
+    Dashboard.tsx      — lineup grid view, all lineup state management
     LineupCard.tsx     — individual lineup card with Copy/Replay/Practice/AI Describe
     RadarView.tsx      — radar overlay modal with filter controls
     ScatterPlot.tsx    — win rate vs throw count scatter

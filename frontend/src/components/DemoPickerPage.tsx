@@ -150,20 +150,14 @@ export default function DemoPickerPage() {
   }, [demos]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h2 className="text-lg font-bold text-cs2-accent uppercase tracking-[0.2em]">
-            Match Replay · Pick a Demo
-          </h2>
-          <p className="text-[11px] text-cs2-muted mt-1">
-            Upload your own .dem files or pick from existing demos to watch in the 2D viewer.
-          </p>
-        </div>
-        <button onClick={() => navigate("/")} className="hud-btn text-xs">
-          ← Back
-        </button>
-      </div>
+    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d]">
+      {/* Header */}
+      <nav className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
+        <button onClick={() => navigate("/")} className="hud-btn text-xs py-1 px-2" title="Home">←</button>
+        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Match Replay</h1>
+      </nav>
+
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4" style={{ scrollbarWidth: "thin" }}>
 
       {/* ── CS2 link status banner ── */}
       {linkInfo && (
@@ -346,6 +340,7 @@ export default function DemoPickerPage() {
           </div>
         </section>
       ))}
+      </div>
     </div>
   );
 }
