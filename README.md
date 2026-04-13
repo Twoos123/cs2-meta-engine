@@ -2,35 +2,35 @@
 
 A pro-level CS2 demo analysis platform that no competitor matches. Mines demos from HLTV, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, economy tracking, heatmaps, per-player stats, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
 
-### Landing Page
+### 1. Home — Pick a module from the landing page
 ![Landing Page](screenshots/landing.png)
 
-### Grenade Lineups — Impact-ranked pro lineups with scatter plot, radar overlay, and technique detection
+### 2. Grenade Lineups — Browse impact-ranked pro lineups with scatter plot and technique detection
 ![Grenade Lineups](screenshots/lineups.png)
 
-### 2D Match Replay — Full match playback with player positions, grenade visualization, and kill feed
+### 3. Demo Picker — Upload or browse demos grouped by map, then open one to analyze
+![Demo Picker](screenshots/demo-picker.png)
+
+### 4. Match Replay — Watch the full match in 2D with player positions, grenades, and kill feed
 ![Match Replay](screenshots/replay.png)
 
-### Economy Tracker — Equipment value graph with buy type classification per round
+### 5. Economy — Track equipment value and buy types round by round
 ![Economy Tracker](screenshots/economy.png)
 
-### Heatmap — Position density, death locations, and grenade landing overlays
+### 6. Heatmap — See where players position, die, and land utility
 ![Heatmap](screenshots/heatmap.png)
 
-### Per-Player Stats — Scoreboard with K/D, HS%, first kills, and multi-kill rounds
+### 7. Stats — Per-player scoreboard with K/D, HS%, first kills, and multi-kill rounds
 ![Stats Panel](screenshots/stats.png)
 
-### Anti-Strat Report — Round win patterns, site hit frequency, and first blood timing
+### 8. Anti-Strat — Select an opponent team and generate a scouting report
 ![Anti-Strat Report](screenshots/anti-strat.png)
 
-### Anti-Strat — Utility tendency and AWP position heatmaps
+### 9. Anti-Strat — Utility tendency and AWP position heatmaps
 ![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
 
-### Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
+### 10. Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
 ![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
-
-### Demo Picker — Upload or browse parsed demos, grouped by map
-![Demo Picker](screenshots/demo-picker.png)
 
 ---
 
