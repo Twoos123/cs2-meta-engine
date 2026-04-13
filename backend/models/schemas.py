@@ -26,6 +26,8 @@ class HLTVMatch(BaseModel):
     # grenade throws to only the requested team's players.
     team1_players: List[str] = Field(default_factory=list)
     team2_players: List[str] = Field(default_factory=list)
+    team1_logo: Optional[str] = None
+    team2_logo: Optional[str] = None
 
 
 class DemoIngestionResult(BaseModel):
@@ -232,6 +234,8 @@ class TimelinePosition(BaseModel):
     hl: Optional[bool] = None # helmet
     tn: Optional[int] = None # team_num
     inv: Optional[List[str]] = Field(default_factory=list) # full inventory
+    eq: Optional[int] = None   # equipment value
+    cs: Optional[int] = None   # cash spent this round
 
 
 class TimelineGrenade(BaseModel):

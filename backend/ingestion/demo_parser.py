@@ -884,7 +884,8 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
     try:
         ticks_df = parser.parse_ticks(
             ["X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num",
-             "active_weapon_name", "armor_value", "has_helmet", "inventory"]
+             "active_weapon_name", "armor_value", "has_helmet", "inventory",
+             "current_equip_value", "cash_spent_this_round"]
         )
     except Exception as exc:
         logger.error("parse_ticks failed: %s", exc)
@@ -926,6 +927,21 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         real = [r for r in roster_rows if r["team_num"] in (2, 3)]
         players = real if real else roster_rows
 
+        def _safe_int(v, default=0) -> int:
+            """Convert to int, treating NaN/None/inf as default."""
+            if v is None:
+                return default
+            try:
+                import math
+                if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    return default
+            except (TypeError, ValueError):
+                pass
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return default
+
         real_sids = {r["steamid"] for r in players}
         for sid, group in df.groupby("steamid", sort=False):
             if sid not in real_sids:
@@ -937,9 +953,9 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                 # Strip "weapon_" prefix if present
                 if wpn.startswith("weapon_"):
                     wpn = wpn[7:]
-                armor = int(getattr(row, "armor_value", 0) or 0)
+                armor = _safe_int(getattr(row, "armor_value", 0))
                 helmet = bool(getattr(row, "has_helmet", False))
-                tn = int(getattr(row, "team_num", 0) or 0)
+                tn = _safe_int(getattr(row, "team_num", 0))
 
                 # Extract inventory if present. Demoparser2 often returns a list or a string.
                 inv_raw = getattr(row, "inventory", None)
@@ -967,12 +983,14 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                         "y": round(float(getattr(row, "Y", 0.0) or 0.0), 1),
                         "yaw": round(float(getattr(row, "yaw", 0.0) or 0.0), 1),
                         "alive": bool(getattr(row, "is_alive", False)),
-                        "hp": int(getattr(row, "health", 0) or 0),
+                        "hp": _safe_int(getattr(row, "health", 0)),
                         "w": wpn if wpn else "",
                         "ar": armor,
                         "hl": helmet,
                         "tn": tn,
                         "inv": inv_list,
+                        "eq": _safe_int(getattr(row, "current_equip_value", 0)),
+                        "cs": _safe_int(getattr(row, "cash_spent_this_round", 0)),
                     }
                 )
             positions[sid] = samples

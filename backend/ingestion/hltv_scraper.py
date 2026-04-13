@@ -523,10 +523,12 @@ class HLTVScraper:
                             "team1": {
                                 "name": match.team1,
                                 "players": list(match.team1_players),
+                                "logo": match.team1_logo or "",
                             },
                             "team2": {
                                 "name": match.team2,
                                 "players": list(match.team2_players),
+                                "logo": match.team2_logo or "",
                             },
                         },
                         indent=2,
@@ -604,6 +606,9 @@ class HLTVScraper:
                 match.team1, team1_players, match.team2, team2_players,
             )
 
+        # Extract team logos from the match page header
+        team1_logo, team2_logo = self._extract_team_logos(soup)
+
         enriched = match.model_copy(
             update={
                 "map": maps[0] if maps else None,
@@ -611,6 +616,8 @@ class HLTVScraper:
                 "demo_urls": demo_urls,
                 "team1_players": team1_players,
                 "team2_players": team2_players,
+                "team1_logo": team1_logo,
+                "team2_logo": team2_logo,
             }
         )
         return HLTVScraper._EnrichedMatch(enriched, maps)
@@ -656,6 +663,42 @@ class HLTVScraper:
                 return t1, t2
 
         return [], []
+
+    @staticmethod
+    def _extract_team_logos(
+        soup: BeautifulSoup,
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Extract team logo image URLs from the HLTV match page header."""
+        logos: list[Optional[str]] = [None, None]
+        # HLTV match page has .team1-gradient and .team2-gradient divs with
+        # team logo images, or .teamlogo img inside the team header boxes.
+        for idx, sel in enumerate([
+            ".team1-gradient img.logo, .team1-gradient .teamlogo, .teamlogo:first-of-type",
+            ".team2-gradient img.logo, .team2-gradient .teamlogo, .teamlogo:last-of-type",
+        ]):
+            if idx >= 2:
+                break
+            for el in soup.select(sel):
+                src = el.get("src", "")
+                if src and "hltv" in src and "logo" in src.lower():
+                    logos[idx] = src
+                    break
+
+        # Fallback: find all teamlogo images in order
+        if not logos[0] and not logos[1]:
+            logo_imgs = soup.select("img.logo, img[src*='teamlogo']")
+            seen: set[str] = set()
+            for img in logo_imgs:
+                src = img.get("src", "")
+                if src and src not in seen and "teamlogo" in src:
+                    seen.add(src)
+                    if not logos[0]:
+                        logos[0] = src
+                    elif not logos[1]:
+                        logos[1] = src
+                        break
+
+        return logos[0], logos[1]
 
     def _extract_demo_links(
         self, soup: BeautifulSoup

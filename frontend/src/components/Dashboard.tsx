@@ -2,6 +2,7 @@
  * Dashboard — main view. HUD-styled layout.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Callout,
   clearAllData,
@@ -17,8 +18,6 @@ import {
 import LineupCard from "./LineupCard";
 import ScatterPlot from "./ScatterPlot";
 import IngestPanel from "./IngestPanel";
-import DemoPickerPage from "./DemoPickerPage";
-import MatchReplayViewer from "./MatchReplayViewer";
 import SettingsPanel from "./SettingsPanel";
 
 const GRENADE_TYPES = [
@@ -41,8 +40,7 @@ const ALL_MAPS = [
 ];
 
 export default function Dashboard() {
-  const [view, setView] = useState<"grid" | "picker" | "replay">("grid");
-  const [replayDemo, setReplayDemo] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [selectedMap, setSelectedMap] = useState("de_mirage");
   const [selectedType, setSelectedType] = useState("smokegrenade");
   const [selectedSide, setSelectedSide] = useState<"all" | "T" | "CT">("all");
@@ -343,11 +341,9 @@ export default function Dashboard() {
     : "—";
 
   return (
-    <div className={`text-cs2-text mx-auto max-w-full ${
-      view === "replay" ? "p-0 h-screen overflow-hidden" : "min-h-screen space-y-6 p-4 md:p-6"
-    }`}>
-      {/* ── Header (hidden in replay mode) ── */}
-      <header className={`hud-panel hud-corner px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 ${view === "replay" ? "hidden" : ""}`}>
+    <div className="text-cs2-text mx-auto max-w-full min-h-screen space-y-6 p-4 md:p-6">
+      {/* ── Header ── */}
+      <header className="hud-panel hud-corner px-5 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg border border-cs2-accent/60 flex items-center justify-center bg-cs2-accent/10 shadow-[0_0_20px_rgba(34,211,238,0.2)]">
             <span className="text-cs2-accent font-mono font-bold text-sm">CS2</span>
@@ -391,8 +387,8 @@ export default function Dashboard() {
           </select>
 
           <button
-            onClick={() => setView("picker")}
-            className={view !== "grid" ? "hud-btn-primary" : "hud-btn"}
+            onClick={() => navigate("/replay")}
+            className="hud-btn"
           >
             <span className="inline-flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-cs2-green" />
@@ -400,14 +396,22 @@ export default function Dashboard() {
             </span>
           </button>
 
-          {view === "grid" && (
-            <button
-              onClick={() => setShowIngest((s) => !s)}
-              className={showIngest ? "hud-btn-primary" : "hud-btn"}
-            >
-              {showIngest ? "Hide Ingest" : "Ingest"}
-            </button>
-          )}
+          <button
+            onClick={() => navigate("/anti-strat")}
+            className="hud-btn"
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cs2-red" />
+              Anti-Strat
+            </span>
+          </button>
+
+          <button
+            onClick={() => setShowIngest((s) => !s)}
+            className={showIngest ? "hud-btn-primary" : "hud-btn"}
+          >
+            {showIngest ? "Hide Ingest" : "Ingest"}
+          </button>
 
           <button
             onClick={() => setShowSettings(true)}
@@ -426,25 +430,8 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* ── Match replay views ── */}
-      {view === "picker" && (
-        <DemoPickerPage
-          onSelect={(file) => {
-            setReplayDemo(file);
-            setView("replay");
-          }}
-          onBack={() => setView("grid")}
-        />
-      )}
-      {view === "replay" && replayDemo && (
-        <MatchReplayViewer
-          demoFile={replayDemo}
-          onBack={() => setView("picker")}
-        />
-      )}
-
-      {/* ── Grenade type tabs + side filter (grid view only) ── */}
-      {view === "grid" && (<>
+      {/* ── Grenade type tabs + side filter ── */}
+      <>
       <div className="flex items-center gap-3 flex-wrap px-1">
         <div className="flex gap-1.5 flex-wrap">
           {GRENADE_TYPES.map((g) => (
@@ -780,7 +767,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      </>)}
+      </>
 
       {/* ── Footer ── */}
       <footer className="text-center text-[10px] text-cs2-muted/60 pt-6 pb-2 tracking-[0.15em] uppercase">

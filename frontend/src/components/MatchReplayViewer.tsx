@@ -18,10 +18,7 @@ import {
   MatchTimeline,
   RadarInfo,
   TimelinePosition,
-  getMatchInfo,
   getMatchReplayInsights,
-  getMatchReplayTimeline,
-  getRadarInfo,
 } from "../api/client";
 
 const RADAR_PX = 1024;
@@ -80,13 +77,17 @@ const WEAPON_ICON_MAP: Record<string, string> = {
   "Incendiary Grenade": "incgrenade", "Decoy Grenade": "decoy",
   "C4 Explosive": "c4",
 };
+/** Set of known icon base names for raw-name reverse lookup. */
+const WEAPON_ICON_NAMES = new Set(Object.values(WEAPON_ICON_MAP));
+
 /** Map demoparser2 weapon display name to icon path, with knife fallback. */
 const weaponIconPath = (displayName: string): string => {
   if (!displayName || displayName === "nan") return "";
   const mapped = WEAPON_ICON_MAP[displayName];
   if (mapped) return `/icons/${mapped}.svg`;
-  // Knife variants: "Karambit", "M9 Bayonet", "Butterfly Knife", etc.
+  // Raw name fallback (e.g. "ak47" → "/icons/ak47.svg")
   const lower = displayName.toLowerCase();
+  if (WEAPON_ICON_NAMES.has(lower)) return `/icons/${lower}.svg`;
   if (lower.includes("knife") || lower.includes("bayonet") || lower.includes("karambit")
       || lower.includes("talon") || lower.includes("navaja") || lower.includes("stiletto")
       || lower.includes("ursus") || lower.includes("classic") || lower.includes("paracord")
@@ -101,6 +102,9 @@ const weaponIconPath = (displayName: string): string => {
 
 interface Props {
   demoFile: string;
+  timeline: MatchTimeline;
+  radar: RadarInfo | null;
+  matchInfo: MatchInfoResponse | null;
   onBack: () => void;
 }
 
@@ -189,19 +193,57 @@ const smoothPath = (pts: [number, number][]): string => {
   return d;
 };
 
-export default function MatchReplayViewer({ demoFile, onBack }: Props) {
-  const [timeline, setTimeline] = useState<MatchTimeline | null>(null);
-  const [radar, setRadar] = useState<RadarInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingMsg] = useState("Parsing demo (this can take 5–15s on first open)…");
+export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo, onBack }: Props) {
   const [currentTick, setCurrentTick] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [insights, setInsights] = useState<string | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
-  const [matchInfo, setMatchInfo] = useState<MatchInfoResponse | null>(null);
   const [showNadePanel, setShowNadePanel] = useState(false);
+  const [mapScale, setMapScale] = useState(1);
+  const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  // ── Timestamped notes (localStorage) ──
+  interface NoteEntry {
+    id: string;
+    tick: number;
+    round: number;
+    text: string;
+    createdAt: number;
+  }
+  const notesKey = `cs2-notes-${demoFile}`;
+  const [notes, setNotes] = useState<NoteEntry[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(notesKey) ?? "[]");
+    } catch { return []; }
+  });
+  const [showNotes, setShowNotes] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const saveNotes = (next: NoteEntry[]) => {
+    setNotes(next);
+    localStorage.setItem(notesKey, JSON.stringify(next));
+  };
+  const addNote = () => {
+    if (!noteInput.trim()) return;
+    const round = timeline.rounds.find(
+      (r) => currentTick >= r.start_tick && currentTick <= r.end_tick,
+    )?.num ?? 0;
+    const entry: NoteEntry = {
+      id: crypto.randomUUID(),
+      tick: Math.round(currentTick),
+      round,
+      text: noteInput.trim(),
+      createdAt: Date.now(),
+    };
+    saveNotes([...notes, entry].sort((a, b) => a.tick - b.tick));
+    setNoteInput("");
+  };
+  const deleteNote = (id: string) => {
+    saveNotes(notes.filter((n) => n.id !== id));
+  };
 
   // Nade analysis filter / highlight state
   const ALL_NADE_TYPES = ["smokegrenade", "flashbang", "hegrenade", "molotov"] as const;
@@ -219,30 +261,6 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
   const [utilPatternSide, setUtilPatternSide] = useState<"all" | 2 | 3>("all");
   const [utilPatternPlaying, setUtilPatternPlaying] = useState(false);
   const [utilPatternSpeed, setUtilPatternSpeed] = useState(1);
-
-  useEffect(() => {
-    let cancelled = false;
-    setError(null);
-    setTimeline(null);
-    setMatchInfo(null);
-    // Fetch match info in parallel with timeline
-    getMatchInfo(demoFile).then((mi) => { if (!cancelled) setMatchInfo(mi); }).catch(() => {});
-    getMatchReplayTimeline(demoFile)
-      .then((t) => {
-        if (cancelled) return;
-        setTimeline(t);
-        return getRadarInfo(t.map_name);
-      })
-      .then((r) => {
-        if (cancelled || !r) return;
-        setRadar(r);
-      })
-      .catch((e: any) => {
-        if (cancelled) return;
-        setError(e?.response?.data?.detail ?? "Failed to load timeline");
-      });
-    return () => { cancelled = true; };
-  }, [demoFile]);
 
   // ── Playback loop — uses ref to avoid re-creating the rAF on each tick ──
   const tickRef = useRef(currentTick);
@@ -1027,26 +1045,8 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex flex-col gap-3">
-        <button onClick={onBack} className="hud-btn text-xs self-start">← Back</button>
-        <p className="text-[12px] text-cs2-red border-l-2 border-cs2-red/50 pl-2">{error}</p>
-      </div>
-    );
-  }
-
-  if (!timeline) {
-    return (
-      <div className="flex flex-col gap-3">
-        <button onClick={onBack} className="hud-btn text-xs self-start">← Back</button>
-        <p className="text-[12px] text-cs2-muted">{loadingMsg}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header — compact, stable org positions (org1=left, org2=right) */}
       <div className="flex items-center justify-between px-3 py-1.5 shrink-0">
         <div>
@@ -1107,13 +1107,14 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
             const isCurrent = ro.num === score.round;
             const winColor = ro.winner === "T" ? TEAM_COLOR[2] : ro.winner === "CT" ? TEAM_COLOR[3] : "#555";
             const elimination = !ro.bombDefused && !ro.bombExploded && ro.winner;
-            // For the CURRENT round, use live playerStates. For past rounds, use precomputed end-of-round data.
-            const liveTAlive = isCurrent ? playerStates.filter((p) => p.team === 2 && p.alive).length : ro.tAlive;
-            const liveCTAlive = isCurrent ? playerStates.filter((p) => p.team === 3 && p.alive).length : ro.ctAlive;
-            // For future rounds (not yet played), show all 5
-            const isPlayed = ro.endTick <= currentTick;
-            const tBars = isCurrent ? liveTAlive : (isPlayed ? ro.tAlive : 5);
-            const ctBars = isCurrent ? liveCTAlive : (isPlayed ? ro.ctAlive : 5);
+            // Only the currently-watched round gets live feedback from playerStates.
+            // All other rounds (past AND future) show their precomputed end-of-round outcome.
+            const tBars = isCurrent
+              ? playerStates.filter((p) => p.team === 2 && p.alive).length
+              : ro.tAlive;
+            const ctBars = isCurrent
+              ? playerStates.filter((p) => p.team === 3 && p.alive).length
+              : ro.ctAlive;
             return (
               <React.Fragment key={ro.num}>
                 {ro.num === 13 && (
@@ -1139,8 +1140,8 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
                     ))}
                   </div>
 
-                  {/* Winner color bar (center divider) */}
-                  <div className="w-[85%] h-[3px] rounded-full my-[3px]" style={{ background: isPlayed ? winColor : "#333" }} />
+                  {/* Winner color bar (center divider) — always show outcome except current round */}
+                  <div className="w-[85%] h-[3px] rounded-full my-[3px]" style={{ background: isCurrent ? "#555" : winColor }} />
 
                   {/* CT-side alive bars (bottom) */}
                   <div className="flex justify-center gap-[2px]">
@@ -1305,10 +1306,36 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
               </span>
             </div>
           )}
-          <div className="relative flex-1 min-h-0 w-full" style={{ aspectRatio: "1 / 1", maxWidth: "100%", maxHeight: "100%", margin: "0 auto" }}>
+          <div
+            className="relative flex-1 min-h-0 w-full flex items-center justify-center"
+            style={{ overflow: "hidden", cursor: isDragging ? "grabbing" : mapScale > 1 ? "grab" : "default" }}
+            onMouseDown={(e) => {
+              if (mapScale <= 1 || e.button !== 0) return;
+              setIsDragging(true);
+              dragStart.current = { x: e.clientX, y: e.clientY, panX: mapPan.x, panY: mapPan.y };
+            }}
+            onMouseMove={(e) => {
+              if (!isDragging) return;
+              setMapPan({
+                x: dragStart.current.panX + (e.clientX - dragStart.current.x),
+                y: dragStart.current.panY + (e.clientY - dragStart.current.y),
+              });
+            }}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => setIsDragging(false)}
+          >
+          <div style={{
+            aspectRatio: "1 / 1",
+            width: "100%",
+            maxWidth: "100%",
+            maxHeight: "100%",
+            flexShrink: 0,
+            transform: `scale(${mapScale}) translate(${mapPan.x / mapScale}px, ${mapPan.y / mapScale}px)`,
+            transformOrigin: "center center",
+          }}>
             <svg
               viewBox={`0 0 ${RADAR_PX} ${RADAR_PX}`}
-              className="absolute inset-0 w-full h-full"
+              className="w-full h-full"
             >
               {/* SVG defs for utility zone effects */}
               <defs>
@@ -1828,21 +1855,13 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
                     <circle cx={px} cy={py} r={11}
                       fill={color} stroke="#000" strokeWidth={2}
                     />
-                    {/* Player name + HP text */}
-                    <text x={px + 14} y={py - 16} fill="#fff" fontSize={14}
+                    {/* Player name + HP (centered above dot) */}
+                    <text x={px} y={py - 18} fill="#fff" fontSize={13}
                       fontFamily="monospace" stroke="#000" strokeWidth={3} paintOrder="stroke"
+                      textAnchor="middle"
                     >
-                      {p.name}
+                      {p.name}{p.alive ? ` ${p.hp}` : ""}
                     </text>
-                    {/* HP number next to name */}
-                    {p.alive && (
-                      <text x={px + 14} y={py - 4} fill={hpColor} fontSize={11}
-                        fontFamily="monospace" stroke="#000" strokeWidth={2.5} paintOrder="stroke"
-                        fontWeight="bold"
-                      >
-                        {p.hp} HP
-                      </text>
-                    )}
                     {/* Health bar (below dot) */}
                     {p.alive && (
                       <g>
@@ -1967,53 +1986,211 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
               </div>
             )}
           </div>
+          </div>{/* /outer scroll wrapper */}
 
           {/* Controls */}
-          <div className="flex flex-col gap-1.5 px-1 pt-1 shrink-0">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const prev = [...timeline.rounds].reverse()
-                    .find((r) => r.start_tick < currentTick - 1);
-                  if (prev) setCurrentTick(prev.start_tick);
-                }}
-                className="hud-btn text-sm" title="Previous round"
-              >⏮</button>
-              <button
-                onClick={() => setPlaying((p) => !p)}
-                className="hud-btn-primary text-sm"
-                title={playing ? "Pause" : "Play"}
-              >
-                {playing ? "⏸ Pause" : "▶ Play"}
-              </button>
-              <button
-                onClick={() => {
-                  const next = timeline.rounds.find((r) => r.start_tick > currentTick);
-                  if (next) setCurrentTick(next.start_tick);
-                }}
-                className="hud-btn text-sm" title="Next round"
-              >⏭</button>
-              <div className="flex items-center gap-1 ml-2">
-                {[0.5, 1, 2, 4].map((s) => (
-                  <button key={s} onClick={() => setSpeed(s)}
-                    className={`text-xs px-2 py-0.5 rounded font-mono ${
-                      speed === s ? "bg-cs2-accent text-cs2-bg" : "hud-btn"
+          {(() => {
+            const progress = timeline.tick_max > 0 ? (Math.round(currentTick) / timeline.tick_max) * 100 : 0;
+            const fmtTime = (ticks: number) => {
+              const secs = Math.floor(ticks / 64);
+              return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+            };
+            return (
+              <div className="flex flex-col gap-1.5 px-2 pt-1.5 pb-1 shrink-0">
+                {/* Scrubber with round markers */}
+                <div className="relative">
+                  <input
+                    type="range" min={0} max={timeline.tick_max} step={1}
+                    value={Math.round(currentTick)}
+                    onChange={(e) => setCurrentTick(Number(e.target.value))}
+                    className="w-full hud-scrubber"
+                    style={{
+                      background: `linear-gradient(to right, #22d3ee ${progress}%, #1e2636 ${progress}%)`,
+                      borderRadius: 2,
+                    }}
+                  />
+                  {/* Round start tick marks */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center" style={{ padding: "0 7px" }}>
+                    {timeline.rounds.map((r) => (
+                      <div key={r.num}
+                        className="absolute w-[3px] h-[3px] rounded-full"
+                        style={{
+                          left: `${timeline.tick_max > 0 ? (r.start_tick / timeline.tick_max) * 100 : 0}%`,
+                          background: "rgba(255,255,255,0.3)",
+                        }}
+                      />
+                    ))}
+                    {/* Note markers (diamonds) */}
+                    {notes.map((n) => (
+                      <div key={n.id}
+                        className="absolute w-[6px] h-[6px] rotate-45 cursor-pointer"
+                        style={{
+                          left: `${timeline.tick_max > 0 ? (n.tick / timeline.tick_max) * 100 : 0}%`,
+                          background: "#f59e0b",
+                          marginTop: "-1px",
+                          pointerEvents: "auto",
+                        }}
+                        title={`R${n.round}: ${n.text}`}
+                        onClick={() => setCurrentTick(n.tick)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Transport buttons row */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      const prev = [...timeline.rounds].reverse()
+                        .find((r) => r.start_tick < currentTick - 1);
+                      if (prev) setCurrentTick(prev.start_tick);
+                    }}
+                    className="hud-btn p-1.5" title="Previous round"
+                  >
+                    <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
+                      <rect x="2" y="2" width="2" height="12" rx="0.5" />
+                      <path d="M14 2L6 8l8 6V2z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setPlaying((p) => !p)}
+                    className="hud-btn-primary p-2" title={playing ? "Pause" : "Play"}
+                  >
+                    {playing ? (
+                      <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
+                        <rect x="3" y="2" width="3.5" height="12" rx="1" />
+                        <rect x="9.5" y="2" width="3.5" height="12" rx="1" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
+                        <path d="M4 2l10 6-10 6V2z" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const next = timeline.rounds.find((r) => r.start_tick > currentTick);
+                      if (next) setCurrentTick(next.start_tick);
+                    }}
+                    className="hud-btn p-1.5" title="Next round"
+                  >
+                    <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
+                      <path d="M2 2l8 6-8 6V2z" />
+                      <rect x="12" y="2" width="2" height="12" rx="0.5" />
+                    </svg>
+                  </button>
+
+                  <div className="w-px h-5 bg-cs2-border/40 mx-1" />
+
+                  <div className="flex items-center gap-1">
+                    {[0.5, 1, 2, 4].map((s) => (
+                      <button key={s} onClick={() => setSpeed(s)}
+                        className={`text-xs px-2 py-1 rounded font-mono transition-all ${
+                          speed === s
+                            ? "bg-cs2-accent text-cs2-bg font-bold shadow-[0_0_8px_rgba(34,211,238,0.3)]"
+                            : "hud-btn"
+                        }`}
+                      >{s}×</button>
+                    ))}
+                  </div>
+
+                  <span className="text-xs text-cs2-muted ml-auto font-mono tabular-nums">
+                    {fmtTime(currentTick)}
+                    <span className="text-cs2-muted/40"> / </span>
+                    {fmtTime(timeline.tick_max)}
+                  </span>
+
+                  <div className="w-px h-5 bg-cs2-border/40 mx-1" />
+
+                  {/* Map zoom */}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setMapScale((s) => { const next = Math.max(0.5, +(s - 0.1).toFixed(1)); if (next <= 1) setMapPan({ x: 0, y: 0 }); return next; })}
+                      className="hud-btn px-1.5 py-0.5 text-[10px]"
+                      title="Zoom out"
+                    >−</button>
+                    <span className="text-[10px] text-cs2-muted font-mono w-8 text-center">
+                      {Math.round(mapScale * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setMapScale((s) => Math.min(2, +(s + 0.1).toFixed(1)))}
+                      className="hud-btn px-1.5 py-0.5 text-[10px]"
+                      title="Zoom in"
+                    >+</button>
+                    {mapScale !== 1 && (
+                      <button
+                        onClick={() => { setMapScale(1); setMapPan({ x: 0, y: 0 }); }}
+                        className="text-[9px] text-cs2-accent hover:underline ml-1"
+                      >Reset</button>
+                    )}
+                  </div>
+
+                  <div className="w-px h-5 bg-cs2-border/40 mx-1" />
+
+                  <button
+                    onClick={() => setShowNotes((s) => !s)}
+                    className={`text-[10px] px-2 py-1 rounded font-semibold transition-all ${
+                      showNotes
+                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/40"
+                        : "hud-btn"
                     }`}
-                  >{s}×</button>
-                ))}
+                    title="Toggle notes panel"
+                  >
+                    Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+                  </button>
+                </div>
+
+                {/* Inline note input */}
+                {showNotes && (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={noteInput}
+                      onChange={(e) => setNoteInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") addNote(); }}
+                      placeholder={`Add note at ${fmtTime(currentTick)}…`}
+                      className="hud-input flex-1 text-xs py-1 px-2"
+                    />
+                    <button
+                      onClick={addNote}
+                      disabled={!noteInput.trim()}
+                      className="hud-btn-primary text-[10px] px-2 py-1"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+
+                {/* Notes list */}
+                {showNotes && notes.length > 0 && (
+                  <div className="max-h-24 overflow-y-auto space-y-0.5" style={{ scrollbarWidth: "thin" }}>
+                    {notes.map((n) => (
+                      <div
+                        key={n.id}
+                        className="flex items-center gap-2 text-[10px] px-1 py-0.5 rounded hover:bg-cs2-border/10 group"
+                      >
+                        <button
+                          onClick={() => setCurrentTick(n.tick)}
+                          className="text-amber-400 font-mono shrink-0 hover:underline"
+                        >
+                          R{n.round} {fmtTime(n.tick)}
+                        </button>
+                        <span className="text-gray-300 truncate flex-1">{n.text}</span>
+                        <button
+                          onClick={() => deleteNote(n.id)}
+                          className="text-cs2-red/50 hover:text-cs2-red opacity-0 group-hover:opacity-100 shrink-0"
+                          title="Delete note"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className="text-xs text-cs2-muted ml-auto font-mono">
-                {Math.floor(currentTick / 64 / 60)}:{String(Math.floor((currentTick / 64) % 60)).padStart(2, "0")}
-              </span>
-            </div>
-            <input
-              type="range" min={0} max={timeline.tick_max} step={1}
-              value={Math.round(currentTick)}
-              onChange={(e) => setCurrentTick(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-        </div>{/* /hud-panel map */}
+            );
+          })()}
+        </div>{/* /hud-panel */}
         </div>{/* /map area wrapper */}
 
         {/* ── Sidebar (right) ── */}
@@ -2060,15 +2237,13 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
                             {/* HP bar (thin, behind name area) */}
                             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                               <span className="text-sm text-white truncate font-semibold">{p.name}</span>
-                              {p.alive && (
-                                <div className="w-full h-[3px] rounded-full bg-black/40 overflow-hidden">
-                                  <div className="h-full rounded-full" style={{
-                                    width: `${hpFrac * 100}%`,
-                                    background: hpColor,
-                                    transition: "width 0.15s ease",
-                                  }} />
-                                </div>
-                              )}
+                              <div className="w-full h-[3px] rounded-full bg-black/40 overflow-hidden" style={{ visibility: p.alive ? "visible" : "hidden" }}>
+                                <div className="h-full rounded-full" style={{
+                                  width: `${hpFrac * 100}%`,
+                                  background: hpColor,
+                                  transition: "width 0.15s ease",
+                                }} />
+                              </div>
                             </div>
                             {/* Armor indicator */}
                             {p.alive && p.armor > 0 && (
@@ -2089,30 +2264,28 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
                               />
                             )}
                           </div>
-                          {/* Bottom row: Full inventory */}
-                          {p.alive && p.inventory && p.inventory.length > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 px-2.5 pb-1.5 pt-0"
-                              style={{ marginLeft: "calc(1.75rem + 0.5rem)" /* align under name */ }}
-                            >
-                              {p.inventory.filter((invWpn) => invWpn && invWpn !== "nan" && invWpn !== "" && !invWpn.toLowerCase().includes("knife")).map((invWpn, idx) => {
-                                const invIcon = weaponIconPath(invWpn);
-                                const isActive = p.weapon && invWpn.toLowerCase() === p.weapon.toLowerCase();
-                                return invIcon ? (
-                                  <img
-                                    key={idx}
-                                    src={invIcon}
-                                    alt={invWpn}
-                                    className={`h-4 max-w-[60px] object-contain shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}
-                                    style={{ filter: "brightness(0) invert(0.9)" }}
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                                    title={invWpn}
-                                  />
-                                ) : (
-                                  <span key={idx} className={`text-[10px] font-mono truncate ${isActive ? "text-gray-200" : "text-gray-500"}`}>{invWpn}</span>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* Bottom row: Full inventory — always rendered with min-height to prevent layout shift */}
+                          <div className="flex flex-wrap items-center gap-2 px-2.5 pb-1.5 pt-0"
+                            style={{ marginLeft: "calc(1.75rem + 0.5rem)", minHeight: 22, visibility: p.alive ? "visible" : "hidden" }}
+                          >
+                            {(p.inventory ?? []).filter((invWpn) => invWpn && invWpn !== "nan" && invWpn !== "" && !invWpn.toLowerCase().includes("knife")).map((invWpn, idx) => {
+                              const invIcon = weaponIconPath(invWpn);
+                              const isActive = p.weapon && invWpn.toLowerCase() === p.weapon.toLowerCase();
+                              return invIcon ? (
+                                <img
+                                  key={idx}
+                                  src={invIcon}
+                                  alt={invWpn}
+                                  className={`h-4 max-w-[60px] object-contain shrink-0 ${isActive ? "opacity-100" : "opacity-50"}`}
+                                  style={{ filter: "brightness(0) invert(0.9)" }}
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                  title={invWpn}
+                                />
+                              ) : (
+                                <span key={idx} className={`text-[10px] font-mono truncate ${isActive ? "text-gray-200" : "text-gray-500"}`}>{invWpn}</span>
+                              );
+                            })}
+                          </div>
                         </div>
                       );
                     })}
@@ -2123,7 +2296,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
           </div>
 
           {/* AI Recap */}
-          <div className="hud-panel p-2 flex flex-col gap-2 flex-1 min-h-0">
+          <div className="hud-panel p-2 flex flex-col gap-2 shrink-0">
             <div className="flex items-center justify-between">
               <p className="text-xs text-cs2-muted uppercase tracking-[0.15em]">AI Recap</p>
               <button onClick={handleGenerateInsights} disabled={insightsLoading}
@@ -2138,7 +2311,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
               </p>
             )}
             {insights && (
-              <div className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap overflow-y-auto flex-1 min-h-0">
+              <div className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap overflow-y-auto" style={{ maxHeight: 200, scrollbarWidth: "thin" }}>
                 {insights}
               </div>
             )}
@@ -2152,7 +2325,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
       </div>{/* /main flex area */}
 
       {/* ═══ Bottom section: Nade Analysis ═══ */}
-      <div className="shrink-0 px-2 pb-2" style={{ maxHeight: "30vh", overflowY: "auto" }}>
+      <div className="px-2 pb-1">
         <div className="hud-panel p-2 flex flex-col gap-2">
           <button
             onClick={() => setShowNadePanel((v) => !v)}
@@ -2166,6 +2339,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
             </span>
           </button>
             {showNadePanel && (
+              <div>
               <>
               {/* Tab switcher */}
               <div className="flex items-center gap-2 mb-1">
@@ -2484,6 +2658,7 @@ export default function MatchReplayViewer({ demoFile, onBack }: Props) {
               </div>
               )}
               </>
+              </div>
             )}
           </div>{/* /hud-panel nade analysis */}
         </div>{/* /bottom section */}

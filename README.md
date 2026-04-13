@@ -1,307 +1,284 @@
 # CS2 Meta Engine
 
-Mines pro CS2 demos from HLTV, extracts every grenade throw, buckets the
-identical lineups, ranks them by round-win-rate × utility damage, and drops
-them on a HUD-styled dashboard you can filter, group, and practice from.
+A pro-level CS2 demo analysis platform that no competitor matches. Mines demos from HLTV, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, economy tracking, heatmaps, per-player stats, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
 
-Every lineup also carries its throw *technique* (stand / walk / run / jump /
-running-jump / crouch) and *click type* (left / right / both) — recovered by
-looking up the player's button state 8 ticks before the `grenade_thrown`
-event, so you know exactly how the pros threw it.
+![Lineup Dashboard](https://github.com/user-attachments/assets/c734b5c4-cf90-4900-842a-61b51e769730)
+![Radar View](https://github.com/user-attachments/assets/f477a06c-c386-4a76-ae71-c50cd5018e3f)
 
-<img width="2554" height="1249" alt="image" src="https://github.com/user-attachments/assets/c734b5c4-cf90-4900-842a-61b51e769730" />
-<img width="2553" height="1241" alt="image" src="https://github.com/user-attachments/assets/f477a06c-c386-4a76-ae71-c50cd5018e3f" />
+<!-- Take screenshots and replace these placeholders:
+![Anti-Strat Report](screenshots/anti-strat.png)
+![Match Replay](screenshots/replay.png)
+![Economy Tracker](screenshots/economy.png)
+![Heatmap](screenshots/heatmap.png)
+![Stats Panel](screenshots/stats.png)
+-->
 
+---
 
-## What's in the box
+## Features
 
-**Backend** (FastAPI + demoparser2 + SQLite)
+### Grenade Lineup Intelligence
+- **Auto-discovery** — Parse pro demos, extract every grenade throw, bucket identical lineups by position + angle
+- **Impact ranking** — `win_rate x log(throws) x (1 + avg_damage/100)` surfaces the highest-value lineups
+- **Technique detection** — Stand, walk, run, crouch, jump, running-jump — recovered from velocity + duck state 8 ticks before the throw
+- **Click classification** — Left / right / both — from the Source button bitmask
+- **Callout labeling** — Auto-tags lineups with the nearest map callout (e.g. "B Window", "A Ramp")
+- **Radar overlay** — 1024x1024 radar with throw-to-land lines, color-coded by grenade type, with callout labels and min-throws/win-rate sliders
+- **Execute detection** — Identifies coordinated multi-grenade combos that pros throw together in the same round
 
-- `backend/ingestion/hltv_scraper.py` — scrapes HLTV match pages, downloads
-  the demo archive (RAR or tar.gz), and extracts the `.dem` with live
-  progress logging so a 900 MB BO5 never looks hung.
-- `backend/ingestion/demo_parser.py` — uses Rust-backed **demoparser2** to
-  pull `grenade_thrown`, `round_end`, player `velocity_X/Y/Z`, `ducking`,
-  `is_walking`, and `buttons` fields. Does a second `parse_ticks` pass at
-  `tick - 8` per throw to recover the attack buttons before they were
-  released.
-- `backend/analysis/clustering.py` — bucket-based dedup: any two throws that
-  share the same `(map, type, landing_bucket_50u, throw_bucket_50u,
-  yaw_bucket_3°, pitch_bucket_3°)` collapse into one lineup. A throw-yaw
-  unit-vector average handles the 360°→0° wrap. Also tags each cluster with
-  the most common throw technique + click type and their agreement ratios.
-- `backend/analysis/metrics.py` — computes `impact_score = round_win_rate ×
-  log(throw_count + 1) × (1 + avg_utility_damage / 100)` and persists to
-  `data/lineups.db`. A small migration loop adds columns in place so older
-  DBs keep working.
-- `backend/analysis/callouts.py` — nearest-origin callout lookup loaded from
-  `backend/data/callouts/*.json` (extracted from CS2Callouts).
-- `backend/analysis/executes.py` — detects coordinated utility combos
-  (e.g. 2 smokes + 1 flash + 1 molotov thrown together in the same round)
-  by finding recurring sets of lineup clusters that co-occur across rounds.
-- `backend/main.py` — FastAPI app with endpoints for lineups, callouts,
-  radar images, ingest triggers, demos-on-disk listing, match replay
-  timelines, AI-powered insights and lineup descriptions, and RCON
-  practice. Supports both Anthropic (Claude) and OpenRouter free models
-  for AI features.
+### Anti-Strat Report (Opponent Scouting)
+Feed the engine multiple demos of the team you're playing next week and get:
+- **Site hit frequency** — "A site 65%, B site 20%, unknown 15%" with visual bars
+- **Utility tendencies** — Radar heatmap of grenade landings + "Smoke long doors 92% of T rounds" frequency table with nade icons
+- **AWP positions** — CT-side radar heatmap showing where they hold with the AWP, primary AWPer identified
+- **First blood timing** — Average time to first kill per side (T-side / CT-side)
+- **Round win patterns** — Win rate by side, pistol round win rate, eco conversion rate — displayed as SVG donut rings
+- **Player breakdown** — Per-player K/D, HS%, KDR, opening duels, top weapons (with icons), utility usage (with nade icons), expandable detail cards
+- **Multi-demo aggregation** — Loads all matching demos in parallel with progress bar, computes everything client-side
+- **Team logos** — Scraped from HLTV match pages and displayed in the report header
 
-**Frontend** (React + Vite + Tailwind, HUD theme)
+### 2D Match Replay Viewer
+- **Full match playback** — Player positions, yaw direction, health bars, weapon icons, armor indicators, centered player names
+- **Grenade visualization** — Smoke clouds (20s), molotov patches (7s), flash bursts, HE shockwaves with countdown timers
+- **Kill feed** — Real-time kill feed with headshot/wallbang/noscope/smoke/blind icons
+- **Bomb events** — Plant/defuse indicators with site label and countdown timer
+- **Custom scrubber** — HUD-styled playback slider with round tick markers, SVG transport buttons, elapsed/total time
+- **Map zoom + pan** — Smooth 50%–200% zoom with click-and-drag panning when zoomed in
+- **Round timeline** — Horizontal bar showing alive players per team, winner indicators, bomb/defuse/elimination icons
+- **Stable player cards** — Fixed-height scoreboard cards that don't shift when players die
+- **Timestamped notes** — Add bookmarks at any tick (stored in localStorage), shown as diamond markers on the scrubber
+- **AI match recap** — Claude/OpenRouter-powered 3-5 paragraph narrative summary
 
-- `Dashboard.tsx` — map/grenade picker, scatter chart, ingest panel, and a
-  grouped or flat grid of lineup cards. Grouping buckets lineups by the
-  callout *nearest to where the grenade lands* (not where it was thrown
-  from) so "B Site smokes" contains every lineup that covers B.
-- `ScatterPlot.tsx` — Usage vs Win Rate. Dot size = utility damage, dot
-  color = grenade type.
-- `LineupCard.tsx` — rank, win rate, utility damage, technique + click
-  badges, "Copy Console" (dumps a paste-ready `setpos/setang/give` string),
-  "Practice in Game" (same thing over RCON), and "AI Describe" (generates
-  a natural-language description of what the lineup does via AI).
-- `RadarView.tsx` — modal overlay that draws every visible lineup on the
-  awpy radar PNG with throw→land dashed lines, color-coded by grenade type,
-  with toggleable callout labels, min-throws/win-rate sliders, and side
-  filter.
-- `MatchReplayViewer.tsx` — full 2D match replay viewer with player
-  positions, health bars, grenade trails (smoke clouds, molotov patches,
-  flash bursts, HE shockwaves), kill lines, bomb events, playback
-  scrubber, round jumping, speed controls (0.5×–4×), and AI-generated
-  match recaps.
-- `DemoPickerPage.tsx` — demo upload/browse page with drag-and-drop
-  upload, demos grouped by map, and delete controls.
+### Economy Tracker
+- **Equipment value graph** — Bar chart of T vs CT equipment value per round with hover details
+- **Buy type classification** — Eco / Force / Half / Full buy badges based on team equipment thresholds
+- **Round-by-round table** — Winner, buy types, equipment values, cash spent for both teams
+- **Loss bonus tracking** — Consecutive loss bonus ($1400 base + $500/loss, max $3400)
 
-## How a lineup is defined
+### Heatmaps
+- **Position density** — Where players spend time across rounds (gaussian blur + jet colormap)
+- **Death locations** — Where players die most frequently
+- **Grenade landings** — Where utility lands on the map
+- **Filters** — Half (1st/2nd/all), team (T/CT/both), individual player
 
-Instead of DBSCAN on landing coordinates (previous version), the engine
-now buckets throws along **six** dimensions:
+### Per-Player Stats
+- **Scoreboard** — K / D / +/- / HS% / FK / FD / 2K-5K / Survival rate
+- **Expandable detail cards** — Kill breakdown (headshot/wallbang/noscope/smoke/blind), opening duels, utility usage, multi-kill rounds
+- **Computed client-side** — No backend changes needed, all derived from timeline data
 
-| Dimension             | Bucket size |
-| --------------------- | ----------- |
-| landing `(x, y)`      | 50 units    |
-| throw position `(x, y)` | 50 units  |
-| yaw                   | 3°          |
-| pitch                 | 3°          |
+### Practice Tools
+- **Copy Console** — One-click `setpos/setang/give` string for any lineup
+- **RCON teleport** — Send commands directly to a running CS2 instance
+- **Demo replay** — `playdemo` + `demo_goto` commands to watch exact throws in-game
+- **CS2 integration** — Auto-detect CS2 install, directory junctions for seamless replay
 
-Two throws hash to the same bucket only if the player stood in the same
-spot and aimed at the same spot. This kills near-duplicates without
-collapsing genuinely different lineups that happen to land near each other.
+### Data Ingestion
+- **HLTV scraping** — Filter by team, event, map; auto-download and extract demo archives
+- **Team logos** — Scraped from HLTV match pages during ingestion, stored in roster sidecar files
+- **Pipeline orchestration** — Parse, cluster, rank, and persist in one click
+- **Status tracking** — Real-time progress for download, extraction, and analysis
 
-A lineup is kept only if:
+### AI Features
+- **Match recap** — Narrative summaries highlighting turning points and standout players
+- **Lineup descriptions** — Natural language explanations of what each lineup does
+- **Dual provider** — Claude (Anthropic) or OpenRouter (free tier)
 
-- `throw_count ≥ 2` (at least two pro reproductions)
-- `round_win_rate ≥ 0.5`
+---
 
-Techniques are classified per-throw from velocity and duck state:
-
-```
-|vel_z| > 10                       → jump        (≈ airborne)
-|vel_z| > 10 and horiz > 200       → running_jump
-ducking or duck_amount > 0.5       → crouch
-is_walking flag                    → walk
-horiz > 200                        → run
-otherwise                          → stand
-```
-
-Click type comes from the Source button bitmask, with `IN_ATTACK = bit 0`
-and `IN_ATTACK2 = bit 11`. Because the attack button is usually already
-released by the time `grenade_thrown` fires, the parser re-queries
-`parse_ticks(["buttons"])` at `tick − 8` for the same player and falls
-back to the throw-tick bitmask only if the earlier lookup is 0.
-
-## Quick start
+## Quick Start
 
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- WinRAR installed and on `PATH` (or 7-Zip/`tar.exe`) — required to unpack
-  HLTV `.rar` demo archives
-- (Optional) CS2 launched with `-netconport 27015` for in-game practice
+- WinRAR or 7-Zip on `PATH` (for HLTV demo archives)
+- (Optional) CS2 with `-netconport 27015` for in-game practice
 
 ### Install
-```bat
-install.bat
-```
-This creates a Python venv, installs backend deps, and runs
-`npm install` in `frontend/`.
+```bash
+# Backend
+pip install -r requirements.txt
 
-### Configure (optional)
-Edit `.env` in the repo root:
+# Frontend
+cd frontend && npm install
 ```
-RCON_PASSWORD=changeme
-DEMOS_DIR=demos
-DB_PATH=data/lineups.db
 
+### Configure
+Create `.env` in the repo root:
+```env
 # AI features (pick one)
-OPENROUTER_API_KEY=sk-or-...   # free at https://openrouter.ai/keys
+OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_MODEL=google/gemma-3-27b-it:free
 # or
-ANTHROPIC_API_KEY=sk-ant-...   # paid
+ANTHROPIC_API_KEY=sk-ant-...
 
-# Database — Supabase (optional, defaults to local SQLite)
-# DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+# Optional
+RCON_PASSWORD=changeme
+DEMO_DIR=demos
+CS2_GAME_DIR=C:/Program Files (x86)/Steam/.../game/csgo
 
-# CS2 path (optional, auto-detected from Steam registry)
-# CS2_GAME_DIR=C:/Program Files (x86)/Steam/.../game/csgo
+# Cloud database (optional, defaults to local SQLite)
+# DATABASE_URL=postgresql://...
 ```
 
 ### Run
-```bat
-run_backend.bat     # FastAPI on http://localhost:8000
-run_frontend.bat    # Vite on http://localhost:5173
+```bash
+# Terminal 1 — Backend
+uvicorn backend.main:app --reload --port 8000
+
+# Terminal 2 — Frontend
+cd frontend && npm run dev
 ```
 
-### Ingest demos
-1. Open `http://localhost:5173`
-2. Click **Ingest** in the header
-3. Pick a team/event/map, set match count
-4. Click **Fetch + Analyse** — the status line streams through download,
-   extract, parse, cluster, and persist
+Open `http://localhost:5173`
 
-A typical BO5 is ~900 MB compressed → ~300 MB uncompressed per map; expect
-30–60 s extract per match and 1–2 min to parse. Progress is logged every
-10 MB for both download and extraction.
+---
+
+## Navigation
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | Dashboard | Lineup grid, scatter plot, ingest controls, execute combos |
+| `/replay` | Demo Picker | Upload/browse demos, grouped by map |
+| `/replay/:file` | Match Replay | 2D viewer with playback controls |
+| `/replay/:file/economy` | Economy | Equipment graph + round-by-round buy analysis |
+| `/replay/:file/heatmap` | Heatmap | Position/death/grenade density overlays |
+| `/replay/:file/stats` | Stats | Per-player scoreboard + detailed breakdowns |
+| `/anti-strat` | Anti-Strat | Multi-demo opponent tendency scouting report |
+
+---
+
+## Anti-Strat Report
+
+The standout feature. Navigate to `/anti-strat` from the Dashboard header:
+
+1. **Select a map** — dropdown populated from your demo library
+2. **Select a team** — auto-discovered from HLTV roster data across all demos on that map
+3. **Click Analyze** — loads all matching timelines in parallel
+4. **Read the report** — site hit frequency, utility tendencies (with radar heatmap), AWP positions, first blood timing, round win patterns, and per-player breakdowns
+
+All computation is client-side from existing timeline data. No new backend endpoints needed.
+
+---
 
 ## API
 
 | Method | Endpoint | Description |
-| ------ | -------- | ----------- |
-| `GET`  | `/api/lineups/{map}/{type}?limit=N` | Ranked lineups for a map + grenade type |
-| `GET`  | `/api/lineups/{map}?limit=N`        | All grenade types for a map |
-| `GET`  | `/api/maps`                         | Maps with analysed data |
-| `GET`  | `/api/demos`                        | Demos currently on disk, grouped by map |
-| `GET`  | `/api/callouts/{map}`               | Callout origins for a map |
-| `GET`  | `/api/radars/{map}`                 | Radar calibration `{pos_x, pos_y, scale}` |
-| `GET`  | `/api/radars/{map}.png`             | Radar PNG (1024×1024) |
-| `GET`  | `/api/executes/{map}`               | Detected coordinated utility combos |
-| `GET`  | `/api/console/{cluster_id}?map_name=` | Console paste string |
-| `GET`  | `/api/replay/{cluster_id}?map_name=` | Playdemo + demo_goto strings for replay |
-| `POST` | `/api/lineups/{id}/describe?map_name=` | AI-generated lineup description |
-| `POST` | `/api/practice`                     | RCON teleport + give grenade |
-| `POST` | `/api/ingest/hltv`                  | Queue an HLTV scrape + pipeline run |
-| `POST` | `/api/ingest/run`                   | Re-run the pipeline on existing demos |
-| `GET`  | `/api/ingest/status`                | Poll pipeline progress |
-| `GET`  | `/api/match-replay/demos`           | List all demos for match replay |
-| `POST` | `/api/match-replay/upload`          | Upload a .dem file |
-| `DELETE` | `/api/match-replay/{file}`        | Delete a demo + cached timeline |
-| `GET`  | `/api/match-replay/{file}/timeline` | Parse demo into 2D playback timeline |
-| `POST` | `/api/match-replay/{file}/insights` | AI-generated match narrative recap |
-| `GET`  | `/api/settings/cs2-path`            | CS2 path + demo link status |
-| `POST` | `/api/settings/cs2-path`            | Save CS2 game directory path |
-| `POST` | `/api/demos/link-to-cs2`            | Create directory junction to CS2 |
-| `DELETE` | `/api/demos/link-to-cs2`          | Remove the junction |
-| `DELETE` | `/api/data`                       | Wipe `lineups.db` (demos on disk are kept) |
-| `GET`  | `/api/stats`                        | Totals summary |
+|--------|----------|-------------|
+| `GET` | `/api/lineups/{map}/{type}?limit=N` | Ranked lineups |
+| `GET` | `/api/lineups/{map}?limit=N` | All grenade types for a map |
+| `POST` | `/api/lineups/{id}/describe?map_name=` | AI lineup description |
+| `GET` | `/api/maps` | Maps with analysed data |
+| `GET` | `/api/demos` | Demos on disk, grouped by map |
+| `GET` | `/api/callouts/{map}` | Callout positions |
+| `GET` | `/api/radars/{map}` | Radar calibration data |
+| `GET` | `/api/radars/{map}.png` | Radar PNG (1024x1024) |
+| `GET` | `/api/executes/{map}` | Coordinated utility combos |
+| `GET` | `/api/console/{id}?map_name=` | Console paste string |
+| `GET` | `/api/replay/{id}?map_name=` | Playdemo + seek strings |
+| `POST` | `/api/practice` | RCON teleport + give grenade |
+| `POST` | `/api/ingest/hltv` | Queue HLTV scrape + pipeline |
+| `POST` | `/api/ingest/run` | Re-run pipeline on existing demos |
+| `GET` | `/api/ingest/status` | Poll pipeline progress |
+| `GET` | `/api/match-replay/demos` | List demos for replay |
+| `POST` | `/api/match-replay/upload` | Upload a .dem file |
+| `DELETE` | `/api/match-replay/{file}` | Delete a demo |
+| `GET` | `/api/match-replay/{file}/timeline` | Parse demo into timeline |
+| `POST` | `/api/match-replay/{file}/insights` | AI match recap |
+| `GET` | `/api/match-info/{file}` | Match metadata (teams, logos, event) |
+| `GET` | `/api/settings/cs2-path` | CS2 path + link status |
+| `POST` | `/api/settings/cs2-path` | Save CS2 directory |
+| `POST` | `/api/demos/link-to-cs2` | Create directory junction |
+| `DELETE` | `/api/demos/link-to-cs2` | Remove junction |
+| `DELETE` | `/api/data` | Wipe lineup database |
+| `GET` | `/api/stats` | Totals summary |
 
 Interactive docs at `http://localhost:8000/docs`.
 
-## Practicing a lineup
+---
 
-Each card exposes four actions:
+## How Lineups Work
 
-- **Copy Console** → copies a single-line
-  `setpos X Y Z; setang P Y 0; give weapon_smokegrenade` string. Paste it
-  into the CS2 console. No RCON required.
-- **Replay** → two-step flow: first click copies `playdemo <file>`, second
-  click copies `demo_goto <tick> 0 1` to seek to the throw. Demo must be
-  in `game/csgo/`.
-- **Practice in Game** → sends those same commands over RCON. Requires
-  CS2 launched with `-netconport 27015` and `rcon_password` set to match
-  your `.env`.
-- **AI Describe** → generates a 1–2 sentence description of what the
-  lineup does using OpenRouter (free) or Claude.
+Throws are bucketed along **six dimensions**:
 
-`sv_cheats 1` must be on for `setpos`/`setang` to work.
+| Dimension | Bucket size |
+|-----------|-------------|
+| Landing `(x, y)` | 50 units |
+| Throw position `(x, y)` | 50 units |
+| Yaw | 3 degrees |
+| Pitch | 3 degrees |
 
-## Project layout
+A lineup is kept only if `throw_count >= 2` and `round_win_rate >= 0.5`.
+
+Techniques are classified from velocity + duck state:
+- `|vel_z| > 10` → jump
+- `|vel_z| > 10 and horiz > 200` → running jump
+- `ducking or duck_amount > 0.5` → crouch
+- `is_walking` → walk
+- `horiz > 200` → run
+- Otherwise → stand
+
+---
+
+## Project Layout
 
 ```
 cs2tool/
 ├── backend/
-│   ├── analysis/         clustering, callouts, metrics
-│   ├── data/callouts/    per-map callout JSONs
-│   ├── data/radars/      awpy radar PNGs + calibration JSONs
-│   ├── ingestion/        hltv_scraper, demo_parser
-│   ├── models/           pydantic schemas
-│   ├── rcon/             aiorcon bridge
-│   └── main.py           FastAPI app
-├── frontend/
-│   └── src/
-│       ├── api/client.ts     typed Axios client
-│       └── components/       Dashboard, ScatterPlot, LineupCard, RadarView,
-│                             IngestPanel, MatchReplayViewer, DemoPickerPage
-├── scripts/              one-off probes + callout extractor
-├── demos/                .dem files (gitignored)
-├── data/                 SQLite DB (gitignored)
-├── install.bat
-├── run_backend.bat
-├── run_frontend.bat
+│   ├── main.py                FastAPI app — all endpoints
+│   ├── config.py              Settings (env vars, paths)
+│   ├── models/schemas.py      Pydantic models
+│   ├── analysis/
+│   │   ├── clustering.py      Bucket-based lineup dedup
+│   │   ├── metrics.py         Pipeline orchestrator + SQLite
+│   │   ├── executes.py        Execute combo detection
+│   │   └── callouts.py        Map callout lookup
+│   ├── ingestion/
+│   │   ├── demo_parser.py     demoparser2 wrapper + timeline extraction
+│   │   └── hltv_scraper.py    HLTV scraper + downloader + logo extraction
+│   ├── rcon/bridge.py         RCON teleport bridge
+│   └── data/
+│       ├── radars/            Radar PNGs + calibration
+│       ├── callouts/          Per-map callout JSON
+│       └── lineup_data.db     SQLite database
+├── frontend/src/
+│   ├── api/client.ts          Typed API client (axios)
+│   ├── App.tsx                React Router routes
+│   └── components/
+│       ├── Dashboard.tsx       Lineup grid + filters + nav
+│       ├── AntiStratPage.tsx   Opponent scouting report (multi-demo)
+│       ├── ReplayLayout.tsx    Replay tab nav + shared data loading
+│       ├── MatchReplayViewer.tsx  2D match replay (SVG + rAF)
+│       ├── EconomyPanel.tsx    Economy tracker (graph + table)
+│       ├── HeatmapPanel.tsx    Heatmaps (canvas overlay)
+│       ├── StatsPanel.tsx      Per-player stats scoreboard
+│       ├── DemoPickerPage.tsx  Demo upload/browse
+│       ├── LineupCard.tsx      Individual lineup card
+│       ├── RadarView.tsx       Radar overlay modal
+│       ├── ScatterPlot.tsx     Win rate vs usage scatter
+│       ├── IngestPanel.tsx     HLTV ingest controls
+│       └── SettingsPanel.tsx   CS2 path + demo linking
+├── demos/                     .dem files (gitignored)
+├── data/                      SQLite DB + timeline cache (gitignored)
 └── requirements.txt
 ```
 
-## Match Replay
+---
 
-Click **Match Replay** in the header to open the 2D match viewer:
+## Stack
 
-1. Upload a `.dem` file or pick from existing demos
-2. The viewer renders a top-down radar with live player positions, health
-   bars, grenade trails, smoke clouds, molotov patches, kill lines, and
-   bomb events
-3. Controls: play/pause, timeline scrubber, round jump buttons
-   (color-coded by who won), speed (0.5×–4×)
-4. Click **Generate** in the AI Recap panel for a 3–5 paragraph narrative
-   summary of the match (requires OpenRouter or Anthropic key)
-
-Timelines are cached to `data/timelines/{demo}.json` — delete to force
-a re-parse.
-
-## Execute Combos
-
-Toggle **Executes** in the filter bar to see detected coordinated utility
-patterns — sets of grenade lineups that pros frequently throw together in
-the same round (e.g. an A-site execute with 2 smokes + 1 flash + 1 molotov).
-Each combo shows its member grenades, side, round count, and win rate.
-
-## Database
-
-By default the engine uses a local **SQLite** database at `data/lineups.db`
-(zero config). To store data in the cloud, set `DATABASE_URL` to a
-PostgreSQL connection string — e.g. a free **Supabase** project:
-
-1. Create a project at [supabase.com](https://supabase.com)
-2. Go to **Settings → Database → Connection string → URI**
-3. Copy the URI and set it in `.env`:
-   ```
-   DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
-   ```
-4. Restart the backend — tables are auto-created on first startup
-
-When `DATABASE_URL` is not set, SQLite is used automatically.
-
-## Replay Integration
-
-The **Settings** panel (gear icon in the header) lets you link your
-`demos/` directory into CS2's `game/csgo/` folder via a Windows directory
-junction so the Replay button works without manually copying files:
-
-1. Open **Settings** — the CS2 install path is auto-detected from the
-   Steam registry (or you can set it manually)
-2. Click **Link Demos to CS2** — creates a junction at
-   `game/csgo/cs2tool_demos/` pointing to your `demos/` directory
-3. The Replay button now copies
-   `playdemo cs2tool_demos/<file>.dem` — paste into the CS2 console
-   and it just works
-
-No admin privileges required (Windows NTFS junctions are unprivileged).
-Click **Unlink** to remove the junction without deleting any demos.
+- **Backend**: FastAPI + demoparser2 (Rust) + SQLite + Anthropic SDK
+- **Frontend**: React 18 + Vite + Tailwind CSS + React Router + Recharts
+- **AI**: Claude (Anthropic) or OpenRouter (free tier)
+- **Parser**: demoparser2 — Rust-backed, extracts tick-level player data + events
 
 ## Credits
 
 - **demoparser2** — Rust-based CS2 demo parser (LaihoE)
 - **awpy** — radar assets + calibration data
-- **CS2Callouts** — `env_cs_place` origin extraction
-- **HLTV.org** — match + demo sourcing
-- **OpenRouter** — free AI model access (Gemma 3 27B)
+- **CS2Callouts** — callout origin extraction
+- **HLTV.org** — match + demo sourcing + team logos
+- **OpenRouter** — free AI model access
 
 ---
 
-This is a research/educational project. Use it on demos you have the right
-to analyse, and respect HLTV's rate limits.
+Research/educational project. Use on demos you have the right to analyse. Respect HLTV's rate limits.

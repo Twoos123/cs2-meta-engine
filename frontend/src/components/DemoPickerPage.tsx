@@ -8,6 +8,7 @@
  * - Click a card to open the replay viewer
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Cs2PathResponse,
   MatchDemoEntry,
@@ -18,11 +19,6 @@ import {
   getMatchReplayDemos,
   uploadDemo,
 } from "../api/client";
-
-interface Props {
-  onSelect: (demoFile: string) => void;
-  onBack: () => void;
-}
 
 const formatBytes = (n: number): string => {
   if (n < 1024) return `${n} B`;
@@ -36,7 +32,8 @@ const formatDate = (mtime: number): string => {
   return d.toLocaleString();
 };
 
-export default function DemoPickerPage({ onSelect, onBack }: Props) {
+export default function DemoPickerPage() {
+  const navigate = useNavigate();
   const [demos, setDemos] = useState<MatchDemoEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -163,7 +160,7 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
             Upload your own .dem files or pick from existing demos to watch in the 2D viewer.
           </p>
         </div>
-        <button onClick={onBack} className="hud-btn text-xs">
+        <button onClick={() => navigate("/")} className="hud-btn text-xs">
           ← Back
         </button>
       </div>
@@ -327,7 +324,7 @@ export default function DemoPickerPage({ onSelect, onBack }: Props) {
                 </div>
                 <div className="flex gap-1.5 mt-2 pt-1">
                   <button
-                    onClick={() => onSelect(d.demo_file)}
+                    onClick={() => navigate(`/replay/${encodeURIComponent(d.demo_file)}`)}
                     className="flex-1 text-[10px] hud-btn-primary"
                   >
                     Open
