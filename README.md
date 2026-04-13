@@ -2,16 +2,14 @@
 
 A pro-level CS2 demo analysis platform that no competitor matches. Mines demos from HLTV, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, economy tracking, heatmaps, per-player stats, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
 
-![Lineup Dashboard](https://github.com/user-attachments/assets/c734b5c4-cf90-4900-842a-61b51e769730)
-![Radar View](https://github.com/user-attachments/assets/f477a06c-c386-4a76-ae71-c50cd5018e3f)
-
-<!-- Take screenshots and replace these placeholders:
-![Anti-Strat Report](screenshots/anti-strat.png)
+![Landing Page](screenshots/landing.png)
+![Grenade Lineups](screenshots/lineups.png)
 ![Match Replay](screenshots/replay.png)
 ![Economy Tracker](screenshots/economy.png)
 ![Heatmap](screenshots/heatmap.png)
 ![Stats Panel](screenshots/stats.png)
--->
+![Anti-Strat Report](screenshots/anti-strat.png)
+![Demo Picker](screenshots/demo-picker.png)
 
 ---
 
