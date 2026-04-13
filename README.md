@@ -2,15 +2,34 @@
 
 A pro-level CS2 demo analysis platform that no competitor matches. Mines demos from HLTV, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, economy tracking, heatmaps, per-player stats, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
 
+### Landing Page
 ![Landing Page](screenshots/landing.png)
+
+### Grenade Lineups — Impact-ranked pro lineups with scatter plot, radar overlay, and technique detection
 ![Grenade Lineups](screenshots/lineups.png)
+
+### 2D Match Replay — Full match playback with player positions, grenade visualization, and kill feed
 ![Match Replay](screenshots/replay.png)
+
+### Economy Tracker — Equipment value graph with buy type classification per round
 ![Economy Tracker](screenshots/economy.png)
+
+### Heatmap — Position density, death locations, and grenade landing overlays
 ![Heatmap](screenshots/heatmap.png)
+
+### Per-Player Stats — Scoreboard with K/D, HS%, first kills, and multi-kill rounds
 ![Stats Panel](screenshots/stats.png)
+
+### Anti-Strat Report — Round win patterns, site hit frequency, and first blood timing
 ![Anti-Strat Report](screenshots/anti-strat.png)
+
+### Anti-Strat — Utility tendency and AWP position heatmaps
 ![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
+
+### Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
 ![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
+
+### Demo Picker — Upload or browse parsed demos, grouped by map
 ![Demo Picker](screenshots/demo-picker.png)
 
 ---
