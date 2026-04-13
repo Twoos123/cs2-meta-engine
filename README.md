@@ -9,6 +9,8 @@ A pro-level CS2 demo analysis platform that no competitor matches. Mines demos f
 ![Heatmap](screenshots/heatmap.png)
 ![Stats Panel](screenshots/stats.png)
 ![Anti-Strat Report](screenshots/anti-strat.png)
+![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
+![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
 ![Demo Picker](screenshots/demo-picker.png)
 
 ---
