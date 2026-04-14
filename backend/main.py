@@ -169,6 +169,9 @@ _ingest_state: dict = {
     # a "running" state it never observed.
     "run_id": 0,
     "last_completed_run_id": 0,
+    # Populated when a FACEIT download falls back to manual — frontend reads
+    # this from /api/ingest/status and opens the URL in a new tab.
+    "manual_url": None,
 }
 
 
@@ -186,6 +189,14 @@ class RunPipelineRequest(BaseModel):
     map_name: Optional[str] = None
     grenade_types: Optional[List[str]] = None
     clear_existing: bool = False
+
+
+# Re-export FACEIT schemas for the endpoints below
+from backend.models.schemas import (  # noqa: E402
+    FaceitIngestRequest,
+    FaceitMatchListRequest,
+    FaceitMatchListResponse,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1297,7 +1308,68 @@ async def ingest_status():
         status=status,
         run_id=_ingest_state["run_id"],
         last_completed_run_id=_ingest_state["last_completed_run_id"],
+        manual_url=_ingest_state.get("manual_url"),
     )
+
+
+# ---------------------------------------------------------------------------
+# FACEIT endpoints
+# ---------------------------------------------------------------------------
+
+@app.post(
+    "/api/ingest/faceit/matches",
+    response_model=FaceitMatchListResponse,
+    summary="List a FACEIT player's recent CS2 matches",
+)
+async def faceit_list_matches(req: FaceitMatchListRequest):
+    """Given a FACEIT profile URL, returns up to `limit` recent matches (CS2)."""
+    from backend.ingestion.faceit_scraper import FaceitScraper, FaceitScraperError
+
+    try:
+        scraper = FaceitScraper()
+    except FaceitScraperError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    loop = asyncio.get_event_loop()
+    try:
+        player, matches = await loop.run_in_executor(
+            None, lambda: scraper.list_matches(req.faceit_url, limit=req.limit),
+        )
+    except FaceitScraperError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("FACEIT match list failed")
+        raise HTTPException(status_code=502, detail=f"FACEIT API error: {exc}")
+
+    return FaceitMatchListResponse(
+        player_nickname=str(player.get("nickname") or ""),
+        player_id=str(player.get("player_id") or ""),
+        matches=matches,
+    )
+
+
+@app.post(
+    "/api/ingest/faceit/download",
+    summary="Download a FACEIT match demo and run the pipeline",
+)
+async def faceit_download(req: FaceitIngestRequest):
+    if _ingest_state["running"]:
+        raise HTTPException(
+            status_code=409,
+            detail=f"An ingest is already in progress: {_ingest_state['phase']} — {_ingest_state['message']}",
+        )
+
+    _ingest_state["run_id"] += 1
+    _ingest_state["manual_url"] = None
+    run_id = _ingest_state["run_id"]
+    asyncio.create_task(
+        _run_faceit_ingest(match_id=req.match_id, run_id=run_id)
+    )
+    return {
+        "status": "queued",
+        "run_id": run_id,
+        "message": f"Fetching FACEIT match {req.match_id}.",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1453,6 +1525,73 @@ async def _run_hltv_ingest(
             _set_phase("done", "HLTV ingest + analysis complete")
         except Exception as exc:
             logger.exception("Ingest failed: %s", exc)
+            _set_phase("error", str(exc))
+        finally:
+            _ingest_state["running"] = False
+            _ingest_state["last_completed_run_id"] = run_id
+
+
+async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
+    """
+    Resolve a FACEIT match → attempt direct demo download → pipeline.
+
+    If the direct download fails (pending Downloads API approval), the raw
+    signed URL is stashed in _ingest_state["manual_url"] so the frontend can
+    prompt the user to download it via their logged-in browser session.
+    """
+    async with _ingest_lock:
+        _ingest_state["running"] = True
+        _ingest_state["manual_url"] = None
+        try:
+            from backend.ingestion.faceit_scraper import (
+                FaceitScraper,
+                FaceitScraperError,
+            )
+
+            scraper = FaceitScraper()
+            demo_dir = settings.demo_dir
+            demo_dir.mkdir(parents=True, exist_ok=True)
+
+            _set_phase("resolving", f"fetching match {match_id}")
+            loop = asyncio.get_event_loop()
+            demo_url, map_token = await loop.run_in_executor(
+                None, lambda: scraper.resolve_demo(match_id)
+            )
+
+            map_suffix = (map_token or "unknown").replace("de_", "")
+            dest = demo_dir / f"faceit_{match_id}_{map_suffix}.dem"
+
+            if dest.exists():
+                _set_phase("analysing", f"{dest.name} already present")
+            else:
+                _set_phase("downloading", f"{match_id} ({map_suffix})")
+                ok = await loop.run_in_executor(
+                    None, lambda: scraper.try_download_demo(demo_url, dest)
+                )
+                if not ok:
+                    _ingest_state["manual_url"] = demo_url
+                    _set_phase(
+                        "manual",
+                        "Direct download blocked — open the URL in a new tab, "
+                        "then drag the .dem.gz into /replay to upload.",
+                    )
+                    return
+
+            _set_phase("analysing", f"running pipeline on {dest.name}")
+            await loop.run_in_executor(
+                None,
+                lambda: _pipeline.run(
+                    demo_dir=demo_dir,
+                    map_name=map_token,
+                    clear_existing=False,
+                ),
+            )
+            _set_phase("done", "FACEIT ingest + analysis complete")
+        except FaceitScraperError as exc:
+            logger.warning("FACEIT ingest failed: %s", exc)
+            _set_phase("error", str(exc))
+        except Exception as exc:
+            logger.exception("FACEIT ingest crashed")
             _set_phase("error", str(exc))
         finally:
             _ingest_state["running"] = False

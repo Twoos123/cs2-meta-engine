@@ -2,6 +2,19 @@ import { useNavigate } from "react-router-dom";
 
 const sections = [
   {
+    title: "Ingest Demos",
+    description: "Scrape HLTV matches and run the analysis pipeline. Feeds every other module.",
+    route: "/ingest",
+    color: "#facc15",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path d="M12 3v12" />
+        <polyline points="7,10 12,15 17,10" />
+        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      </svg>
+    ),
+  },
+  {
     title: "Grenade Lineups",
     description: "Pro lineup database mined from HLTV demos. Impact-ranked with technique detection, radar overlays, and practice commands.",
     route: "/lineups",
@@ -55,7 +68,7 @@ export default function LandingPage() {
           Pro-level demo analysis — grenade lineups, match replay, and opponent scouting.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl w-full">
           {sections.map((s) => (
             <button
               key={s.route}

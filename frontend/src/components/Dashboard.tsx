@@ -17,7 +17,6 @@ import {
 } from "../api/client";
 import LineupCard from "./LineupCard";
 import ScatterPlot from "./ScatterPlot";
-import IngestPanel from "./IngestPanel";
 import SettingsPanel from "./SettingsPanel";
 
 const GRENADE_TYPES = [
@@ -49,7 +48,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedClusterId, setSelectedClusterId] = useState<number | undefined>();
-  const [showIngest, setShowIngest] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [callouts, setCallouts] = useState<Callout[]>([]);
   const [groupByThrowFrom, setGroupByThrowFrom] = useState(true);
@@ -345,6 +343,7 @@ export default function Dashboard() {
       {/* ── Header ── */}
       <nav className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-cs2-border/50 bg-[#0a0e18]">
         <button onClick={() => navigate("/")} className="hud-btn text-xs py-1 px-2" title="Home">←</button>
+        <button onClick={() => navigate("/ingest")} className="hud-btn text-xs py-1 px-2" title="Ingest demos">Ingest</button>
         <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Grenade Lineups</h1>
         <div className="ml-auto flex items-center gap-2 flex-wrap">
           <select
@@ -373,13 +372,6 @@ export default function Dashboard() {
               ))}
             </optgroup>
           </select>
-
-          <button
-            onClick={() => setShowIngest((s) => !s)}
-            className={showIngest ? "hud-btn-primary" : "hud-btn"}
-          >
-            {showIngest ? "Hide Ingest" : "Ingest"}
-          </button>
 
           <button
             onClick={() => setShowSettings(true)}
@@ -577,27 +569,23 @@ export default function Dashboard() {
         </div>
 
         <div>
-          {showIngest ? (
-            <IngestPanel onComplete={fetchLineups} />
-          ) : (
-            <div className="hud-panel p-5 h-full flex flex-col justify-between gap-4">
-              <div>
-                <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em] mb-1">
-                  / session
-                </p>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Click a dot in the chart to highlight a lineup, or browse the
-                  ranked grid below.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Stat label="Lineups" value={String(filteredLineups.length)} color="text-cs2-accent" />
-                <Stat label="Map" value={selectedMap.replace("de_", "")} color="text-cs2-blue" />
-                <Stat label="Type" value={selectedType.replace("grenade", "")} color="text-cs2-smoke" />
-                <Stat label="Top Win" value={topWin} color="text-cs2-green" />
-              </div>
+          <div className="hud-panel p-5 h-full flex flex-col justify-between gap-4">
+            <div>
+              <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em] mb-1">
+                / session
+              </p>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Click a dot in the chart to highlight a lineup, or browse the
+                ranked grid below.
+              </p>
             </div>
-          )}
+            <div className="grid grid-cols-2 gap-2">
+              <Stat label="Lineups" value={String(filteredLineups.length)} color="text-cs2-accent" />
+              <Stat label="Map" value={selectedMap.replace("de_", "")} color="text-cs2-blue" />
+              <Stat label="Type" value={selectedType.replace("grenade", "")} color="text-cs2-smoke" />
+              <Stat label="Top Win" value={topWin} color="text-cs2-green" />
+            </div>
+          </div>
         </div>
       </div>
 

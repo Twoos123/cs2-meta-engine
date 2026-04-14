@@ -241,6 +241,50 @@ export const getIngestionStatus = async () => {
   return data;
 };
 
+// ---------------------------------------------------------------------------
+// FACEIT ingest
+// ---------------------------------------------------------------------------
+
+export interface FaceitMatchEntry {
+  match_id: string;
+  map_name: string | null;
+  team1_name: string;
+  team2_name: string;
+  team1_score: number | null;
+  team2_score: number | null;
+  winner: string | null;
+  finished_at: number | null;
+  status: string | null;
+  faceit_url: string | null;
+}
+
+export interface FaceitMatchListResponse {
+  player_nickname: string;
+  player_id: string;
+  matches: FaceitMatchEntry[];
+}
+
+export const listFaceitMatches = async (
+  faceit_url: string,
+  limit = 30,
+): Promise<FaceitMatchListResponse> => {
+  const { data } = await api.post<FaceitMatchListResponse>(
+    "/ingest/faceit/matches",
+    { faceit_url, limit },
+  );
+  return data;
+};
+
+export const downloadFaceitMatch = async (
+  match_id: string,
+): Promise<QueueResponse> => {
+  const { data } = await api.post<QueueResponse>(
+    "/ingest/faceit/download",
+    { match_id },
+  );
+  return data;
+};
+
 export const clearAllData = async (): Promise<{
   deleted: number;
   status: string;

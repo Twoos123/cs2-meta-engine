@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
+    # FACEIT Data API v4
+    faceit_api_key: str = ""
+    faceit_base_url: str = "https://open.faceit.com/data/v4"
+
     # Anthropic (Claude) API for match-replay AI insights
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-4-6"

@@ -107,10 +107,17 @@ export default function ReplayLayout() {
       <nav className="shrink-0 flex items-center gap-1 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
         <button
           onClick={() => navigate("/replay")}
-          className="hud-btn text-xs mr-2 py-1 px-2"
+          className="hud-btn text-xs py-1 px-2"
           title="Back to demo picker"
         >
           ←
+        </button>
+        <button
+          onClick={() => navigate("/ingest")}
+          className="hud-btn text-xs mr-2 py-1 px-2"
+          title="Ingest demos"
+        >
+          Ingest
         </button>
         {TABS.map((tab) => (
           <NavLink

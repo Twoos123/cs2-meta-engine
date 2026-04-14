@@ -675,6 +675,7 @@ export default function AntiStratPage() {
       {/* Header — consistent with all pages */}
       <nav className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
         <button onClick={() => navigate("/")} className="hud-btn text-xs py-1 px-2" title="Home">←</button>
+        <button onClick={() => navigate("/ingest")} className="hud-btn text-xs py-1 px-2" title="Ingest demos">Ingest</button>
         <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Anti-Strat</h1>
       </nav>
 

@@ -292,3 +292,39 @@ class IngestionStatusResponse(BaseModel):
     # "running" state.
     run_id: int = 0
     last_completed_run_id: int = 0
+    # When a FACEIT demo download fails the direct-GET attempt (pending
+    # Downloads API approval), the background task surfaces the raw demo URL
+    # here so the frontend can offer a "open in new tab" manual fallback.
+    manual_url: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# FACEIT ingestion
+# ---------------------------------------------------------------------------
+
+class FaceitMatchEntry(BaseModel):
+    match_id: str
+    map_name: Optional[str] = None
+    team1_name: str
+    team2_name: str
+    team1_score: Optional[int] = None
+    team2_score: Optional[int] = None
+    winner: Optional[str] = None            # "faction1" | "faction2" | None
+    finished_at: Optional[int] = None       # unix seconds
+    status: Optional[str] = None
+    faceit_url: Optional[str] = None
+
+
+class FaceitMatchListRequest(BaseModel):
+    faceit_url: str
+    limit: int = 30
+
+
+class FaceitMatchListResponse(BaseModel):
+    player_nickname: str
+    player_id: str
+    matches: List[FaceitMatchEntry]
+
+
+class FaceitIngestRequest(BaseModel):
+    match_id: str
