@@ -44,6 +44,9 @@ A pro-level CS2 demo analysis platform. Mines demos from HLTV and FACEIT, extrac
 ### 14. Players — Cross-demo per-player aggregates rebuilt from cached timelines
 ![Players](screenshots/players.png)
 
+### 15. Player Detail — Per-player profile with role radar, side/map splits, and recent match history
+![Player Detail](screenshots/player-detail.png)
+
 ---
 
 ## Features
