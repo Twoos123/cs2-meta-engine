@@ -46,8 +46,12 @@ from backend.models.schemas import (
     MatchInsightsResponse,
     ExecuteCombo,
     LineupDescriptionResponse,
+    PlayerProfileSummary,
+    PlayerProfileDetail,
+    PlayerStatsRefreshResponse,
 )
 from backend.analysis.metrics import MetricsPipeline
+from backend.analysis.player_stats import PlayerStatsStore
 from backend.rcon.bridge import RCONBridge, generate_console_string
 
 logging.basicConfig(
@@ -72,6 +76,7 @@ app.add_middleware(
 
 # Singleton pipeline (shared across requests)
 _pipeline = MetricsPipeline()
+_player_stats = PlayerStatsStore()
 _rcon = RCONBridge()
 
 
@@ -172,6 +177,12 @@ _ingest_state: dict = {
     # Populated when a FACEIT download falls back to manual — frontend reads
     # this from /api/ingest/status and opens the URL in a new tab.
     "manual_url": None,
+    # Per-run progress counters surfaced in /api/ingest/status so the UI
+    # doesn't look grenade-only — every HLTV/FACEIT ingest also parses
+    # full timelines and updates per-player aggregate rows.
+    "demos_parsed_this_run": 0,
+    "demos_total_this_run": 0,
+    "player_rows_updated_this_run": 0,
 }
 
 
@@ -775,6 +786,18 @@ async def delete_demo(demo_file: str):
     return {"deleted": name}
 
 
+@app.delete(
+    "/api/match-replay/{demo_file}/timeline",
+    summary="Delete cached timeline only (forces re-parse on next GET)",
+)
+async def delete_match_replay_timeline(demo_file: str):
+    name = _safe_demo_name(demo_file)
+    cache_file = _TIMELINE_CACHE_DIR / f"{name}.json"
+    existed = cache_file.exists()
+    cache_file.unlink(missing_ok=True)
+    return {"deleted_cache": existed, "demo_file": name}
+
+
 @app.get(
     "/api/match-replay/{demo_file}/timeline",
     response_model=MatchTimeline,
@@ -786,18 +809,34 @@ async def get_match_replay_timeline(demo_file: str):
     if not demo_path.exists():
         raise HTTPException(status_code=404, detail=f"Demo not found: {name}")
 
+    from backend.ingestion.demo_parser import (
+        extract_match_timeline,
+        TIMELINE_CACHE_VERSION,
+    )
+
     _TIMELINE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = _TIMELINE_CACHE_DIR / f"{name}.json"
     if cache_path.exists():
         try:
             with cache_path.open("r", encoding="utf-8") as f:
-                return MatchTimeline.model_validate(json.load(f))
+                bundle = json.load(f)
+            if int(bundle.get("cache_version", 0)) >= TIMELINE_CACHE_VERSION:
+                # Opportunistic upsert — cheap, keeps player_stats fresh without
+                # requiring an explicit refresh after the first view.
+                try:
+                    _player_stats.ingest_timeline(bundle, name)
+                except Exception as exc:
+                    logger.warning("player_stats upsert failed for %s: %s", name, exc)
+                return MatchTimeline.model_validate(bundle)
+            logger.info(
+                "Cached timeline %s is stale (v%s < v%s) — re-parsing",
+                cache_path.name, bundle.get("cache_version", 0), TIMELINE_CACHE_VERSION,
+            )
         except Exception as exc:
             logger.warning("Cached timeline %s unreadable, re-parsing: %s", cache_path, exc)
 
     # Heavy: ~5–15 s per demo. Run in a worker thread so the event loop
     # stays responsive for other requests in the meantime.
-    from backend.ingestion.demo_parser import extract_match_timeline
 
     try:
         bundle = await asyncio.to_thread(extract_match_timeline, demo_path)
@@ -810,6 +849,11 @@ async def get_match_replay_timeline(demo_file: str):
             json.dump(bundle, f, separators=(",", ":"))
     except Exception as exc:
         logger.warning("Could not cache timeline to %s: %s", cache_path, exc)
+
+    try:
+        _player_stats.ingest_timeline(bundle, name)
+    except Exception as exc:
+        logger.warning("player_stats upsert failed for %s: %s", name, exc)
 
     return MatchTimeline.model_validate(bundle)
 
@@ -1302,6 +1346,10 @@ async def ingest_status():
         if _ingest_state["running"]
         else "ready"
     )
+    try:
+        total_player_rows = len(_player_stats.list_summaries())
+    except Exception:
+        total_player_rows = 0
     return IngestionStatusResponse(
         total_demos=total_demos,
         total_grenades=stats.get("total_lineups", 0),
@@ -1309,6 +1357,10 @@ async def ingest_status():
         run_id=_ingest_state["run_id"],
         last_completed_run_id=_ingest_state["last_completed_run_id"],
         manual_url=_ingest_state.get("manual_url"),
+        demos_parsed_this_run=_ingest_state.get("demos_parsed_this_run", 0),
+        demos_total_this_run=_ingest_state.get("demos_total_this_run", 0),
+        player_rows_updated_this_run=_ingest_state.get("player_rows_updated_this_run", 0),
+        total_player_rows=total_player_rows,
     )
 
 
@@ -1382,6 +1434,13 @@ def _set_phase(phase: str, message: str = "") -> None:
     logger.info("[ingest] %s — %s", phase, message)
 
 
+def _reset_ingest_progress(total: int = 0) -> None:
+    """Zero per-run counters at the start of a new ingest task."""
+    _ingest_state["demos_parsed_this_run"] = 0
+    _ingest_state["demos_total_this_run"] = total
+    _ingest_state["player_rows_updated_this_run"] = 0
+
+
 async def _run_hltv_ingest(
     *,
     team_name: Optional[str],
@@ -1392,6 +1451,7 @@ async def _run_hltv_ingest(
 ) -> None:
     async with _ingest_lock:
         _ingest_state["running"] = True
+        _reset_ingest_progress(total=limit)
         try:
             from backend.ingestion.hltv_scraper import HLTVScraper
 
@@ -1461,6 +1521,7 @@ async def _run_hltv_ingest(
                 ),
             )
             _set_phase("downloading", f"{len(matches)} new matches found")
+            _ingest_state["demos_total_this_run"] = len(matches)
 
             for i, match in enumerate(matches, 1):
                 _set_phase(
@@ -1468,7 +1529,7 @@ async def _run_hltv_ingest(
                     f"{i}/{len(matches)} — {match.team1} vs {match.team2}",
                 )
                 try:
-                    await loop.run_in_executor(
+                    saved_path = await loop.run_in_executor(
                         None,
                         lambda m=match: scraper.download_demo(
                             m, demo_dir, prefer_map=map_name
@@ -1476,6 +1537,19 @@ async def _run_hltv_ingest(
                     )
                 except Exception as exc:
                     logger.error("Download failed for %d: %s", match.match_id, exc)
+                    continue
+
+                # Parse the timeline + populate player_stats immediately so the
+                # Players page is fresh without requiring a manual refresh or
+                # opening each demo in the replay viewer.
+                if isinstance(saved_path, Path) and saved_path.exists():
+                    _set_phase(
+                        "parsing-timeline",
+                        f"{i}/{len(matches)} — {saved_path.name}",
+                    )
+                    await loop.run_in_executor(
+                        None, lambda p=saved_path: _ensure_timeline_for_demo(p),
+                    )
 
             # If the user requested a team filter, read the roster sidecars
             # written during download and build the set of player names to
@@ -1542,6 +1616,7 @@ async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
     async with _ingest_lock:
         _ingest_state["running"] = True
         _ingest_state["manual_url"] = None
+        _reset_ingest_progress(total=1)
         try:
             from backend.ingestion.faceit_scraper import (
                 FaceitScraper,
@@ -1586,6 +1661,14 @@ async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
                     clear_existing=False,
                 ),
             )
+
+            # Parse timeline + populate player_stats so the Players page is
+            # immediately fresh.
+            _set_phase("parsing-timeline", dest.name)
+            await loop.run_in_executor(
+                None, lambda: _ensure_timeline_for_demo(dest),
+            )
+
             _set_phase("done", "FACEIT ingest + analysis complete")
         except FaceitScraperError as exc:
             logger.warning("FACEIT ingest failed: %s", exc)
@@ -1607,6 +1690,7 @@ async def _run_pipeline_task(
 ) -> None:
     async with _ingest_lock:
         _ingest_state["running"] = True
+        _reset_ingest_progress()
         try:
             _set_phase("analysing", f"map={map_name} types={grenade_types}")
             loop = asyncio.get_event_loop()
@@ -1626,3 +1710,220 @@ async def _run_pipeline_task(
         finally:
             _ingest_state["running"] = False
             _ingest_state["last_completed_run_id"] = run_id
+
+
+# ---------------------------------------------------------------------------
+# Player profiles — cross-demo aggregation
+# ---------------------------------------------------------------------------
+
+def _safe_div(num: float, den: float) -> float:
+    return float(num) / float(den) if den else 0.0
+
+
+def _infer_role(row: dict) -> str:
+    kills = row.get("kills") or 0
+    rounds = row.get("rounds_played") or 0
+    awp = row.get("awp_kills") or 0
+    open_k = row.get("opening_kills") or 0
+    util = (row.get("smokes_thrown") or 0) + (row.get("flashes_thrown") or 0)
+    alive = row.get("rounds_alive") or 0
+
+    if kills and awp / kills > 0.35:
+        return "AWP"
+    if rounds and open_k / rounds > 0.15:
+        return "Entry"
+    if rounds and util / rounds > 0.8:
+        return "Support"
+    if rounds and alive / rounds > 0.55:
+        return "Lurker"
+    return "Rifler"
+
+
+def _to_summary(row: dict) -> dict:
+    kills = row.get("kills") or 0
+    deaths = row.get("deaths") or 0
+    rounds = row.get("rounds_played") or 0
+    hs = row.get("hs_kills") or 0
+    open_k = row.get("opening_kills") or 0
+    open_d = row.get("opening_deaths") or 0
+    alive = row.get("rounds_alive") or 0
+
+    kd = _safe_div(kills, max(deaths, 1))
+    hs_pct = _safe_div(hs, kills)
+    open_wr = _safe_div(open_k, open_k + open_d)
+    surv = _safe_div(alive, rounds)
+
+    rating = (
+        0.5 * _safe_div(kills, rounds)
+        + 0.3 * surv
+        + 0.15 * hs_pct
+        + 0.15 * open_wr
+    )
+
+    return {
+        "steamid": row["steamid"],
+        "name": row.get("name") or row["steamid"],
+        "matches": row.get("matches") or 0,
+        "rounds_played": rounds,
+        "kills": kills,
+        "deaths": deaths,
+        "hs_kills": hs,
+        "opening_kills": open_k,
+        "opening_deaths": open_d,
+        "rounds_alive": alive,
+        "awp_kills": row.get("awp_kills") or 0,
+        "smokes_thrown": row.get("smokes_thrown") or 0,
+        "flashes_thrown": row.get("flashes_thrown") or 0,
+        "hes_thrown": row.get("hes_thrown") or 0,
+        "molos_thrown": row.get("molos_thrown") or 0,
+        "multi_2k": row.get("multi_2k") or 0,
+        "multi_3k": row.get("multi_3k") or 0,
+        "multi_4k": row.get("multi_4k") or 0,
+        "multi_5k": row.get("multi_5k") or 0,
+        "kd_ratio": round(kd, 3),
+        "hs_pct": round(hs_pct, 3),
+        "opening_wr": round(open_wr, 3),
+        "survival_rate": round(surv, 3),
+        "rating": round(rating, 3),
+        "role": _infer_role(row),
+    }
+
+
+@app.get(
+    "/api/players",
+    response_model=List[PlayerProfileSummary],
+    summary="List all players with cross-demo aggregated stats",
+)
+async def list_players(min_matches: int = Query(1, ge=1)):
+    rows = _player_stats.list_summaries()
+    summaries = [_to_summary(r) for r in rows]
+    summaries = [s for s in summaries if s["matches"] >= min_matches]
+    summaries.sort(key=lambda s: s["rating"], reverse=True)
+    return summaries
+
+
+@app.get(
+    "/api/players/{steamid}",
+    response_model=PlayerProfileDetail,
+    summary="Full profile for a single player",
+)
+async def get_player_detail(steamid: str):
+    detail = _player_stats.get_detail(steamid)
+    if not detail:
+        raise HTTPException(status_code=404, detail=f"Player not found: {steamid}")
+
+    totals = detail["totals"] or {}
+    totals["matches"] = totals.get("matches") or 0
+    totals["name"] = detail["name"]
+    totals["steamid"] = detail["steamid"]
+    summary = _to_summary(totals)
+
+    return {
+        "steamid": detail["steamid"],
+        "name": detail["name"],
+        "summary": summary,
+        "per_side": detail["per_side"],
+        "per_map": detail["per_map"],
+        "demos": detail["demos"],
+    }
+
+
+def _ensure_timeline_for_demo(demo_path: Path) -> bool:
+    """
+    Parse a single demo's timeline, cache it, and upsert player_stats rows.
+    Returns True if parsing happened, False if cache was reused or on failure.
+    Heavy: 5-15s per demo.
+
+    Cache invalidation: a stale cache (missing `cache_version` or older than
+    `TIMELINE_CACHE_VERSION`) is treated as absent and silently re-parsed.
+    Without this, parser upgrades that add new fields (damage_total, hurt
+    events, etc.) would never reach demos parsed before the upgrade.
+    """
+    from backend.ingestion.demo_parser import (
+        extract_match_timeline,
+        TIMELINE_CACHE_VERSION,
+    )
+
+    _TIMELINE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_path = _TIMELINE_CACHE_DIR / f"{demo_path.name}.json"
+    if cache_path.exists():
+        try:
+            with cache_path.open("r", encoding="utf-8") as f:
+                cached = json.load(f)
+            if int(cached.get("cache_version", 0)) >= TIMELINE_CACHE_VERSION:
+                return False
+            logger.info(
+                "[player_stats] stale cache (v%s < v%s) — re-parsing %s",
+                cached.get("cache_version", 0), TIMELINE_CACHE_VERSION,
+                demo_path.name,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[player_stats] cache unreadable, re-parsing %s: %s",
+                demo_path.name, exc,
+            )
+    try:
+        logger.info("[player_stats] parsing %s", demo_path.name)
+        bundle = extract_match_timeline(demo_path)
+        with cache_path.open("w", encoding="utf-8") as f:
+            json.dump(bundle, f, separators=(",", ":"))
+        _ingest_state["demos_parsed_this_run"] += 1
+        try:
+            _player_stats.ingest_timeline(bundle, demo_path.name)
+            # Each timeline updates one row per player on the roster (~10).
+            roster_size = len(bundle.get("players", []) or [])
+            _ingest_state["player_rows_updated_this_run"] += roster_size
+        except Exception as exc:
+            logger.warning("[player_stats] upsert failed for %s: %s", demo_path.name, exc)
+        return True
+    except Exception as exc:
+        logger.exception("[player_stats] parse failed for %s: %s", demo_path.name, exc)
+        return False
+
+
+def _parse_missing_timelines(demos_dir: Path) -> int:
+    """
+    Parse any .dem in `demos_dir` whose timeline isn't yet cached. Returns
+    the number of newly-parsed demos. Called from /api/players/refresh so a
+    single click backfills everything.
+    """
+    all_demos = sorted(demos_dir.glob("*.dem"))
+    missing = [
+        d for d in all_demos
+        if not (_TIMELINE_CACHE_DIR / f"{d.name}.json").exists()
+    ]
+    total = len(missing)
+    already = len(all_demos) - total
+    logger.info(
+        "[player_stats] %d demos, %d cached, %d to parse",
+        len(all_demos), already, total,
+    )
+
+    parsed = 0
+    for i, dem in enumerate(missing, 1):
+        logger.info("[player_stats] parsing %d/%d — %s", i, total, dem.name)
+        _set_phase("parsing-timeline", f"{i}/{total} — {dem.name}")
+        if _ensure_timeline_for_demo(dem):
+            parsed += 1
+    return parsed
+
+
+@app.post(
+    "/api/players/refresh",
+    response_model=PlayerStatsRefreshResponse,
+    summary="Parse any missing demos, then rescan cached timelines and rebuild player_stats rows",
+)
+async def refresh_player_stats():
+    # 1) Parse any uncached .dem files in the demos dir so the user doesn't
+    #    have to open each demo manually in the replay viewer first.
+    parsed = await asyncio.to_thread(
+        _parse_missing_timelines, settings.demo_dir,
+    )
+    if parsed:
+        logger.info("[player_stats] parsed %d missing timelines", parsed)
+
+    # 2) Aggregate every cached timeline into player_stats rows.
+    result = await asyncio.to_thread(
+        _player_stats.refresh_from_cache, _TIMELINE_CACHE_DIR,
+    )
+    return result

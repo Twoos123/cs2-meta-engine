@@ -236,6 +236,24 @@ class TimelinePosition(BaseModel):
     inv: Optional[List[str]] = Field(default_factory=list) # full inventory
     eq: Optional[int] = None   # equipment value
     cs: Optional[int] = None   # cash spent this round
+    # Per-round aggregate snapshots — diff consecutive round-end samples to
+    # derive per-round values (FACEIT-style Swing / DMG). Optional so old
+    # cached timelines remain valid.
+    dmg: Optional[int] = None      # damage_total (all damage)
+    utildmg: Optional[int] = None  # utility_damage_total (nade damage only)
+    ast: Optional[int] = None      # assists_total
+    hsk: Optional[int] = None      # headshot_kills_total
+    flashed: Optional[int] = None  # enemies_flashed_total
+    ktot: Optional[int] = None     # kills_total
+    dtot: Optional[int] = None     # deaths_total
+    atime: Optional[int] = None    # alive_time_total
+    sf: Optional[int] = None       # shots_fired
+    # Per-tick state — drives map-view player-model polish
+    fd: Optional[float] = None     # flash_duration (seconds remaining)
+    sc: Optional[bool] = None      # is_scoped
+    wlk: Optional[bool] = None     # is_walking
+    cr: Optional[bool] = None      # in_crouch
+    dfu: Optional[bool] = None     # is_defusing
 
 
 class TimelineGrenade(BaseModel):
@@ -257,6 +275,11 @@ class TimelineEvent(BaseModel):
 class TimelineRound(BaseModel):
     num: int
     start_tick: int
+    # When freeze (buy phase) actually ended and players could move. Right
+    # anchor for cross-round alignment because freeze duration varies — a
+    # tactical timeout extends freeze by ~30s but start_tick stays at the
+    # beginning of the freeze block. None on demos parsed before v3.
+    freeze_end_tick: Optional[int] = None
     end_tick: int
     winner: Optional[str] = None      # "T" | "CT" | None
 
@@ -296,6 +319,14 @@ class IngestionStatusResponse(BaseModel):
     # Downloads API approval), the background task surfaces the raw demo URL
     # here so the frontend can offer a "open in new tab" manual fallback.
     manual_url: Optional[str] = None
+    # Per-run progress so the ingest panel can show non-grenade work
+    # (timeline parsing, player_stats upserts) in real time. Resets each
+    # time a new ingest starts.
+    demos_parsed_this_run: int = 0
+    demos_total_this_run: int = 0
+    player_rows_updated_this_run: int = 0
+    # Total per-player aggregate rows currently in the DB.
+    total_player_rows: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -328,3 +359,82 @@ class FaceitMatchListResponse(BaseModel):
 
 class FaceitIngestRequest(BaseModel):
     match_id: str
+
+
+# ---------------------------------------------------------------------------
+# Player profiles (cross-demo aggregation)
+# ---------------------------------------------------------------------------
+
+class PlayerProfileSummary(BaseModel):
+    """One row in the /api/players list — totals across every parsed demo."""
+    steamid: str
+    name: str
+    matches: int
+    rounds_played: int
+    kills: int
+    deaths: int
+    hs_kills: int
+    opening_kills: int
+    opening_deaths: int
+    rounds_alive: int
+    awp_kills: int
+    smokes_thrown: int
+    flashes_thrown: int
+    hes_thrown: int
+    molos_thrown: int
+    multi_2k: int
+    multi_3k: int
+    multi_4k: int
+    multi_5k: int
+    # Derived, computed server-side so the frontend just renders.
+    kd_ratio: float
+    hs_pct: float                    # 0-1
+    opening_wr: float                # 0-1
+    survival_rate: float             # 0-1
+    rating: float                    # simple proxy (see player_stats.py)
+    role: str                        # "AWP" | "Entry" | "Support" | "Lurker" | "Rifler"
+
+
+class PlayerSideSplit(BaseModel):
+    side: str                        # "T" | "CT"
+    rounds_played: int
+    kills: int
+    deaths: int
+    opening_kills: int
+    opening_deaths: int
+    rounds_alive: int
+
+
+class PlayerMapSplit(BaseModel):
+    map_name: str
+    matches: int
+    rounds_played: int
+    kills: int
+    deaths: int
+    rounds_alive: int
+    opening_kills: int
+    opening_deaths: int
+
+
+class PlayerDemoEntry(BaseModel):
+    demo_file: str
+    map_name: str
+    kills: int
+    deaths: int
+    rounds_played: int
+
+
+class PlayerProfileDetail(BaseModel):
+    steamid: str
+    name: str
+    # Flattened totals plus all derived fields (same shape as summary minus list-specific extras).
+    summary: PlayerProfileSummary
+    per_side: List[PlayerSideSplit]
+    per_map: List[PlayerMapSplit]
+    demos: List[PlayerDemoEntry]
+
+
+class PlayerStatsRefreshResponse(BaseModel):
+    scanned: int
+    rows_upserted: int
+    errors: int

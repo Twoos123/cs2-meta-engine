@@ -11,8 +11,8 @@ export default function IngestPage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#05070d]">
-      <nav className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button onClick={() => navigate(-1)} className="hud-btn text-xs py-1 px-2" title="Back">←</button>
+      <nav className="shrink-0 flex items-center gap-3 px-4 py-8 border-b border-cs2-border/50 bg-[#0a0e18]">
+        <button onClick={() => navigate(-1)} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Back">←</button>
         <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Ingest</h1>
       </nav>
 

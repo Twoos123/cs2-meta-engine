@@ -15,13 +15,15 @@ import {
   getMatchReplayTimeline,
   getRadarInfo,
 } from "../api/client";
-import MatchReplayViewer from "./MatchReplayViewer";
+import MatchReplayViewer, { LiveReplayStatus } from "./MatchReplayViewer";
 import EconomyPanel from "./EconomyPanel";
 import HeatmapPanel from "./HeatmapPanel";
 import StatsPanel from "./StatsPanel";
+import InsightsPanel from "./InsightsPanel";
 
 const TABS = [
   { to: "", label: "Replay", end: true },
+  { to: "insights", label: "Insights", end: false },
   { to: "economy", label: "Economy", end: false },
   { to: "heatmap", label: "Heatmap", end: false },
   { to: "stats", label: "Stats", end: false },
@@ -37,6 +39,9 @@ export default function ReplayLayout() {
   const [radar, setRadar] = useState<RadarInfo | null>(null);
   const [matchInfo, setMatchInfo] = useState<MatchInfoResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Live playback status published by MatchReplayViewer — score / round /
+  // time / bomb update as the user scrubs or plays.
+  const [liveStatus, setLiveStatus] = useState<LiveReplayStatus | null>(null);
 
   useEffect(() => {
     if (!demoFile) return;
@@ -103,53 +108,102 @@ export default function ReplayLayout() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#05070d]">
-      {/* Tab bar */}
-      <nav className="shrink-0 flex items-center gap-1 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button
-          onClick={() => navigate("/replay")}
-          className="hud-btn text-xs py-1 px-2"
-          title="Back to demo picker"
-        >
-          ←
-        </button>
-        <button
-          onClick={() => navigate("/ingest")}
-          className="hud-btn text-xs mr-2 py-1 px-2"
-          title="Ingest demos"
-        >
-          Ingest
-        </button>
-        {TABS.map((tab) => (
-          <NavLink
-            key={tab.label}
-            to={tab.to ? `${basePath}/${tab.to}` : basePath}
-            end
-            className={({ isActive }) =>
-              `px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] rounded transition-all ${
-                isActive
-                  ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40 shadow-[0_0_10px_rgba(34,211,238,0.15)]"
-                  : "text-cs2-muted hover:text-white border border-transparent hover:bg-cs2-border/20"
-              }`
-            }
+      {/* Tab bar — three flex zones (left: tabs, center: match-up, right:
+          nav buttons). The center zone is flex-1 with min-w-0 so it gives
+          way to the fixed-width zones on narrow screens, and its own
+          contents progressively hide (logos → event → score) via
+          responsive utilities so nothing overlaps. */}
+      <nav className="shrink-0 grid grid-cols-3 items-center gap-2 px-3 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
+        <div className="shrink-0 flex items-center gap-1 justify-self-start">
+          <button
+            onClick={() => navigate("/replay")}
+            className="hud-btn text-sm py-1.5 px-3 mr-1"
+            title="Back to demo picker"
           >
-            {tab.label}
-          </NavLink>
-        ))}
-        <span className="ml-auto flex items-center gap-2 text-[10px] text-cs2-muted/60 font-mono truncate max-w-[400px]">
+            ←
+          </button>
+          {TABS.map((tab) => (
+            <NavLink
+              key={tab.label}
+              to={tab.to ? `${basePath}/${tab.to}` : basePath}
+              end
+              className={({ isActive }) =>
+                `px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] rounded transition-all ${
+                  isActive
+                    ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40 shadow-[0_0_10px_rgba(34,211,238,0.15)]"
+                    : "text-cs2-muted hover:text-white border border-transparent hover:bg-cs2-border/20"
+                }`
+              }
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </div>
+
+        {/* Center column — truly centered via 3-col grid (left/right zones
+            are siblings, not floats, so the center column never offsets). */}
+        <div className="min-w-0 flex flex-col items-center pointer-events-none">
           {matchInfo?.team1 && matchInfo?.team2 ? (
             <>
-              {matchInfo.team1.logo && (
-                <img src={matchInfo.team1.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
-              )}
-              {matchInfo.team1.name}
-              <span className="text-cs2-muted/40">vs</span>
-              {matchInfo.team2.logo && (
-                <img src={matchInfo.team2.logo} alt="" className="w-4 h-4 object-contain shrink-0" />
-              )}
-              {matchInfo.team2.name}
+              <div className="flex items-center gap-2 lg:gap-3 min-w-0 max-w-full">
+                {matchInfo.team1.logo && (
+                  <img src={matchInfo.team1.logo} alt="" className="hidden md:block w-7 h-7 lg:w-9 lg:h-9 object-contain shrink-0" />
+                )}
+                <span className="text-base lg:text-xl font-bold uppercase tracking-[0.06em] truncate"
+                  style={{ color: liveStatus ? (liveStatus.team1CurrentSide === 2 ? "#DCBF6E" : "#5B9BD5") : "#fff" }}>
+                  {matchInfo.team1.name}
+                </span>
+                {liveStatus ? (
+                  <span className="font-mono text-lg lg:text-2xl font-bold text-white tabular-nums shrink-0">
+                    {liveStatus.team1Score} : {liveStatus.team2Score}
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold uppercase tracking-[0.2em] text-cs2-muted/60 shrink-0">vs</span>
+                )}
+                <span className="text-base lg:text-xl font-bold uppercase tracking-[0.06em] truncate"
+                  style={{ color: liveStatus ? (liveStatus.team1CurrentSide === 2 ? "#5B9BD5" : "#DCBF6E") : "#fff" }}>
+                  {matchInfo.team2.name}
+                </span>
+                {matchInfo.team2.logo && (
+                  <img src={matchInfo.team2.logo} alt="" className="hidden md:block w-7 h-7 lg:w-9 lg:h-9 object-contain shrink-0" />
+                )}
+              </div>
+              <div className="hidden lg:flex items-center gap-3 text-[10px] uppercase tracking-[0.15em] text-cs2-muted/80 mt-0.5 font-mono">
+                {matchInfo.event && <span className="truncate max-w-[200px]">{matchInfo.event}</span>}
+                {liveStatus && (
+                  <>
+                    <span className="text-cs2-accent">Round {liveStatus.round}</span>
+                    <span>{liveStatus.mapName} · {liveStatus.currentTimeStr} / {liveStatus.totalTimeStr}</span>
+                    {liveStatus.bomb && (
+                      <span className="text-cs2-red animate-pulse">
+                        💣 {liveStatus.bomb.site} · {liveStatus.bomb.remaining.toFixed(0)}s
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </>
-          ) : demoFile}
-        </span>
+          ) : (
+            <span className="text-[10px] text-cs2-muted/60 font-mono truncate max-w-[400px]">{demoFile}</span>
+          )}
+        </div>
+
+        <div className="shrink-0 flex items-center gap-2 justify-self-end">
+          <button
+            onClick={() => navigate("/ingest")}
+            className="hud-btn text-sm py-1.5 px-3"
+            title="Ingest demos"
+          >
+            Ingest
+          </button>
+          <button
+            onClick={() => navigate("/players")}
+            className="hud-btn text-sm py-1.5 px-3"
+            title="Player profiles"
+          >
+            Players
+          </button>
+        </div>
       </nav>
 
       {/* Sub-views */}
@@ -164,6 +218,25 @@ export default function ReplayLayout() {
                 radar={radar}
                 matchInfo={matchInfo}
                 onBack={() => navigate("/replay")}
+                onLiveStatus={setLiveStatus}
+              />
+            }
+          />
+          <Route
+            path="insights"
+            element={
+              <InsightsPanel
+                timeline={timeline}
+                radar={radar}
+                matchInfo={matchInfo}
+                demoFile={demoFile}
+                onReloadTimeline={() => {
+                  // Force the parent useEffect to refetch by resetting timeline.
+                  // A more explicit approach would bump a counter dep, but the
+                  // user clicked "re-parse" knowing the tab will reload.
+                  setTimeline(null);
+                  getMatchReplayTimeline(demoFile).then(setTimeline).catch(() => {});
+                }}
               />
             }
           />

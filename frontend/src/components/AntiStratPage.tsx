@@ -673,10 +673,13 @@ export default function AntiStratPage() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
       {/* Header — consistent with all pages */}
-      <nav className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button onClick={() => navigate("/")} className="hud-btn text-xs py-1 px-2" title="Home">←</button>
-        <button onClick={() => navigate("/ingest")} className="hud-btn text-xs py-1 px-2" title="Ingest demos">Ingest</button>
+      <nav className="shrink-0 flex items-center gap-3 px-4 py-8 border-b border-cs2-border/50 bg-[#0a0e18]">
+        <button onClick={() => navigate("/")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Home">←</button>
         <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Anti-Strat</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={() => navigate("/ingest")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Ingest demos">Ingest</button>
+          <button onClick={() => navigate("/players")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Player profiles">Players</button>
+        </div>
       </nav>
 
       <div className="flex-1 min-h-0 flex overflow-hidden">

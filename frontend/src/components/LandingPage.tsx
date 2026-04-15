@@ -55,6 +55,18 @@ const sections = [
       </svg>
     ),
   },
+  {
+    title: "Player Profiles",
+    description: "Cross-demo aggregated stats per player. Rating, role inference, per-map and per-side splits, recent matches.",
+    route: "/players",
+    color: "#c084fc",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21v-1a8 8 0 0 1 16 0v1" />
+      </svg>
+    ),
+  },
 ];
 
 export default function LandingPage() {
@@ -68,7 +80,7 @@ export default function LandingPage() {
           Pro-level demo analysis — grenade lineups, match replay, and opponent scouting.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 max-w-6xl w-full">
           {sections.map((s) => (
             <button
               key={s.route}

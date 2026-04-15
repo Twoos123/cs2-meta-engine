@@ -1,6 +1,15 @@
 """
 Demo parser — wraps demoparser2 to extract grenade and round data from CS2 .dem files.
 
+NOTE — TIMELINE_CACHE_VERSION
+-----------------------------
+Bump this whenever `extract_match_timeline()` adds new fields, new event types,
+or otherwise changes the JSON shape so existing on-disk caches no longer
+contain the data the frontend / analysis code expects. `_ensure_timeline_for_demo`
+in main.py reads this and silently re-parses any stale cache. Without this,
+old caches stay frozen at e.g. zero damage forever after a parser upgrade.
+
+
 demoparser2 is a Rust-based library that can process hundreds of demos in seconds.
 Each demo is parsed for:
   - grenade_thrown  → position, angles, type
@@ -30,6 +39,12 @@ import pandas as pd
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# Bump when the timeline JSON shape or field set changes — see module docstring.
+# v3 adds round.freeze_end_tick + round_freeze_end events for timeout-aware
+# cross-round alignment in the patterns view.
+# v2 added player_hurt events ("hurt"); v1 was the pre-hurt schema.
+TIMELINE_CACHE_VERSION = 3
 
 # ---------------------------------------------------------------------------
 # Grenade type normalisation
@@ -881,15 +896,41 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         map_name = "unknown"
 
     # ---- per-tick positions --------------------------------------------
+    # Aggregate fields (e.g. damage_total, utility_damage_total) update once
+    # per round — we keep them per-tick so the frontend can diff between
+    # round boundaries to derive real per-round values without a separate
+    # event pass. Behaviour bools (is_scoped, is_walking, in_crouch,
+    # is_defusing) power the replay viewer's player-model polish.
+    _PARSE_TICK_FIELDS = [
+        "X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num",
+        "active_weapon_name", "armor_value", "has_helmet", "inventory",
+        "current_equip_value", "cash_spent_this_round",
+        # Per-round aggregate stats (updated once per round)
+        "damage_total", "utility_damage_total", "assists_total",
+        "headshot_kills_total", "enemies_flashed_total",
+        "kills_total", "deaths_total", "alive_time_total",
+        # Per-tick behaviour + flash state
+        "flash_duration", "is_scoped", "is_walking", "in_crouch",
+        "is_defusing", "shots_fired",
+    ]
     try:
-        ticks_df = parser.parse_ticks(
-            ["X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num",
-             "active_weapon_name", "armor_value", "has_helmet", "inventory",
-             "current_equip_value", "cash_spent_this_round"]
-        )
+        ticks_df = parser.parse_ticks(_PARSE_TICK_FIELDS)
     except Exception as exc:
-        logger.error("parse_ticks failed: %s", exc)
-        ticks_df = pd.DataFrame()
+        # Some fields may not be supported on older demos; retry with the
+        # minimal set so we still get basic playback.
+        logger.warning(
+            "parse_ticks with extended fields failed (%s); retrying minimal set",
+            exc,
+        )
+        try:
+            ticks_df = parser.parse_ticks([
+                "X", "Y", "Z", "pitch", "yaw", "health", "is_alive", "team_num",
+                "active_weapon_name", "armor_value", "has_helmet", "inventory",
+                "current_equip_value", "cash_spent_this_round",
+            ])
+        except Exception as exc2:
+            logger.error("parse_ticks failed: %s", exc2)
+            ticks_df = pd.DataFrame()
 
     positions: dict[str, list[dict]] = {}
     players: list[dict] = []
@@ -904,13 +945,36 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         if len(df) > 0:
             tick_max = int(df["tick"].max())
 
+        # Persistent steamid→name table from the demo header — survives ticks
+        # where the per-tick `name` field is empty/NaN (coaches re-slotted, late
+        # joiners, brief team_num flips on spectators, etc.).
+        info_name_by_sid: dict[str, str] = {}
+        try:
+            for info in parser.parse_player_info() or []:
+                sid = str(info.get("steamid", ""))
+                nm = str(info.get("name", "") or "").strip()
+                if sid and nm:
+                    info_name_by_sid[sid] = nm
+        except Exception as exc:
+            logger.debug("parse_player_info failed: %s", exc)
+
         # Build the player roster once using the mode of name/team per steamid.
         roster_rows: list[dict] = []
         for sid, group in df.groupby("steamid", sort=False):
             name_series = group.get("name")
-            if name_series is None:
-                continue
-            name = str(name_series.mode().iloc[0]) if len(name_series.mode()) else ""
+            name = ""
+            if name_series is not None:
+                # Drop NaN/empty before taking the mode so a sparsely-named
+                # slot still recovers its real name from the few good ticks.
+                cleaned = name_series.dropna().astype(str).str.strip()
+                cleaned = cleaned[(cleaned != "") & (cleaned.str.lower() != "nan")]
+                if len(cleaned):
+                    mode_vals = cleaned.mode()
+                    if len(mode_vals):
+                        name = str(mode_vals.iloc[0])
+            if not name:
+                # Fall back to demo header roster
+                name = info_name_by_sid.get(str(sid), "")
             team_series = group.get("team_num")
             team_num = 0
             if team_series is not None and len(team_series):
@@ -976,23 +1040,86 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                             w_str = w_str[7:]
                         inv_list.append(w_str)
 
-                samples.append(
-                    {
-                        "t": int(getattr(row, "tick")),
-                        "x": round(float(getattr(row, "X", 0.0) or 0.0), 1),
-                        "y": round(float(getattr(row, "Y", 0.0) or 0.0), 1),
-                        "yaw": round(float(getattr(row, "yaw", 0.0) or 0.0), 1),
-                        "alive": bool(getattr(row, "is_alive", False)),
-                        "hp": _safe_int(getattr(row, "health", 0)),
-                        "w": wpn if wpn else "",
-                        "ar": armor,
-                        "hl": helmet,
-                        "tn": tn,
-                        "inv": inv_list,
-                        "eq": _safe_int(getattr(row, "current_equip_value", 0)),
-                        "cs": _safe_int(getattr(row, "cash_spent_this_round", 0)),
-                    }
-                )
+                # Optional new fields — guarded so old demos still parse.
+                def _opt_int(name: str):
+                    v = getattr(row, name, None)
+                    if v is None:
+                        return None
+                    try:
+                        import math
+                        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                            return None
+                    except Exception:
+                        pass
+                    try:
+                        return int(v)
+                    except (TypeError, ValueError):
+                        return None
+
+                def _opt_float(name: str):
+                    v = getattr(row, name, None)
+                    if v is None:
+                        return None
+                    try:
+                        import math
+                        f = float(v)
+                        if math.isnan(f) or math.isinf(f):
+                            return None
+                        return round(f, 2)
+                    except (TypeError, ValueError):
+                        return None
+
+                def _opt_bool(name: str):
+                    v = getattr(row, name, None)
+                    if v is None:
+                        return None
+                    return bool(v)
+
+                sample = {
+                    "t": int(getattr(row, "tick")),
+                    "x": round(float(getattr(row, "X", 0.0) or 0.0), 1),
+                    "y": round(float(getattr(row, "Y", 0.0) or 0.0), 1),
+                    "yaw": round(float(getattr(row, "yaw", 0.0) or 0.0), 1),
+                    "alive": bool(getattr(row, "is_alive", False)),
+                    "hp": _safe_int(getattr(row, "health", 0)),
+                    "w": wpn if wpn else "",
+                    "ar": armor,
+                    "hl": helmet,
+                    "tn": tn,
+                    "inv": inv_list,
+                    "eq": _safe_int(getattr(row, "current_equip_value", 0)),
+                    "cs": _safe_int(getattr(row, "cash_spent_this_round", 0)),
+                }
+                # Per-round aggregates (Optional — omit when None to keep payload small)
+                for src, dst in (
+                    ("damage_total", "dmg"),
+                    ("utility_damage_total", "utildmg"),
+                    ("assists_total", "ast"),
+                    ("headshot_kills_total", "hsk"),
+                    ("enemies_flashed_total", "flashed"),
+                    ("kills_total", "ktot"),
+                    ("deaths_total", "dtot"),
+                    ("alive_time_total", "atime"),
+                    ("shots_fired", "sf"),
+                ):
+                    iv = _opt_int(src)
+                    if iv is not None:
+                        sample[dst] = iv
+                # Flash duration (float seconds)
+                fv = _opt_float("flash_duration")
+                if fv is not None and fv > 0.0:
+                    sample["fd"] = fv
+                # Behaviour bools — only emit when True (keeps cache small)
+                for src, dst in (
+                    ("is_scoped", "sc"),
+                    ("is_walking", "wlk"),
+                    ("in_crouch", "cr"),
+                    ("is_defusing", "dfu"),
+                ):
+                    bv = _opt_bool(src)
+                    if bv:
+                        sample[dst] = True
+                samples.append(sample)
             positions[sid] = samples
 
     # ---- events --------------------------------------------------------
@@ -1057,6 +1184,22 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
             },
         ),
     )
+    # Utility damage — only push hurt events caused by HE/molly/inferno so we
+    # can attach damage labels to the corresponding grenade on the map.
+    _UTIL_HURT_WEAPONS = {"hegrenade", "molotov", "inferno", "incgrenade"}
+    _push_events(
+        "player_hurt",
+        lambda r: (
+            ("hurt", {
+                "attacker": _str(r.get("attacker_steamid")),
+                "victim": _str(r.get("user_steamid")),
+                "weapon": _str(r.get("weapon")),
+                "dmg": _str(r.get("dmg_health")),
+                "x": _str(r.get("user_X", "")),
+                "y": _str(r.get("user_Y", "")),
+            }) if _str(r.get("weapon")) in _UTIL_HURT_WEAPONS else None
+        ),
+    )
     # demoparser2 returns bomb site as an entity index (e.g. 504, 505).
     # Track the first two unique indices seen and map them to A / B.
     _bomb_site_ids: dict[str, str] = {}
@@ -1106,13 +1249,23 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         ),
     )
 
-    # Rounds — use round_start / round_end to build a rounds list, and also
-    # push the raw events so the frontend can render start/end markers.
+    # Rounds — use round_start / round_freeze_end / round_end to build a
+    # rounds list, and also push the raw events so the frontend can render
+    # start/end markers.
+    #
+    # round_freeze_end is the tick where freeze ends and players can move.
+    # It's the right anchor for cross-round alignment in the patterns view
+    # because freeze duration varies (tactical timeouts extend freeze by
+    # ~30s but round_start still fires at the start of the freeze block).
     rounds: list[dict] = []
     try:
         starts = parser.parse_event("round_start")
     except Exception:
         starts = None
+    try:
+        freeze_ends = parser.parse_event("round_freeze_end")
+    except Exception:
+        freeze_ends = None
     try:
         ends = parser.parse_event("round_end")
     except Exception:
@@ -1125,6 +1278,12 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         start_ticks = sorted(int(t) for t in starts["tick"].tolist() if int(t) > 0)
         for t in start_ticks:
             events.append({"type": "round_start", "tick": int(t), "data": {}})
+
+    freeze_end_ticks: list[int] = []
+    if freeze_ends is not None and len(freeze_ends):
+        freeze_end_ticks = sorted(int(t) for t in freeze_ends["tick"].tolist() if int(t) > 0)
+        for t in freeze_end_ticks:
+            events.append({"type": "round_freeze_end", "tick": int(t), "data": {}})
 
     end_rows: list[dict] = []
     if ends is not None and len(ends):
@@ -1146,6 +1305,7 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
 
     # Pair starts/ends into numbered rounds. If starts are missing (rare on
     # old demos), fall back to using the previous end_tick as the start.
+    # freeze_end_tick is the latest round_freeze_end at-or-before round_end.
     prev_end = 0
     for i, er in enumerate(end_rows):
         start_tick = 0
@@ -1155,10 +1315,16 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                 start_tick = before[-1]
         if start_tick == 0:
             start_tick = prev_end
+        freeze_end_tick = 0
+        if freeze_end_ticks:
+            fbefore = [t for t in freeze_end_ticks if start_tick <= t <= er["tick"]]
+            if fbefore:
+                freeze_end_tick = fbefore[-1]
         rounds.append(
             {
                 "num": i + 1,
                 "start_tick": int(start_tick),
+                "freeze_end_tick": int(freeze_end_tick) if freeze_end_tick else None,
                 "end_tick": int(er["tick"]),
                 "winner": er["winner"],
             }
@@ -1272,6 +1438,7 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
                     )
 
     return {
+        "cache_version": TIMELINE_CACHE_VERSION,
         "map_name": map_name,
         "tick_rate": 64,
         "decimation": decimation,

@@ -588,9 +588,46 @@ class HLTVScraper:
             logger.warning("Could not fetch match page %d: %s", match.match_id, exc)
             return None
 
-        # Maps played — HLTV shows each map in a .mapname element
-        maps = [m.get_text(strip=True) for m in soup.select(".mapname")]
-        maps = [m for m in maps if m and m.lower() != "tbd"]
+        # Maps played — HLTV lists every map slot in the BO3/5 grid, including
+        # unplayed deciders when a series ends early (e.g. 2-0). Only count a
+        # slot as "played" when it carries a numeric score; otherwise the
+        # scraper will later download an archive that doesn't contain the
+        # expected .dem and discard it (wasted bandwidth + time).
+        maps: List[str] = []
+        map_scorelines: list[str] = []
+        for holder in soup.select(".mapholder"):
+            name_el = holder.select_one(".mapname")
+            if not name_el:
+                continue
+            name = name_el.get_text(strip=True)
+            if not name or name.lower() == "tbd":
+                continue
+            # Played maps have a numeric score block; deciders show "-" / empty.
+            score_el = holder.select_one(".results, .results-center-stats")
+            score_str = score_el.get_text(" ", strip=True) if score_el else ""
+            if not any(ch.isdigit() for ch in score_str):
+                logger.debug(
+                    "  %d: skipping unplayed map %s (no scoreline)",
+                    match.match_id, name,
+                )
+                continue
+            maps.append(name)
+            map_scorelines.append(f"{name} {score_str}")
+
+        # Fallback: if we couldn't find any .mapholder (HLTV markup changed
+        # again) fall back to the old behaviour so we still return something.
+        if not maps:
+            maps = [
+                m.get_text(strip=True)
+                for m in soup.select(".mapname")
+                if m.get_text(strip=True) and m.get_text(strip=True).lower() != "tbd"
+            ]
+
+        if map_scorelines:
+            logger.info(
+                "  %d played maps: %s",
+                match.match_id, " | ".join(map_scorelines),
+            )
 
         demo_url, demo_urls = self._extract_demo_links(soup)
         if demo_urls:

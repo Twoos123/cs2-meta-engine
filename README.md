@@ -1,6 +1,6 @@
 # CS2 Meta Engine
 
-A pro-level CS2 demo analysis platform that no competitor matches. Mines demos from HLTV, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, economy tracking, heatmaps, per-player stats, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
+A pro-level CS2 demo analysis platform. Mines demos from HLTV and FACEIT, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, an Insights panel with round/pattern/heatmap modes, economy tracking, per-player stats, cross-demo Player Profiles, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
 
 ### 1. Home — Pick a module from the landing page
 ![Landing Page](screenshots/landing.png)
@@ -11,25 +11,37 @@ A pro-level CS2 demo analysis platform that no competitor matches. Mines demos f
 ### 3. Demo Picker — Upload or browse demos grouped by map, then open one to analyze
 ![Demo Picker](screenshots/demo-picker.png)
 
-### 4. Match Replay — Watch the full match in 2D with player positions, grenades, and kill feed
+### 4. Match Replay — Live 2D viewer with team-vs-team header, score, and bomb timer in the navbar
 ![Match Replay](screenshots/replay.png)
 
-### 5. Economy — Track equipment value and buy types round by round
+### 5. Insights — Round overlay with utility damage paths, victim entry/exit markers, flash blinds, and AOE radii
+![Insights — Round mode](screenshots/insights.png)
+
+### 6. Insights · Patterns mode — Aggregate every round of one player or drill into a single round; live-scrub through the demo
+![Insights — Patterns](screenshots/insights-patterns.png)
+
+### 7. Insights · Heatmap mode — Aggregated grenade landings across the entire match, filterable by HE / Smoke / Flash / Molly
+![Insights — Heatmap](screenshots/insights-heatmap.png)
+
+### 8. Players — Cross-demo per-player aggregates rebuilt from cached timelines
+![Players](screenshots/players.png)
+
+### 9. Economy — Track equipment value and buy types round by round
 ![Economy Tracker](screenshots/economy.png)
 
-### 6. Heatmap — See where players position, die, and land utility
+### 10. Heatmap — See where players position, die, and land utility
 ![Heatmap](screenshots/heatmap.png)
 
-### 7. Stats — Per-player scoreboard with K/D, HS%, first kills, and multi-kill rounds
+### 11. Stats — Per-player scoreboard with K/D, HS%, first kills, and multi-kill rounds
 ![Stats Panel](screenshots/stats.png)
 
-### 8. Anti-Strat — Select an opponent team and generate a scouting report
+### 12. Anti-Strat — Select an opponent team and generate a scouting report
 ![Anti-Strat Report](screenshots/anti-strat.png)
 
-### 9. Anti-Strat — Utility tendency and AWP position heatmaps
+### 13. Anti-Strat — Utility tendency and AWP position heatmaps
 ![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
 
-### 10. Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
+### 14. Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
 ![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
 
 ---
@@ -68,6 +80,13 @@ Feed the engine multiple demos of the team you're playing next week and get:
 - **Timestamped notes** — Add bookmarks at any tick (stored in localStorage), shown as diamond markers on the scrubber
 - **AI match recap** — Claude/OpenRouter-powered 3-5 paragraph narrative summary
 
+### Insights Panel
+Accessed from the Insights tab within any loaded demo:
+- **Round mode** — Utility paths, victim entry/exit markers, flash blinds, and AOE radii overlaid on the radar
+- **Patterns mode** — Detect repeated grenade sequences across rounds; click any pattern badge to jump to it; filter by player or nade type; flash effectiveness scoring (enemies-in-range at detonation)
+- **Heatmap mode** — Aggregated grenade landings across the entire match, filterable by HE / Smoke / Flash / Molotov
+- **Live scrub** — Seek to any throw or event directly from the panel; highlights sync with the radar overlay
+
 ### Economy Tracker
 - **Equipment value graph** — Bar chart of T vs CT equipment value per round with hover details
 - **Buy type classification** — Eco / Force / Half / Full buy badges based on team equipment thresholds
@@ -85,6 +104,13 @@ Feed the engine multiple demos of the team you're playing next week and get:
 - **Expandable detail cards** — Kill breakdown (headshot/wallbang/noscope/smoke/blind), opening duels, utility usage, multi-kill rounds
 - **Computed client-side** — No backend changes needed, all derived from timeline data
 
+### Player Profiles (Cross-Demo)
+- **Leaderboard** — All players seen across every parsed demo, ranked by rating; sortable by K/D, kills, matches
+- **Role inference** — AWP / Entry / Support / Lurker / Rifler — inferred from AWP ratio, opening kill rate, utility rate, survival rate
+- **Filters** — Search by name, filter by role, set minimum match threshold
+- **Detail view** — Per-map and per-side splits, recent match list (up to 50), multi-kill and special kill breakdown
+- **Refresh** — One-click re-scan of all cached timelines to rebuild player stats without re-opening demos
+
 ### Practice Tools
 - **Copy Console** — One-click `setpos/setang/give` string for any lineup
 - **RCON teleport** — Send commands directly to a running CS2 instance
@@ -92,10 +118,11 @@ Feed the engine multiple demos of the team you're playing next week and get:
 - **CS2 integration** — Auto-detect CS2 install, directory junctions for seamless replay
 
 ### Data Ingestion
-- **HLTV scraping** — Filter by team, event, map; auto-download and extract demo archives
+- **HLTV scraping** — Filter by team, event, map; auto-download and extract demo archives; skips already-cached match IDs
+- **FACEIT integration** — Look up any player by FACEIT profile URL, list recent CS2 matches, download demos automatically (with manual-URL fallback)
 - **Team logos** — Scraped from HLTV match pages during ingestion, stored in roster sidecar files
-- **Pipeline orchestration** — Parse, cluster, rank, and persist in one click
-- **Status tracking** — Real-time progress for download, extraction, and analysis
+- **Pipeline orchestration** — Parse, cluster, rank, and persist in one click; also parses full timelines and updates Player Profiles automatically
+- **Status tracking** — Real-time progress for download, extraction, parsing, and analysis phases
 
 ### AI Features
 - **Match recap** — Narrative summaries highlighting turning points and standout players
@@ -113,6 +140,13 @@ Feed the engine multiple demos of the team you're playing next week and get:
 - (Optional) CS2 with `-netconport 27015` for in-game practice
 
 ### Install
+
+**One-shot (Windows):**
+```bat
+install.bat
+```
+
+**Manual:**
 ```bash
 # Backend
 pip install -r requirements.txt
@@ -122,21 +156,31 @@ cd frontend && npm install
 ```
 
 ### Configure
-Create `.env` in the repo root:
+Copy `.env.example` to `.env` and fill in the values you need:
 ```env
-# AI features (pick one)
+# ── Directories ───────────────────────────────────────────────────────────────
+DEMO_DIR=demos
+DB_PATH=data/lineups.db
+
+# ── CS2 RCON (local server) ───────────────────────────────────────────────────
+# Launch CS2 with: -netconport 27015
+# Set in game: rcon_password changeme; sv_cheats 1
+RCON_HOST=127.0.0.1
+RCON_PORT=27015
+RCON_PASSWORD=changeme
+
+# ── HLTV scraping ─────────────────────────────────────────────────────────────
+HLTV_REQUEST_DELAY=2.5    # seconds between requests — be polite
+
+# ── Clustering ────────────────────────────────────────────────────────────────
+DBSCAN_EPS=75.0           # world-unit radius (decrease for tighter clusters)
+DBSCAN_MIN_SAMPLES=5      # minimum throws to form a cluster
+
+# ── AI features (pick one) ────────────────────────────────────────────────────
 OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_MODEL=google/gemma-3-27b-it:free
 # or
 ANTHROPIC_API_KEY=sk-ant-...
-
-# Optional
-RCON_PASSWORD=changeme
-DEMO_DIR=demos
-CS2_GAME_DIR=C:/Program Files (x86)/Steam/.../game/csgo
-
-# Cloud database (optional, defaults to local SQLite)
-# DATABASE_URL=postgresql://...
 ```
 
 ### Run
@@ -156,20 +200,24 @@ Open `http://localhost:5173`
 
 | Route | Page | Description |
 |-------|------|-------------|
-| `/` | Landing Page | Hub linking to lineups, replay, and anti-strat |
+| `/` | Landing Page | Hub linking to all modules |
+| `/ingest` | Ingest | HLTV and FACEIT demo ingestion |
 | `/lineups` | Grenade Lineups | Lineup grid, scatter plot, ingest controls, execute combos |
 | `/replay` | Demo Picker | Upload/browse demos, grouped by map |
 | `/replay/:file` | Match Replay | 2D viewer with playback controls |
+| `/replay/:file/insights` | Insights | Round/pattern/heatmap overlay panel |
 | `/replay/:file/economy` | Economy | Equipment graph + round-by-round buy analysis |
 | `/replay/:file/heatmap` | Heatmap | Position/death/grenade density overlays |
 | `/replay/:file/stats` | Stats | Per-player scoreboard + detailed breakdowns |
 | `/anti-strat` | Anti-Strat | Multi-demo opponent tendency scouting report |
+| `/players` | Player Profiles | Cross-demo leaderboard with role inference |
+| `/players/:steamid` | Player Detail | Per-map/side splits, recent match history |
 
 ---
 
 ## Anti-Strat Report
 
-The standout feature. Navigate to `/anti-strat` from the Dashboard header:
+The standout feature. Navigate to `/anti-strat` from the landing page:
 
 1. **Select a map** — dropdown populated from your demo library
 2. **Select a team** — auto-discovered from HLTV roster data across all demos on that map
@@ -184,7 +232,8 @@ All computation is client-side from existing timeline data. No new backend endpo
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/lineups/{map}/{type}?limit=N` | Ranked lineups |
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/lineups/{map}/{type}?limit=N&side=T\|CT` | Ranked lineups |
 | `GET` | `/api/lineups/{map}?limit=N` | All grenade types for a map |
 | `POST` | `/api/lineups/{id}/describe?map_name=` | AI lineup description |
 | `GET` | `/api/maps` | Maps with analysed data |
@@ -199,10 +248,13 @@ All computation is client-side from existing timeline data. No new backend endpo
 | `POST` | `/api/ingest/hltv` | Queue HLTV scrape + pipeline |
 | `POST` | `/api/ingest/run` | Re-run pipeline on existing demos |
 | `GET` | `/api/ingest/status` | Poll pipeline progress |
+| `POST` | `/api/ingest/faceit/matches` | List a FACEIT player's recent CS2 matches |
+| `POST` | `/api/ingest/faceit/download` | Download a FACEIT match demo and run pipeline |
 | `GET` | `/api/match-replay/demos` | List demos for replay |
 | `POST` | `/api/match-replay/upload` | Upload a .dem file |
 | `DELETE` | `/api/match-replay/{file}` | Delete a demo |
-| `GET` | `/api/match-replay/{file}/timeline` | Parse demo into timeline |
+| `GET` | `/api/match-replay/{file}/timeline` | Parse demo into timeline (cached) |
+| `DELETE` | `/api/match-replay/{file}/timeline` | Delete cached timeline (force re-parse) |
 | `POST` | `/api/match-replay/{file}/insights` | AI match recap |
 | `GET` | `/api/match-info/{file}` | Match metadata (teams, logos, event) |
 | `GET` | `/api/settings/cs2-path` | CS2 path + link status |
@@ -211,6 +263,9 @@ All computation is client-side from existing timeline data. No new backend endpo
 | `DELETE` | `/api/demos/link-to-cs2` | Remove junction |
 | `DELETE` | `/api/data` | Wipe lineup database |
 | `GET` | `/api/stats` | Totals summary |
+| `GET` | `/api/players?min_matches=N` | Cross-demo player leaderboard |
+| `GET` | `/api/players/{steamid}` | Full profile for a single player |
+| `POST` | `/api/players/refresh` | Re-scan cached timelines + rebuild player stats |
 
 Interactive docs at `http://localhost:8000/docs`.
 
@@ -242,7 +297,7 @@ Techniques are classified from velocity + duck state:
 ## Project Layout
 
 ```
-cs2tool/
+cs2-meta-engine/
 ├── backend/
 │   ├── main.py                FastAPI app — all endpoints
 │   ├── config.py              Settings (env vars, paths)
@@ -251,34 +306,48 @@ cs2tool/
 │   │   ├── clustering.py      Bucket-based lineup dedup
 │   │   ├── metrics.py         Pipeline orchestrator + SQLite
 │   │   ├── executes.py        Execute combo detection
-│   │   └── callouts.py        Map callout lookup
+│   │   ├── callouts.py        Map callout lookup
+│   │   └── player_stats.py    Cross-demo player stat aggregation (SQLite)
 │   ├── ingestion/
 │   │   ├── demo_parser.py     demoparser2 wrapper + timeline extraction
-│   │   └── hltv_scraper.py    HLTV scraper + downloader + logo extraction
+│   │   ├── hltv_scraper.py    HLTV scraper + downloader + logo extraction
+│   │   └── faceit_scraper.py  FACEIT API client + demo resolver
 │   ├── rcon/bridge.py         RCON teleport bridge
+│   ├── utils/cs2_detect.py    Steam registry CS2 path auto-detection
 │   └── data/
-│       ├── radars/            Radar PNGs + calibration
+│       ├── radars/            Radar PNGs + calibration JSON
 │       ├── callouts/          Per-map callout JSON
-│       └── lineup_data.db     SQLite database
+│       └── lineup_data.db     SQLite database (lineup clusters)
 ├── frontend/src/
 │   ├── api/client.ts          Typed API client (axios)
 │   ├── App.tsx                React Router routes
 │   └── components/
+│       ├── LandingPage.tsx     Module hub
+│       ├── IngestPage.tsx      HLTV / FACEIT tab switcher
+│       ├── IngestPanel.tsx     HLTV ingest controls + status
+│       ├── FaceitIngestPanel.tsx  FACEIT player lookup + match list
 │       ├── Dashboard.tsx       Lineup grid + filters + nav
 │       ├── AntiStratPage.tsx   Opponent scouting report (multi-demo)
 │       ├── ReplayLayout.tsx    Replay tab nav + shared data loading
 │       ├── MatchReplayViewer.tsx  2D match replay (SVG + rAF)
+│       ├── InsightsPanel.tsx   Round/pattern/heatmap overlay modes
+│       ├── NadeAnalysisPanel.tsx  Per-round and cross-round nade breakdown
 │       ├── EconomyPanel.tsx    Economy tracker (graph + table)
 │       ├── HeatmapPanel.tsx    Heatmaps (canvas overlay)
 │       ├── StatsPanel.tsx      Per-player stats scoreboard
+│       ├── PlayerListPage.tsx  Cross-demo player leaderboard
+│       ├── PlayerDetailPage.tsx  Per-player detail view
+│       ├── PlayerRoleRadar.tsx Role radar chart component
 │       ├── DemoPickerPage.tsx  Demo upload/browse
 │       ├── LineupCard.tsx      Individual lineup card
 │       ├── RadarView.tsx       Radar overlay modal
 │       ├── ScatterPlot.tsx     Win rate vs usage scatter
-│       ├── IngestPanel.tsx     HLTV ingest controls
 │       └── SettingsPanel.tsx   CS2 path + demo linking
 ├── demos/                     .dem files (gitignored)
 ├── data/                      SQLite DB + timeline cache (gitignored)
+├── install.bat                One-shot Windows installer
+├── run_backend.bat            Launch uvicorn
+├── run_frontend.bat           Launch Vite dev server
 └── requirements.txt
 ```
 
@@ -297,8 +366,9 @@ cs2tool/
 - **awpy** — radar assets + calibration data
 - **CS2Callouts** — callout origin extraction
 - **HLTV.org** — match + demo sourcing + team logos
+- **FACEIT** — matchmaking demo source
 - **OpenRouter** — free AI model access
 
 ---
 
-Research/educational project. Use on demos you have the right to analyse. Respect HLTV's rate limits.
+Research/educational project. Use on demos you have the right to analyse. Respect HLTV's and FACEIT's rate limits.

@@ -5,6 +5,8 @@ import DemoPickerPage from "./components/DemoPickerPage";
 import ReplayLayout from "./components/ReplayLayout";
 import AntiStratPage from "./components/AntiStratPage";
 import IngestPage from "./components/IngestPage";
+import PlayerListPage from "./components/PlayerListPage";
+import PlayerDetailPage from "./components/PlayerDetailPage";
 
 export default function App() {
   return (
@@ -15,6 +17,8 @@ export default function App() {
       <Route path="/replay" element={<DemoPickerPage />} />
       <Route path="/replay/:demoFile/*" element={<ReplayLayout />} />
       <Route path="/anti-strat" element={<AntiStratPage />} />
+      <Route path="/players" element={<PlayerListPage />} />
+      <Route path="/players/:steamid" element={<PlayerDetailPage />} />
     </Routes>
   );
 }

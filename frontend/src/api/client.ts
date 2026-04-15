@@ -236,8 +236,21 @@ export const runPipeline = async (
   return data;
 };
 
-export const getIngestionStatus = async () => {
-  const { data } = await api.get("/ingest/status");
+export interface IngestionStatusResponse {
+  total_demos: number;
+  total_grenades: number;
+  status: string;
+  run_id: number;
+  last_completed_run_id: number;
+  manual_url: string | null;
+  demos_parsed_this_run: number;
+  demos_total_this_run: number;
+  player_rows_updated_this_run: number;
+  total_player_rows: number;
+}
+
+export const getIngestionStatus = async (): Promise<IngestionStatusResponse> => {
+  const { data } = await api.get<IngestionStatusResponse>("/ingest/status");
   return data;
 };
 
@@ -325,6 +338,23 @@ export interface TimelinePosition {
   inv?: string[];          // full inventory (e.g. ["ak47", "glock", "smokegrenade"])
   eq?: number;             // equipment value ($)
   cs?: number;             // cash spent this round ($)
+  // Per-round aggregate snapshots — diff between round-end samples to get
+  // real per-round DMG / ADR / assists etc. Absent on older cached timelines.
+  dmg?: number;            // damage_total
+  utildmg?: number;        // utility_damage_total
+  ast?: number;            // assists_total
+  hsk?: number;            // headshot_kills_total
+  flashed?: number;        // enemies_flashed_total
+  ktot?: number;           // kills_total
+  dtot?: number;           // deaths_total
+  atime?: number;          // alive_time_total (seconds summed)
+  sf?: number;             // shots_fired
+  // Per-tick state — drives map-view player-model polish
+  fd?: number;             // flash_duration (seconds remaining)
+  sc?: boolean;            // is_scoped
+  wlk?: boolean;           // is_walking
+  cr?: boolean;            // in_crouch
+  dfu?: boolean;           // is_defusing
 }
 
 export interface TimelineGrenade {
@@ -343,6 +373,10 @@ export interface TimelineEvent {
 export interface TimelineRound {
   num: number;
   start_tick: number;
+  /** Tick where freeze (buy phase) actually ended — use this as the anchor
+   *  when aligning rounds, since tactical timeouts extend freeze without
+   *  shifting start_tick. Null on demos parsed before cache_version 3. */
+  freeze_end_tick: number | null;
   end_tick: number;
   winner: string | null;
 }
@@ -477,6 +511,18 @@ export const getMatchReplayTimeline = async (
   return data;
 };
 
+// Deletes only the cached timeline JSON (not the .dem). Used by the Insights
+// tab's "Re-parse this demo" button to force a fresh parse that picks up the
+// new aggregate-stat fields.
+export const deleteMatchTimeline = async (
+  demoFile: string,
+): Promise<{ deleted_cache: boolean; demo_file: string }> => {
+  const { data } = await api.delete(
+    `/match-replay/${encodeURIComponent(demoFile)}/timeline`,
+  );
+  return data;
+};
+
 export const getMatchReplayInsights = async (
   demoFile: string,
 ): Promise<MatchInsightsResponse> => {
@@ -525,5 +571,96 @@ export const unlinkDemosFromCs2 = async (): Promise<{
   status: string;
 }> => {
   const { data } = await api.delete("/demos/link-to-cs2");
+  return data;
+};
+
+// ---------------------------------------------------------------------------
+// Player profiles
+// ---------------------------------------------------------------------------
+
+export interface PlayerProfileSummary {
+  steamid: string;
+  name: string;
+  matches: number;
+  rounds_played: number;
+  kills: number;
+  deaths: number;
+  hs_kills: number;
+  opening_kills: number;
+  opening_deaths: number;
+  rounds_alive: number;
+  awp_kills: number;
+  smokes_thrown: number;
+  flashes_thrown: number;
+  hes_thrown: number;
+  molos_thrown: number;
+  multi_2k: number;
+  multi_3k: number;
+  multi_4k: number;
+  multi_5k: number;
+  kd_ratio: number;
+  hs_pct: number;
+  opening_wr: number;
+  survival_rate: number;
+  rating: number;
+  role: string;
+}
+
+export interface PlayerSideSplit {
+  side: string;
+  rounds_played: number;
+  kills: number;
+  deaths: number;
+  opening_kills: number;
+  opening_deaths: number;
+  rounds_alive: number;
+}
+
+export interface PlayerMapSplit {
+  map_name: string;
+  matches: number;
+  rounds_played: number;
+  kills: number;
+  deaths: number;
+  rounds_alive: number;
+  opening_kills: number;
+  opening_deaths: number;
+}
+
+export interface PlayerDemoEntry {
+  demo_file: string;
+  map_name: string;
+  kills: number;
+  deaths: number;
+  rounds_played: number;
+}
+
+export interface PlayerProfileDetail {
+  steamid: string;
+  name: string;
+  summary: PlayerProfileSummary;
+  per_side: PlayerSideSplit[];
+  per_map: PlayerMapSplit[];
+  demos: PlayerDemoEntry[];
+}
+
+export const listPlayers = async (minMatches = 1): Promise<PlayerProfileSummary[]> => {
+  const { data } = await api.get<PlayerProfileSummary[]>("/players", {
+    params: { min_matches: minMatches },
+  });
+  return data;
+};
+
+export const getPlayerDetail = async (steamid: string): Promise<PlayerProfileDetail> => {
+  const { data } = await api.get<PlayerProfileDetail>(`/players/${steamid}`);
+  return data;
+};
+
+export const refreshPlayerStats = async (): Promise<{
+  scanned: number;
+  rows_upserted: number;
+  errors: number;
+}> => {
+  const { data } = await api.post("/players/refresh");
   return data;
 };

@@ -6,6 +6,7 @@ import {
   getIngestionStatus,
   ingestFromHLTV,
   runPipeline,
+  IngestionStatusResponse,
 } from "../api/client";
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
 // before accepting "ready" as terminal.
 async function pollUntilDone(
   queuedRunId: number,
-  onStatus: (msg: string) => void,
+  onStatus: (s: IngestionStatusResponse) => void,
   opts: { intervalMs?: number; timeoutMs?: number } = {}
 ): Promise<void> {
   const intervalMs = opts.intervalMs ?? 1500;
@@ -31,10 +32,8 @@ async function pollUntilDone(
   while (Date.now() - started < timeoutMs) {
     try {
       const s = await getIngestionStatus();
-      const status: string = s?.status ?? "";
-      onStatus(status);
-      const lastDone: number = s?.last_completed_run_id ?? 0;
-      if (lastDone >= queuedRunId) return;
+      onStatus(s);
+      if ((s.last_completed_run_id ?? 0) >= queuedRunId) return;
     } catch {
       // transient error — keep polling
     }
@@ -50,10 +49,17 @@ export default function IngestPanel({ onComplete }: Props) {
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [progress, setProgress] = useState<IngestionStatusResponse | null>(null);
+
+  const onTick = (s: IngestionStatusResponse) => {
+    setMsg(s.status ?? "");
+    setProgress(s);
+  };
 
   const handleHLTV = async () => {
     setLoading(true);
     setMsg("Queueing HLTV ingest…");
+    setProgress(null);
     try {
       const queued = await ingestFromHLTV({
         team_name: teamName || undefined,
@@ -61,7 +67,7 @@ export default function IngestPanel({ onComplete }: Props) {
         map_name: mapName || undefined,
         limit,
       });
-      await pollUntilDone(queued.run_id, (status: string) => setMsg(status));
+      await pollUntilDone(queued.run_id, onTick);
       setMsg("Done — refreshing lineups");
       onComplete?.();
     } catch (e: any) {
@@ -74,12 +80,13 @@ export default function IngestPanel({ onComplete }: Props) {
   const handleRunPipeline = async () => {
     setLoading(true);
     setMsg("Starting pipeline…");
+    setProgress(null);
     try {
       const queued = await runPipeline({
         map_name: mapName || undefined,
         clear_existing: true,
       });
-      await pollUntilDone(queued.run_id, (status: string) => setMsg(status));
+      await pollUntilDone(queued.run_id, onTick);
       setMsg("Done — refreshing lineups");
       onComplete?.();
     } catch (e: any) {
@@ -187,9 +194,43 @@ export default function IngestPanel({ onComplete }: Props) {
         </p>
       )}
 
+      {progress && (
+        <div className="hud-panel p-3 space-y-1.5 text-[11px] font-mono bg-[#0b1220]">
+          <div className="text-[10px] text-cs2-muted uppercase tracking-[0.15em] mb-1">
+            Ingest progress
+          </div>
+          <div className="flex justify-between">
+            <span className="text-cs2-muted">Demos parsed (this run)</span>
+            <span className="text-white">
+              {progress.demos_parsed_this_run}
+              {progress.demos_total_this_run > 0 && ` / ${progress.demos_total_this_run}`}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-cs2-muted">Player rows updated (this run)</span>
+            <span className="text-white">{progress.player_rows_updated_this_run}</span>
+          </div>
+          <div className="h-px bg-cs2-border/30 my-1" />
+          <div className="flex justify-between">
+            <span className="text-cs2-muted">Demos on disk</span>
+            <span className="text-white">{progress.total_demos}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-cs2-muted">Grenade lineups in DB</span>
+            <span className="text-white">{progress.total_grenades}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-cs2-muted">Player rows total</span>
+            <span className="text-white">{progress.total_player_rows}</span>
+          </div>
+        </div>
+      )}
+
       <p className="text-[10px] text-cs2-muted leading-relaxed">
-        Downloads demos from HLTV, parses grenade events with demoparser2, and
-        buckets identical throws — all in the background.
+        Downloads demos from HLTV, parses full timelines (positions, kills,
+        utility damage, player aggregates) and buckets identical throws — all
+        in the background. Lineups DB is grenade-only; everything else lives
+        in per-demo timeline caches and the player_stats table.
       </p>
     </div>
   );

@@ -100,12 +100,26 @@ const weaponIconPath = (displayName: string): string => {
   return "";
 };
 
+export interface LiveReplayStatus {
+  team1Score: number;
+  team2Score: number;
+  round: number;
+  team1CurrentSide: 2 | 3; // 2 = T, 3 = CT — flips at halftime
+  currentTimeStr: string;  // mm:ss into demo
+  totalTimeStr: string;
+  mapName: string;
+  bomb?: { site: string; remaining: number };
+}
+
 interface Props {
   demoFile: string;
   timeline: MatchTimeline;
   radar: RadarInfo | null;
   matchInfo: MatchInfoResponse | null;
   onBack: () => void;
+  /** Publishes live playback status (score, round, time, bomb) to the
+   *  parent so it can render the canonical match header in the navbar. */
+  onLiveStatus?: (s: LiveReplayStatus) => void;
 }
 
 // Binary-search the position array for the two samples flanking `tick`.
@@ -193,18 +207,41 @@ const smoothPath = (pts: [number, number][]): string => {
   return d;
 };
 
-export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo, onBack }: Props) {
+export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo, onBack, onLiveStatus }: Props) {
   const [currentTick, setCurrentTick] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [insights, setInsights] = useState<string | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
-  const [showNadePanel, setShowNadePanel] = useState(false);
   const [mapScale, setMapScale] = useState(1);
   const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  // Mouse-resizable right sidebar.
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const sidebarResizeRef = useRef<{ startX: number; startW: number } | null>(null);
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const r = sidebarResizeRef.current;
+      if (!r) return;
+      const next = r.startW - (e.clientX - r.startX);
+      setSidebarWidth(Math.max(220, Math.min(640, next)));
+    };
+    const onUp = () => { sidebarResizeRef.current = null; document.body.style.cursor = ""; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+  const startSidebarResize = (e: React.MouseEvent) => {
+    sidebarResizeRef.current = { startX: e.clientX, startW: sidebarWidth };
+    document.body.style.cursor = "col-resize";
+    e.preventDefault();
+  };
 
   // ── Timestamped notes (localStorage) ──
   interface NoteEntry {
@@ -250,17 +287,9 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
   const [nadeTypeFilter, setNadeTypeFilter] = useState<Set<string>>(
     () => new Set(ALL_NADE_TYPES),
   );
-  const [highlightedNadeIdx, setHighlightedNadeIdx] = useState<number | null>(null);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  const [expandedTimeline, setExpandedTimeline] = useState<number | null>(null); // round num
-  const [nadeAnalysisTab, setNadeAnalysisTab] = useState<"rounds" | "patterns">("rounds");
-
-  // Utility pattern overlay mode
-  const [utilPatternMode, setUtilPatternMode] = useState(false);
-  const [utilPatternTime, setUtilPatternTime] = useState(15); // seconds into round
-  const [utilPatternSide, setUtilPatternSide] = useState<"all" | 2 | 3>("all");
-  const [utilPatternPlaying, setUtilPatternPlaying] = useState(false);
-  const [utilPatternSpeed, setUtilPatternSpeed] = useState(1);
+  // Heatmap + Util-Pattern overlays moved to the Insights tab — see
+  // InsightsPanel's `radarMode` selector. The live replay viewer keeps only
+  // the per-tick live overlay for the currently-playing tick.
 
   // ── Playback loop — uses ref to avoid re-creating the rAF on each tick ──
   const tickRef = useRef(currentTick);
@@ -339,6 +368,12 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
         helmet: b.hl ?? false,
         hasBomb: (b.w ?? "").toLowerCase().includes("c4"),
         inventory: b.inv ?? [],
+        // Per-tick behaviour / flash state (optional — missing on old caches)
+        flashDuration: b.fd ?? 0,
+        scoped: b.sc ?? false,
+        walking: b.wlk ?? false,
+        crouched: b.cr ?? false,
+        defusing: b.dfu ?? false,
       };
     }).filter((p): p is NonNullable<typeof p> => p !== null);
   }, [timeline, currentTick]);
@@ -402,326 +437,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
     return teamOrgNames;
   }, [matchInfo, playerStates, teamOrgNames]);
 
-  // Per-round grenade summary for the nade analysis panel
-  // Each nade carries its global index into timeline.grenades for highlight linking.
-  interface RoundNadeEntry {
-    globalIdx: number;
-    type: string;
-    thrower: string;      // steamid
-    throwerName: string;
-    team: number;
-    throwTick: number;
-  }
-  interface RoundNadeInfo {
-    round: (typeof timeline extends null ? never : NonNullable<typeof timeline>)["rounds"][0];
-    nades: RoundNadeEntry[];
-    byTeam: Record<number, Record<string, number>>;
-    // Per-player within each team
-    byPlayer: Record<number, { name: string; steamid: string; types: Record<string, number> }[]>;
-  }
-  const roundNades = useMemo((): RoundNadeInfo[] => {
-    if (!timeline) return [];
-    return timeline.rounds.map((r) => {
-      const nades: RoundNadeEntry[] = [];
-      timeline.grenades.forEach((g, gi) => {
-        const firstTick = g.points[0]?.[0] ?? 0;
-        if (firstTick < r.start_tick || firstTick > r.end_tick) return;
-        const team = sidToTeam[g.thrower] ?? 0;
-        nades.push({
-          globalIdx: gi,
-          type: g.type,
-          thrower: g.thrower,
-          throwerName: sidToName[g.thrower] ?? "?",
-          team,
-          throwTick: firstTick,
-        });
-      });
-      const byTeam: Record<number, Record<string, number>> = { 2: {}, 3: {} };
-      const playerMap: Record<number, Map<string, { name: string; steamid: string; types: Record<string, number> }>> = { 2: new Map(), 3: new Map() };
-      for (const n of nades) {
-        if (n.team !== 2 && n.team !== 3) continue;
-        byTeam[n.team][n.type] = (byTeam[n.team][n.type] ?? 0) + 1;
-        let entry = playerMap[n.team].get(n.thrower);
-        if (!entry) {
-          entry = { name: n.throwerName, steamid: n.thrower, types: {} };
-          playerMap[n.team].set(n.thrower, entry);
-        }
-        entry.types[n.type] = (entry.types[n.type] ?? 0) + 1;
-      }
-      const byPlayer: Record<number, { name: string; steamid: string; types: Record<string, number> }[]> = {
-        2: Array.from(playerMap[2].values()),
-        3: Array.from(playerMap[3].values()),
-      };
-      return { round: r, nades, byTeam, byPlayer };
-    });
-  }, [timeline, sidToTeam, sidToName]);
 
-  // Flash effectiveness: for each flashbang, count alive enemies within ~1200 game units
-  // at the detonation tick. Computed once over the entire timeline.
-  const flashEffectiveness = useMemo<Record<number, number>>(() => {
-    if (!timeline) return {};
-    const FLASH_RANGE = 1200; // CS2 flash effective range in game units
-    const result: Record<number, number> = {};
-    for (let gi = 0; gi < timeline.grenades.length; gi++) {
-      const g = timeline.grenades[gi];
-      if (g.type !== "flashbang" || !g.points.length) continue;
-      const lastPt = g.points[g.points.length - 1];
-      const detTick = lastPt[0];
-      const fx = lastPt[1];
-      const fy = lastPt[2];
-      const throwerTeam = sidToTeam[g.thrower] ?? 0;
-      let nearbyEnemies = 0;
-      for (const p of timeline.players) {
-        if (p.team_num === throwerTeam) continue; // skip teammates
-        const samples = timeline.positions[p.steamid];
-        if (!samples || samples.length === 0) continue;
-        const flanking = flankingSamples(samples, detTick);
-        if (!flanking) continue;
-        const [a, b] = flanking;
-        if (!b.alive) continue;
-        const span = b.t - a.t;
-        const t = span > 0 ? Math.min(1, Math.max(0, (detTick - a.t) / span)) : 0;
-        const px = lerp(a.x, b.x, t);
-        const py = lerp(a.y, b.y, t);
-        const dist = Math.sqrt((px - fx) ** 2 + (py - fy) ** 2);
-        if (dist <= FLASH_RANGE) nearbyEnemies++;
-      }
-      result[gi] = nearbyEnemies;
-    }
-    return result;
-  }, [timeline, sidToTeam]);
-
-  // Cross-round nade pattern detection: find repeated nade combos (≥3 nades, same team, ≤10s window)
-  // Returns map: round_num → { patternId, rounds: number[], label: string }
-  const roundPatterns = useMemo<Record<number, { patternId: string; rounds: number[]; label: string }>>(() => {
-    if (!timeline) return {};
-    const BUCKET = 200; // position bucket size (game units) — coarser than lineup clustering for pattern matching
-    const TIME_WINDOW = 10 * 64; // 10s in ticks
-    const bucketKey = (x: number, y: number, type: string) =>
-      `${Math.round(x / BUCKET)}_${Math.round(y / BUCKET)}_${type}`;
-
-    // For each round, find nade bursts per team
-    const roundSignatures: { roundNum: number; team: number; sig: string }[] = [];
-    for (const r of timeline.rounds) {
-      const roundNadesHere = timeline.grenades
-        .map((g, gi) => ({ g, gi }))
-        .filter(({ g }) => {
-          const t = g.points[0]?.[0] ?? 0;
-          return t >= r.start_tick && t <= r.end_tick && g.points.length > 0;
-        });
-      for (const team of [2, 3]) {
-        const teamNades = roundNadesHere
-          .filter(({ g }) => (sidToTeam[g.thrower] ?? 0) === team)
-          .sort((a, b) => (a.g.points[0]?.[0] ?? 0) - (b.g.points[0]?.[0] ?? 0));
-        if (teamNades.length < 3) continue;
-
-        // Find burst: nades within TIME_WINDOW of the first
-        const firstTick = teamNades[0].g.points[0]?.[0] ?? 0;
-        const burst = teamNades.filter(({ g }) => {
-          const t = g.points[0]?.[0] ?? 0;
-          return t - firstTick <= TIME_WINDOW;
-        });
-        if (burst.length < 3) continue;
-
-        // Create a signature from bucketed landing positions
-        const keys = burst.map(({ g }) => {
-          const lastPt = g.points[g.points.length - 1];
-          return bucketKey(lastPt[1], lastPt[2], g.type);
-        }).sort();
-        const sig = keys.join("|");
-        roundSignatures.push({ roundNum: r.num, team, sig });
-      }
-    }
-
-    // Find signatures that appear in ≥2 rounds
-    const sigToRounds = new Map<string, number[]>();
-    for (const { roundNum, sig } of roundSignatures) {
-      const arr = sigToRounds.get(sig) ?? [];
-      arr.push(roundNum);
-      sigToRounds.set(sig, arr);
-    }
-
-    const result: Record<number, { patternId: string; rounds: number[]; label: string }> = {};
-    let patIdx = 0;
-    for (const [sig, rounds] of sigToRounds) {
-      if (rounds.length < 2) continue;
-      patIdx++;
-      const label = `Pattern ${patIdx} (${rounds.length}×)`;
-      for (const rn of rounds) {
-        result[rn] = { patternId: sig, rounds, label };
-      }
-    }
-    return result;
-  }, [timeline, sidToTeam]);
-
-  // Landing heatmap: aggregate all nade landing positions, respecting type filter
-  const heatmapPoints = useMemo(() => {
-    if (!timeline || !showHeatmap) return [];
-    const pts: { x: number; y: number; type: string }[] = [];
-    for (const g of timeline.grenades) {
-      if (!nadeTypeFilter.has(g.type)) continue;
-      if (!g.points.length) continue;
-      const lastPt = g.points[g.points.length - 1];
-      pts.push({ x: lastPt[1], y: lastPt[2], type: g.type });
-    }
-    return pts;
-  }, [timeline, showHeatmap, nadeTypeFilter]);
-
-  // Per-nade-type landing clusters: group all nades by bucketed landing position
-  // to find repeated throws across rounds (regardless of who threw them).
-  interface NadeLandingCluster {
-    type: string;
-    landX: number;
-    landY: number;
-    occurrences: { globalIdx: number; roundNum: number; throwerName: string; throwTick: number }[];
-  }
-  const nadeLandingClusters = useMemo<NadeLandingCluster[]>(() => {
-    if (!timeline) return [];
-    const BUCKET = 150; // game units — groups nades landing in similar spots
-    const bucketMap = new Map<string, NadeLandingCluster>();
-    for (let gi = 0; gi < timeline.grenades.length; gi++) {
-      const g = timeline.grenades[gi];
-      if (!g.points.length) continue;
-      const lastPt = g.points[g.points.length - 1];
-      const lx = lastPt[1], ly = lastPt[2];
-      const key = `${g.type}_${Math.round(lx / BUCKET)}_${Math.round(ly / BUCKET)}`;
-      const throwTick = g.points[0]?.[0] ?? 0;
-      const roundNum = timeline.rounds.find(
-        (r) => throwTick >= r.start_tick && throwTick <= r.end_tick,
-      )?.num ?? 0;
-      let cluster = bucketMap.get(key);
-      if (!cluster) {
-        cluster = { type: g.type, landX: lx, landY: ly, occurrences: [] };
-        bucketMap.set(key, cluster);
-      }
-      // Use running average for land position
-      const n = cluster.occurrences.length;
-      cluster.landX = (cluster.landX * n + lx) / (n + 1);
-      cluster.landY = (cluster.landY * n + ly) / (n + 1);
-      cluster.occurrences.push({
-        globalIdx: gi,
-        roundNum,
-        throwerName: sidToName[g.thrower] ?? "?",
-        throwTick,
-      });
-    }
-    // Only keep clusters that appear in 2+ rounds
-    return Array.from(bucketMap.values())
-      .filter((c) => {
-        const uniqueRounds = new Set(c.occurrences.map((o) => o.roundNum));
-        return uniqueRounds.size >= 2;
-      })
-      .sort((a, b) => b.occurrences.length - a.occurrences.length);
-  }, [timeline, sidToName]);
-
-  // ── Utility pattern overlay: all nades from all rounds, with full trajectory ──
-  // Shows animated grenade flight paths at a given second, aggregated across all rounds.
-  interface UtilPatternNade {
-    globalIdx: number;
-    type: string;
-    throwerName: string;
-    team: number;
-    roundNum: number;
-    throwSecond: number;    // seconds into round when thrown
-    landSecond: number;     // seconds into round when landed
-    throwX: number;
-    throwY: number;
-    landX: number;
-    landY: number;
-    points: number[][];     // [[tick, x, y], ...] — full flight trajectory
-    roundStartTick: number;
-  }
-  const utilPatternNades = useMemo<UtilPatternNade[]>(() => {
-    if (!timeline) return [];
-    const out: UtilPatternNade[] = [];
-    for (let gi = 0; gi < timeline.grenades.length; gi++) {
-      const g = timeline.grenades[gi];
-      if (!g.points.length) continue;
-      if (!nadeTypeFilter.has(g.type)) continue;
-      const throwTick = g.points[0][0];
-      const lastPt = g.points[g.points.length - 1];
-      const round = timeline.rounds.find(
-        (r) => throwTick >= r.start_tick && throwTick <= r.end_tick,
-      );
-      if (!round) continue;
-      const team = sidToTeam[g.thrower] ?? 0;
-      if (utilPatternSide !== "all" && team !== utilPatternSide) continue;
-      out.push({
-        globalIdx: gi,
-        type: g.type,
-        throwerName: sidToName[g.thrower] ?? "?",
-        team,
-        roundNum: round.num,
-        throwSecond: (throwTick - round.start_tick) / 64,
-        landSecond: (lastPt[0] - round.start_tick) / 64,
-        throwX: g.points[0][1],
-        throwY: g.points[0][2],
-        landX: lastPt[1],
-        landY: lastPt[2],
-        points: g.points,
-        roundStartTick: round.start_tick,
-      });
-    }
-    return out;
-  }, [timeline, sidToTeam, sidToName, nadeTypeFilter, utilPatternSide]);
-
-  // Max seconds across all rounds (for the time slider)
-  const utilPatternMaxSec = useMemo(() => {
-    if (!timeline) return 120;
-    let maxSec = 0;
-    for (const r of timeline.rounds) {
-      maxSec = Math.max(maxSec, Math.round((r.end_tick - r.start_tick) / 64));
-    }
-    return maxSec;
-  }, [timeline]);
-
-  // ── Utility pattern playback loop ──
-  const utilPatternPlayingRef = useRef(utilPatternPlaying);
-  utilPatternPlayingRef.current = utilPatternPlaying;
-  const utilPatternSpeedRef = useRef(utilPatternSpeed);
-  utilPatternSpeedRef.current = utilPatternSpeed;
-  const utilPatternTimeRef = useRef(utilPatternTime);
-  utilPatternTimeRef.current = utilPatternTime;
-
-  useEffect(() => {
-    if (!utilPatternPlaying || !utilPatternMode) return;
-    let raf = 0;
-    let last = performance.now();
-    const step = (now: number) => {
-      if (!utilPatternPlayingRef.current) return;
-      const dt = (now - last) / 1000;
-      last = now;
-      const next = utilPatternTimeRef.current + dt * utilPatternSpeedRef.current;
-      if (next >= utilPatternMaxSec) {
-        setUtilPatternTime(0);
-      } else {
-        setUtilPatternTime(next);
-      }
-      raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [utilPatternPlaying, utilPatternMode, utilPatternMaxSec]);
-
-  // Stop util pattern playback when exiting pattern mode
-  useEffect(() => {
-    if (!utilPatternMode) setUtilPatternPlaying(false);
-  }, [utilPatternMode]);
-
-  // Nades visible at the current utilPatternTime — show if in flight or recently landed
-  const utilPatternVisible = useMemo(() => {
-    if (!utilPatternMode) return [];
-    const T = utilPatternTime;
-    const LAND_LINGER = 3; // show landed nade for 3s after landing
-    return utilPatternNades
-      .filter((n) => T >= n.throwSecond - 0.5 && T <= n.landSecond + LAND_LINGER)
-      .map((n) => {
-        const flightDur = n.landSecond - n.throwSecond;
-        // Progress: 0 = just thrown, 1 = just landed, >1 = lingering at landing
-        const progress = flightDur > 0 ? Math.max(0, (T - n.throwSecond) / flightDur) : 1;
-        return { ...n, progress: Math.min(progress, 1), landed: T >= n.landSecond };
-      });
-  }, [utilPatternMode, utilPatternNades, utilPatternTime]);
 
   // ── Active grenade trails (in-flight) ──
   // Backend trims points to flight-only and sets detonate_tick to the landing
@@ -978,6 +694,44 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
     return getTeamAtTick(refSteamid, currentTick) || 2;
   }, [timeline, currentTick, getTeamAtTick]);
 
+  // Publish live status to parent (ReplayLayout) so the navbar can show
+  // the canonical match header. Throttled to once per second of playback
+  // time — emitting on every frame caused the parent to re-render at 60Hz,
+  // making navbar clicks during playback feel unresponsive.
+  const currentSecond = Math.floor(currentTick / 64);
+  const bombSecond = bombState ? Math.floor(bombState.remaining) : -1;
+  useEffect(() => {
+    if (!onLiveStatus || !timeline || !matchInfo?.team1 || !matchInfo?.team2) return;
+    // org1 = first-half-T = matchInfo.team1 if team1IsT else team2.
+    const tPlayers = new Set(
+      timeline.players.filter((p) => p.team_num === 2).map((p) => p.name.toLowerCase()),
+    );
+    const team1Players = (matchInfo.team1.players ?? []).map((n) => n.toLowerCase());
+    const team1IsT = team1Players.some((n) => tPlayers.has(n));
+    const team1Score = team1IsT ? score.org1 : score.org2;
+    const team2Score = team1IsT ? score.org2 : score.org1;
+    const team1CurrentSide: 2 | 3 = (team1IsT
+      ? org1CurrentSide
+      : (org1CurrentSide === 2 ? 3 : 2)) as 2 | 3;
+    const fmt = (sec: number) =>
+      `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+    onLiveStatus({
+      team1Score,
+      team2Score,
+      round: score.round,
+      team1CurrentSide,
+      currentTimeStr: fmt(currentSecond),
+      totalTimeStr: fmt(Math.floor(timeline.tick_max / 64)),
+      mapName: timeline.map_name,
+      bomb: bombState ? { site: bombState.site, remaining: bombState.remaining } : undefined,
+    });
+  }, [
+    onLiveStatus, timeline, matchInfo,
+    score.org1, score.org2, score.round,
+    org1CurrentSide, currentSecond, bombSecond,
+    bombState?.site,
+  ]);
+
   // ── Round outcomes for the vertical timeline ──
   interface RoundOutcome {
     num: number;
@@ -1021,7 +775,10 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
       return {
         num: r.num,
         winner: r.winner,
-        startTick: r.start_tick,
+        // Jump-to-round seeks to freeze_end (when freeze actually ends and
+        // action begins) so timeouts don't dump you in the middle of an
+        // empty buy phase. Falls back to start_tick on pre-v3 caches.
+        startTick: r.freeze_end_tick ?? r.start_tick,
         endTick: r.end_tick,
         bombPlanted,
         bombDefused,
@@ -1047,62 +804,44 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header — compact, stable org positions (org1=left, org2=right) */}
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0">
-        <div>
-          <h2 className="text-lg font-bold uppercase tracking-[0.18em]">
-            <span style={{ color: TEAM_COLOR[org1CurrentSide] }}>{teamOrgNames[2]}</span>
-            <span className="text-cs2-muted mx-2">vs</span>
-            <span style={{ color: TEAM_COLOR[org1CurrentSide === 2 ? 3 : 2] }}>{teamOrgNames[3]}</span>
-          </h2>
-          {matchInfo?.event && (
-            <p className="text-xs text-cs2-accent/70 mt-0.5">
-              {matchInfo.event}
-            </p>
-          )}
-          <p className="text-xs text-cs2-muted mt-0.5 font-mono">
-            {timeline.map_name} · {Math.floor(currentTick / 64 / 60)}:{String(Math.floor((currentTick / 64) % 60)).padStart(2, "0")} / {Math.floor(timeline.tick_max / 64 / 60)}:{String(Math.floor((timeline.tick_max / 64) % 60)).padStart(2, "0")}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Score — per-org, stable positions */}
-          <div className="flex items-center gap-3 font-mono text-2xl">
-            <div className="flex items-center gap-1.5 mr-1">
-              <span className="text-xs uppercase tracking-wider" style={{ color: TEAM_COLOR[org1CurrentSide] }}>
-                {teamOrgNames[2]}
-              </span>
-              <span className="text-[9px] px-1 py-0.5 rounded font-bold"
-                style={{ background: TEAM_COLOR[org1CurrentSide], color: "#000" }}>
-                {org1CurrentSide === 2 ? "T" : "CT"}
-              </span>
-            </div>
-            <span style={{ color: TEAM_COLOR[org1CurrentSide] }}>{score.org1}</span>
-            <span className="text-cs2-muted text-sm">Round {score.round}</span>
-            <span style={{ color: TEAM_COLOR[org1CurrentSide === 2 ? 3 : 2] }}>{score.org2}</span>
-            <div className="flex items-center gap-1.5 ml-1">
-              <span className="text-[9px] px-1 py-0.5 rounded font-bold"
-                style={{ background: TEAM_COLOR[org1CurrentSide === 2 ? 3 : 2], color: "#000" }}>
-                {org1CurrentSide === 2 ? "CT" : "T"}
-              </span>
-              <span className="text-xs uppercase tracking-wider" style={{ color: TEAM_COLOR[org1CurrentSide === 2 ? 3 : 2] }}>
-                {teamOrgNames[3]}
-              </span>
-            </div>
-          </div>
-          {bombState && (
-            <span className="text-sm font-mono text-cs2-red animate-pulse flex items-center gap-1.5">
-              <img src="/icons/c4.svg" alt="bomb" className="w-5 h-5 inline"
-                style={{ filter: "brightness(0) saturate(100%) invert(36%) sepia(93%) saturate(7471%) hue-rotate(355deg) brightness(101%) contrast(107%)" }} />
-              {bombState.site} · {bombState.remaining.toFixed(0)}s
-            </span>
-          )}
-          <button onClick={onBack} className="hud-btn text-sm">← Picker</button>
-        </div>
-      </div>
+      {/* Match header (team names, event, score, time, bomb) lives in the
+          ReplayLayout navbar — see onLiveStatus prop above. */}
 
       {/* ═══ Horizontal round timeline ═══ */}
-      <div className="shrink-0 px-2">
-        <div className="hud-panel px-1.5 py-1.5 flex items-stretch gap-0">
+      <div className="shrink-0 p-2">
+        <div className="hud-panel p-3">
+          {(() => {
+            // Half scores tracked by stable team identity so the halftime
+            // side swap doesn't double-count either team.
+            //   First half: T side = team-A, CT side = team-B
+            //   Second half: sides swap, so a "T" win goes to team-B
+            // teamA = first-half-T team; teamB = first-half-CT team.
+            let fhT = 0, fhCT = 0, shT = 0, shCT = 0;
+            for (const ro of roundOutcomes) {
+              if (ro.num <= 12) {
+                if (ro.winner === "T") fhT++; else if (ro.winner === "CT") fhCT++;
+              } else {
+                if (ro.winner === "T") shT++; else if (ro.winner === "CT") shCT++;
+              }
+            }
+            const teamAFinal = fhT + shCT;   // first-half-T team total
+            const teamBFinal = fhCT + shT;   // first-half-CT team total
+            const hasSecondHalf = roundOutcomes.some((r) => r.num >= 13);
+            return (
+              <div className="flex items-center gap-3 text-sm text-cs2-muted uppercase tracking-[0.1em] font-semibold mb-2">
+                <span>First Half</span>
+                <span className="text-white font-mono text-base">{fhT} : {fhCT}</span>
+                {hasSecondHalf && (
+                  <>
+                    <span className="flex-1" />
+                    <span>Final</span>
+                    <span className="text-white font-mono text-base">{teamAFinal} : {teamBFinal}</span>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+          <div className="flex items-stretch gap-0.5 w-full">
           {roundOutcomes.map((ro) => {
             const isCurrent = ro.num === score.round;
             const winColor = ro.winner === "T" ? TEAM_COLOR[2] : ro.winner === "CT" ? TEAM_COLOR[3] : "#555";
@@ -1116,56 +855,56 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
               ? playerStates.filter((p) => p.team === 3 && p.alive).length
               : ro.ctAlive;
             return (
-              <React.Fragment key={ro.num}>
+              <div key={ro.num} className="flex items-center gap-0.5 flex-1 min-w-0">
                 {ro.num === 13 && (
-                  <div className="w-[2px] bg-cs2-accent/50 shrink-0 mx-1 self-stretch rounded" />
+                  <div className="w-[2px] bg-cs2-accent/40 self-stretch mx-1 rounded shrink-0" />
                 )}
                 <button
                   onClick={() => setCurrentTick(ro.startTick)}
-                  className={`flex flex-col items-center justify-center py-1 rounded transition-all flex-1 min-w-0 ${
-                    isCurrent ? "bg-cs2-accent/20 ring-1 ring-cs2-accent/50" : "hover:bg-cs2-border/20"
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded transition-all flex-1 min-w-0 ${
+                    isCurrent ? "bg-cs2-accent/25 ring-1 ring-cs2-accent" : "hover:bg-cs2-border/20"
                   }`}
                 >
                   {/* Round number */}
-                  <span className={`text-[11px] leading-none ${isCurrent ? "text-white font-bold" : "text-cs2-muted"}`}>{ro.num}</span>
+                  <span className={`text-base font-mono font-bold leading-none ${isCurrent ? "text-white" : "text-cs2-muted"}`}>{ro.num}</span>
 
                   {/* T-side alive bars (top) */}
-                  <div className="flex justify-center gap-[2px] mt-1">
+                  <div className="flex justify-center gap-[3px] mt-2">
                     {Array.from({ length: 5 }, (_, j) => (
                       <div key={`t${j}`} className="rounded-sm"
                         style={{
-                          width: 5, height: 12,
+                          width: 7, height: 18,
                           background: j < tBars ? TEAM_COLOR[2] : "#444",
                         }} />
                     ))}
                   </div>
 
-                  {/* Winner color bar (center divider) — always show outcome except current round */}
-                  <div className="w-[85%] h-[3px] rounded-full my-[3px]" style={{ background: isCurrent ? "#555" : winColor }} />
+                  {/* Winner color bar (center divider) */}
+                  <div className="w-[85%] h-[4px] rounded-full my-[5px]" style={{ background: isCurrent ? "#555" : winColor }} />
 
                   {/* CT-side alive bars (bottom) */}
-                  <div className="flex justify-center gap-[2px]">
+                  <div className="flex justify-center gap-[3px]">
                     {Array.from({ length: 5 }, (_, j) => (
                       <div key={`ct${j}`} className="rounded-sm"
                         style={{
-                          width: 5, height: 12,
+                          width: 7, height: 18,
                           background: j < ctBars ? TEAM_COLOR[3] : "#444",
                         }} />
                     ))}
                   </div>
 
                   {/* Round outcome icon */}
-                  <div className="flex items-center justify-center mt-0.5" style={{ minHeight: 16 }}>
+                  <div className="h-[22px] flex items-center justify-center mt-1">
                     {ro.bombDefused && (
-                      <img src="/icons/defuser.svg" alt="defused" className="w-4 h-4"
+                      <img src="/icons/defuser.svg" alt="defused" className="w-5 h-5"
                         style={{ filter: "brightness(0) invert(0.6) sepia(1) hue-rotate(180deg) saturate(3)" }} />
                     )}
                     {ro.bombExploded && (
-                      <img src="/icons/c4.svg" alt="exploded" className="w-4 h-4"
+                      <img src="/icons/c4.svg" alt="exploded" className="w-5 h-5"
                         style={{ filter: "brightness(0) saturate(100%) invert(36%) sepia(93%) saturate(7471%) hue-rotate(355deg) brightness(101%) contrast(107%)" }} />
                     )}
                     {elimination && !ro.bombPlanted && (
-                      <img src="/icons/killfeed/icon_suicide.svg" alt="eliminated" className="w-4 h-4"
+                      <img src="/icons/killfeed/icon_suicide.svg" alt="eliminated" className="w-5 h-5"
                         style={{ filter: `brightness(0) saturate(100%) ${
                           ro.winner === "T"
                             ? "invert(85%) sepia(30%) saturate(800%) hue-rotate(5deg)"
@@ -1174,14 +913,15 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                     )}
                   </div>
                 </button>
-              </React.Fragment>
+              </div>
             );
           })}
+          </div>
         </div>
       </div>
 
       {/* ═══ Main area: map | sidebar ═══ */}
-      <div className="flex-1 min-h-0 flex gap-2 px-2 overflow-hidden">
+      <div className="flex-1 min-h-0 flex px-2 overflow-hidden">
         {/* ── Map + overlays ── */}
         <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-1">
           <div className="hud-panel p-2 flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
@@ -1221,91 +961,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                 All
               </button>
             )}
-            <span className="w-px h-3 bg-cs2-border/40 mx-1" />
-            <button
-              onClick={() => setShowHeatmap((v) => !v)}
-              className="px-2 py-0.5 rounded text-[11px] font-mono uppercase tracking-wide border transition-all"
-              style={{
-                borderColor: showHeatmap ? "#22d3ee" : "transparent",
-                background: showHeatmap ? "rgba(34,211,238,0.15)" : "transparent",
-                color: showHeatmap ? "#22d3ee" : "#64748b",
-                opacity: showHeatmap ? 1 : 0.5,
-              }}
-            >
-              Heatmap
-            </button>
-            <button
-              onClick={() => setUtilPatternMode((v) => !v)}
-              className="px-2 py-0.5 rounded text-[11px] font-mono uppercase tracking-wide border transition-all"
-              style={{
-                borderColor: utilPatternMode ? "#a78bfa" : "transparent",
-                background: utilPatternMode ? "rgba(167,139,250,0.15)" : "transparent",
-                color: utilPatternMode ? "#a78bfa" : "#64748b",
-                opacity: utilPatternMode ? 1 : 0.5,
-              }}
-            >
-              Util Pattern
-            </button>
           </div>
-          {/* Utility pattern controls — side filter + time slider */}
-          {utilPatternMode && (
-            <div className="flex items-center gap-2 px-1">
-              {/* Play/pause */}
-              <button
-                onClick={() => setUtilPatternPlaying((v) => !v)}
-                className="hud-btn text-xs px-2 py-0.5"
-              >
-                {utilPatternPlaying ? "⏸" : "▶"}
-              </button>
-              {/* Speed */}
-              <div className="flex items-center gap-0.5">
-                {[0.5, 1, 2, 4].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setUtilPatternSpeed(s)}
-                    className="px-1 py-0.5 rounded text-[10px] font-mono transition-all"
-                    style={{
-                      background: utilPatternSpeed === s ? "rgba(167,139,250,0.25)" : "transparent",
-                      color: utilPatternSpeed === s ? "#a78bfa" : "#64748b",
-                    }}
-                  >{s}×</button>
-                ))}
-              </div>
-              {/* Side filter */}
-              <div className="flex items-center gap-1">
-                {(["all", 2, 3] as const).map((s) => {
-                  const label = s === "all" ? "Both" : s === 2 ? "T" : "CT";
-                  const active = utilPatternSide === s;
-                  const color = s === 2 ? TEAM_COLOR[2] : s === 3 ? TEAM_COLOR[3] : "#9ca3af";
-                  return (
-                    <button
-                      key={String(s)}
-                      onClick={() => setUtilPatternSide(s)}
-                      className="px-1.5 py-0.5 rounded text-[10px] font-mono border transition-all"
-                      style={{
-                        borderColor: active ? color : "transparent",
-                        background: active ? `${color}25` : "transparent",
-                        color: active ? color : "#64748b",
-                      }}
-                    >{label}</button>
-                  );
-                })}
-              </div>
-              {/* Time display + scrub bar */}
-              <span className="text-[11px] text-cs2-muted font-mono">
-                {Math.floor(utilPatternTime / 60)}:{String(Math.floor(utilPatternTime % 60)).padStart(2, "0")}
-              </span>
-              <input
-                type="range" min={0} max={utilPatternMaxSec} step={0.1}
-                value={utilPatternTime}
-                onChange={(e) => { setUtilPatternTime(Number(e.target.value)); setUtilPatternPlaying(false); }}
-                className="flex-1"
-              />
-              <span className="text-[10px] text-cs2-muted font-mono">
-                {utilPatternVisible.length} nade{utilPatternVisible.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-          )}
           <div
             className="relative flex-1 min-h-0 w-full flex items-center justify-center"
             style={{ overflow: "hidden", cursor: isDragging ? "grabbing" : mapScale > 1 ? "grab" : "default" }}
@@ -1323,7 +979,28 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
             }}
             onMouseUp={() => setIsDragging(false)}
             onMouseLeave={() => setIsDragging(false)}
+            onWheel={(e) => {
+              e.preventDefault();
+              const delta = e.deltaY < 0 ? 0.1 : -0.1;
+              setMapScale((s) => {
+                const next = Math.max(0.5, Math.min(3, +(s + delta).toFixed(1)));
+                if (next <= 1) setMapPan({ x: 0, y: 0 });
+                return next;
+              });
+            }}
           >
+            {/* Zoom controls — floating overlay matching the Insights radar. */}
+            <div className="absolute top-2 right-2 z-40 flex items-center gap-1 hud-panel px-1.5 py-0.5">
+              <button onClick={(e) => { e.stopPropagation(); setMapScale((s) => { const n = Math.max(0.5, +(s - 0.1).toFixed(1)); if (n <= 1) setMapPan({ x: 0, y: 0 }); return n; }); }}
+                className="text-[11px] text-cs2-muted hover:text-white px-1">−</button>
+              <span className="text-[10px] font-mono text-white w-9 text-center">{Math.round(mapScale * 100)}%</span>
+              <button onClick={(e) => { e.stopPropagation(); setMapScale((s) => Math.min(3, +(s + 0.1).toFixed(1))); }}
+                className="text-[11px] text-cs2-muted hover:text-white px-1">+</button>
+              {(mapScale !== 1 || mapPan.x !== 0 || mapPan.y !== 0) && (
+                <button onClick={(e) => { e.stopPropagation(); setMapScale(1); setMapPan({ x: 0, y: 0 }); }}
+                  className="text-[10px] text-cs2-accent hover:text-white px-1">⟳</button>
+              )}
+            </div>
           <div style={{
             aspectRatio: "1 / 1",
             width: "100%",
@@ -1393,6 +1070,33 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
+
+                {/* Muzzle flash — bright yellow-white radial, fades fast */}
+                <radialGradient id="muzzle-flash">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                  <stop offset="40%" stopColor="#fde047" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+                </radialGradient>
+
+                {/* Tracer line gradient — bright at muzzle, transparent at impact */}
+                <linearGradient id="tracer-yellow" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#fef9c3" stopOpacity="1" />
+                  <stop offset="15%" stopColor="#fde047" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#fde047" stopOpacity="0" />
+                </linearGradient>
+
+                {/* Death spark — bright white-orange flash */}
+                <radialGradient id="death-spark">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                  <stop offset="50%" stopColor="#fbbf24" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
+                </radialGradient>
+
+                {/* Rising heat shimmer — subtle orange translucent */}
+                <radialGradient id="heat-shimmer">
+                  <stop offset="0%" stopColor="#fdba74" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                </radialGradient>
               </defs>
 
               {/* Radar base image */}
@@ -1405,135 +1109,54 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                 />
               )}
 
-              {/* ── Landing heatmap overlay ── */}
-              {radar && showHeatmap && heatmapPoints.map((hp, i) => {
-                const [cx, cy] = project(hp.x, hp.y);
-                const color = GRENADE_COLOR[hp.type] ?? "#9ca3af";
-                return (
-                  <circle
-                    key={`hm${i}`}
-                    cx={cx} cy={cy} r={18}
-                    fill={color}
-                    fillOpacity={0.18}
-                    stroke={color}
-                    strokeWidth={1}
-                    strokeOpacity={0.1}
-                  />
-                );
-              })}
-
-              {/* ── Utility pattern overlay ── */}
-              {radar && utilPatternMode && utilPatternVisible.map((n, i) => {
-                const color = GRENADE_COLOR[n.type] ?? "#9ca3af";
-                const teamColor = TEAM_COLOR[n.team] ?? "#888";
-                const icon = GRENADE_ICON[n.type];
-                const [tx, ty] = project(n.throwX, n.throwY);
-                const [lx, ly] = project(n.landX, n.landY);
-
-                if (n.landed) {
-                  // Nade has landed — show at landing position with pulsing zone
-                  const fadeOut = Math.max(0, 1 - (n.progress - 1) * 0.3);
-                  return (
-                    <g key={`up${i}`} opacity={0.85 * fadeOut}>
-                      {/* Landing zone */}
-                      <circle cx={lx} cy={ly} r={10}
-                        fill={color} fillOpacity={0.25}
-                        stroke={color} strokeWidth={2} strokeOpacity={0.7}
-                      />
-                      {/* Nade type icon */}
-                      {icon && (
-                        <image href={icon}
-                          x={lx - 8} y={ly - 8} width={16} height={16} opacity={0.9}
-                        />
-                      )}
-                      {/* Round label */}
-                      <text x={lx + 12} y={ly + 3} fill={color} fontSize={10}
-                        fontFamily="monospace" stroke="#000" strokeWidth={2.5} paintOrder="stroke"
-                      >
-                        R{n.roundNum}
-                      </text>
-                    </g>
-                  );
-                }
-
-                // Nade in-flight — show animated trajectory
-                // Get points up to current progress along the flight
-                const flightTicks = n.points.length;
-                const visibleCount = Math.max(2, Math.ceil(flightTicks * n.progress));
-                const visiblePts = n.points.slice(0, visibleCount);
-                const projected: [number, number][] = visiblePts.map((p) => project(p[1], p[2]));
-
-                // Interpolate head position for smooth animation
-                const exactIdx = (flightTicks - 1) * n.progress;
-                const loIdx = Math.min(Math.floor(exactIdx), flightTicks - 1);
-                const hiIdx = Math.min(loIdx + 1, flightTicks - 1);
-                const frac = exactIdx - loIdx;
-                const tSmooth = frac * frac * (3 - 2 * frac);
-                const headX = n.points[loIdx][1] + (n.points[hiIdx][1] - n.points[loIdx][1]) * tSmooth;
-                const headY = n.points[loIdx][2] + (n.points[hiIdx][2] - n.points[loIdx][2]) * tSmooth;
-                const [hx, hy] = project(headX, headY);
-                projected.push([hx, hy]);
-
-                const d = smoothPath(projected);
-
-                return (
-                  <g key={`up${i}`} opacity={0.85}>
-                    {/* Throw position — team-colored dot */}
-                    <circle cx={tx} cy={ty} r={4}
-                      fill={teamColor} fillOpacity={0.6}
-                      stroke={teamColor} strokeWidth={1}
-                    />
-                    {/* Animated flight trail */}
-                    <path d={d} fill="none" stroke={color}
-                      strokeWidth={2.5} strokeOpacity={0.6}
-                      strokeDasharray="6 3" strokeLinecap="round"
-                    />
-                    {/* Grenade icon at head */}
-                    {icon ? (
-                      <image href={icon}
-                        x={hx - 10} y={hy - 10} width={20} height={20}
-                      />
-                    ) : (
-                      <circle cx={hx} cy={hy} r={5} fill={color} fillOpacity={0.9}
-                        stroke="#000" strokeWidth={1.5}
-                      />
-                    )}
-                    {/* Glow ring */}
-                    <circle cx={hx} cy={hy} r={12} fill="none"
-                      stroke={color} strokeWidth={1.5} strokeOpacity={0.3}
-                    />
-                    {/* Round label */}
-                    <text x={hx + 14} y={hy + 3} fill={color} fontSize={9}
-                      fontFamily="monospace" stroke="#000" strokeWidth={2.5} paintOrder="stroke"
-                    >
-                      R{n.roundNum}
-                    </text>
-                  </g>
-                );
-              })}
 
               {/* ── Utility zones ── */}
               {radar && activeUtilityZones.map((uz, i) => {
                 const [cx, cy] = project(uz.x, uz.y);
                 const r = utilityRadius(uz.type);
-                const uzDimmed = highlightedNadeIdx !== null && uz.globalIdx !== highlightedNadeIdx;
+                const uzDimmed = false;
 
                 if (uz.type === "smokegrenade") {
-                  // Multi-layered smoke cloud with drifting puffs
-                  const fadeIn = Math.min(1, uz.progress * 20); // quick fade-in over first 5%
+                  // Multi-layered smoke cloud with drifting puffs + wind drift +
+                  // independent per-puff phases so it reads as a volumetric
+                  // settling cloud rather than a sync'd pulse.
+                  const fadeIn = Math.min(1, uz.progress * 20);
                   const fadeOut = uz.progress > 0.9 ? (1 - uz.progress) * 10 : 1;
                   const opacity = fadeIn * fadeOut;
-                  const breathe = 1 + 0.03 * Math.sin(uz.progress * Math.PI * 8);
-                  // 6 puffs around center for cloudy look
-                  const puffs = Array.from({ length: 6 }, (_, j) => {
-                    const angle = (j / 6) * Math.PI * 2 + pseudoRand(uz.seed + j) * 0.5;
-                    const dist = r * 0.4 * pseudoRand(uz.seed + j + 10);
-                    const puffR = r * (0.5 + 0.3 * pseudoRand(uz.seed + j + 20));
-                    const drift = 1 + 0.06 * Math.sin(uz.progress * Math.PI * 4 + j);
+                  // Slower breathing over ~3s cycle
+                  const breathe = 1 + 0.04 * Math.sin(uz.progress * Math.PI * 5);
+                  // Consistent wind drift — direction per smoke (seeded)
+                  const windAngle = pseudoRand(uz.seed + 99) * Math.PI * 2;
+                  const windMag = r * 0.18 * uz.progress;   // grows over lifetime
+                  const driftX = Math.cos(windAngle) * windMag;
+                  const driftY = Math.sin(windAngle) * windMag;
+                  // 10 puffs with staggered phase — more volumetric than 6
+                  const puffs = Array.from({ length: 10 }, (_, j) => {
+                    const angle = (j / 10) * Math.PI * 2 + pseudoRand(uz.seed + j) * 0.6;
+                    const dist = r * (0.35 + 0.25 * pseudoRand(uz.seed + j + 10));
+                    const puffR = r * (0.45 + 0.35 * pseudoRand(uz.seed + j + 20));
+                    // Each puff has its own phase offset so drift doesn't pulse in sync
+                    const phase = pseudoRand(uz.seed + j + 50) * Math.PI * 2;
+                    const indiv = 1 + 0.05 * Math.sin(uz.progress * Math.PI * 4 + phase);
+                    // Per-puff fade envelope (scale in/out over its lifetime)
+                    const puffProgress = Math.min(1, Math.max(0, (uz.progress - pseudoRand(uz.seed + j + 70) * 0.1) * 1.2));
+                    const envelope = Math.sin(Math.PI * Math.min(1, Math.max(0, puffProgress)));
                     return {
-                      cx: cx + Math.cos(angle) * dist * drift,
-                      cy: cy + Math.sin(angle) * dist * drift,
-                      r: puffR * breathe,
+                      cx: cx + driftX + Math.cos(angle) * dist * indiv,
+                      cy: cy + driftY + Math.sin(angle) * dist * indiv,
+                      r: puffR * breathe * (0.7 + 0.3 * envelope),
+                    };
+                  });
+                  // Embers at base — 4 tiny grey dots, random twinkle
+                  const embers = Array.from({ length: 4 }, (_, j) => {
+                    const angle = pseudoRand(uz.seed + j + 200) * Math.PI * 2;
+                    const dist = r * 0.25 * pseudoRand(uz.seed + j + 210);
+                    const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(uz.progress * Math.PI * 10 + j * 1.3));
+                    return {
+                      cx: cx + Math.cos(angle) * dist,
+                      cy: cy + Math.sin(angle) * dist + r * 0.15,
+                      r: 1.2,
+                      a: twinkle * 0.55,
                     };
                   });
                   // Countdown arc
@@ -1552,15 +1175,28 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                         fill="url(#smoke-outer)"
                       />
                       {/* Puff circles */}
-                      {puffs.map((puff, j) => (
-                        <circle key={j} cx={puff.cx} cy={puff.cy} r={puff.r}
-                          fill="url(#smoke-inner)"
+                      <g style={{ mixBlendMode: "screen" }}>
+                        {puffs.map((puff, j) => (
+                          <circle key={j} cx={puff.cx} cy={puff.cy} r={puff.r}
+                            fill="url(#smoke-inner)"
+                          />
+                        ))}
+                      </g>
+                      {/* Stacked core layers for volumetric look */}
+                      <circle cx={cx + driftX * 0.4} cy={cy + driftY * 0.4}
+                        r={r * 0.55 * breathe}
+                        fill="url(#smoke-core)" opacity={0.85}
+                      />
+                      <circle cx={cx + driftX * 0.2} cy={cy + driftY * 0.2}
+                        r={r * 0.38 * breathe}
+                        fill="url(#smoke-core)" opacity={0.55}
+                      />
+                      {/* Settled ash embers */}
+                      {embers.map((em, j) => (
+                        <circle key={`em${j}`} cx={em.cx} cy={em.cy} r={em.r}
+                          fill="#64748b" opacity={em.a}
                         />
                       ))}
-                      {/* Dense core */}
-                      <circle cx={cx} cy={cy} r={r * 0.5 * breathe}
-                        fill="url(#smoke-core)"
-                      />
                       {/* Smoke icon at center */}
                       <image
                         href={GRENADE_ICON.smokegrenade}
@@ -1587,20 +1223,39 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                 }
 
                 if (uz.type === "molotov") {
-                  // Animated fire patch with flickering flames
+                  // Animated fire patch with upward-biased flickering flames,
+                  // rising sparks, and a subtle heat-shimmer ring above.
                   const fadeIn = Math.min(1, uz.progress * 15);
                   const fadeOut = uz.progress > 0.85 ? (1 - uz.progress) * 6.67 : 1;
                   const opacity = fadeIn * fadeOut;
-                  // 8 flame tongues around center
-                  const flames = Array.from({ length: 8 }, (_, j) => {
-                    const angle = (j / 8) * Math.PI * 2;
-                    const flicker = 0.7 + 0.3 * Math.sin(uz.progress * Math.PI * 20 + j * 1.7);
+                  // 10 flame tongues, upward-biased, independent phase per flame
+                  const flames = Array.from({ length: 10 }, (_, j) => {
+                    const angle = (j / 10) * Math.PI * 2;
+                    const phase = pseudoRand(uz.seed + j + 40) * Math.PI * 2;
+                    const flicker = 0.65 + 0.35 * Math.sin(uz.progress * Math.PI * 22 + phase);
                     const dist = r * 0.55 * flicker;
-                    const flameR = r * (0.3 + 0.15 * pseudoRand(uz.seed + j + 30)) * flicker;
+                    const flameR = r * (0.28 + 0.18 * pseudoRand(uz.seed + j + 30)) * flicker;
+                    // Upward bias: translate each flame toward -y proportional to radius
+                    const upBias = r * 0.22 * flicker;
                     return {
                       cx: cx + Math.cos(angle) * dist,
-                      cy: cy + Math.sin(angle) * dist,
+                      cy: cy + Math.sin(angle) * dist - upBias,
                       r: flameR,
+                    };
+                  });
+                  // Rising sparks — tiny orange-yellow particles translating upward
+                  const sparkCount = 5;
+                  const sparks = Array.from({ length: sparkCount }, (_, j) => {
+                    const phase = (uz.progress * 3 + j / sparkCount) % 1;   // 0..1
+                    const ang = pseudoRand(uz.seed + j + 300) * Math.PI * 2;
+                    const baseR = r * 0.35 * pseudoRand(uz.seed + j + 310);
+                    const riseY = r * 1.1 * phase;
+                    const alpha = Math.max(0, 1 - phase);
+                    return {
+                      cx: cx + Math.cos(ang) * baseR,
+                      cy: cy + Math.sin(ang) * baseR * 0.6 - riseY,
+                      r: 1.6 * (1 - phase * 0.5),
+                      a: alpha,
                     };
                   });
                   // Countdown arc
@@ -1625,9 +1280,20 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                         />
                       ))}
                       {/* Hot core */}
-                      <circle cx={cx} cy={cy} r={r * 0.35}
+                      <circle cx={cx} cy={cy - r * 0.1} r={r * 0.35}
                         fill="url(#fire-core)"
                       />
+                      {/* Heat shimmer ring above the fire */}
+                      <circle cx={cx} cy={cy - r * 0.55} rx={r * 0.55} ry={r * 0.25}
+                        fill="url(#heat-shimmer)"
+                        transform={`translate(0 ${(Math.sin(uz.progress * Math.PI * 10) * r * 0.03).toFixed(2)})`}
+                      />
+                      {/* Rising sparks */}
+                      {sparks.map((sp, j) => (
+                        <circle key={`sp${j}`} cx={sp.cx} cy={sp.cy} r={sp.r}
+                          fill="#fde047" opacity={sp.a}
+                        />
+                      ))}
                       {/* Molotov icon */}
                       <image
                         href={GRENADE_ICON.molotov}
@@ -1729,7 +1395,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                 const [hx, hy] = project(g.headX, g.headY);
                 const projected: [number, number][] = [...g.pts.map((p) => project(p[1], p[2])), [hx, hy]];
                 const d = smoothPath(projected);
-                const dimmed = highlightedNadeIdx !== null && g.globalIdx !== highlightedNadeIdx;
+                const dimmed = false;
                 return (
                   <g key={`g${i}`} filter="url(#glow-sm)" opacity={dimmed ? 0.1 : 1}>
                     {/* Smooth curved trail */}
@@ -1831,38 +1497,133 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                 );
               })}
 
-              {/* ── Player dots with health bars + equipment ── */}
+              {/* ── Player models: directional arrow + weapon silhouette ── */}
               {radar && playerStates.map((p) => {
                 const [px, py] = project(p.x, p.y);
                 const color = TEAM_COLOR[p.team] ?? "#94a3b8";
                 const yawRad = (p.yaw * Math.PI) / 180;
-                const dirLen = 22;
-                const fx = px + Math.cos(yawRad) * dirLen;
-                const fy = py - Math.sin(yawRad) * dirLen;
+                // Size cues: crouched is smaller, walking slightly smaller
+                const sizeMul = p.crouched ? 0.78 : (p.walking ? 0.92 : 1);
+                const radius = 11 * sizeMul;
+                // Recoil kick — if firing in the last 4 ticks, push body back along -yaw
+                const fireWindow = 12;
+                const fireEvent = recentFires.find((f) => f.shooter === p.steamid);
+                const kick = fireEvent ? (fireEvent.alpha * 3) : 0;   // up to 3 px
+                const bodyCx = px - Math.cos(yawRad) * kick;
+                const bodyCy = py + Math.sin(yawRad) * kick;
+                // Weapon silhouette placement
+                const wpnIconName = p.weapon && p.weapon !== "nan" && p.weapon !== "" && !p.weapon.toLowerCase().includes("c4")
+                  ? weaponIconPath(p.weapon) : "";
+                const barrelLen = p.scoped ? 30 : 22;
+                const barrelTipX = bodyCx + Math.cos(yawRad) * barrelLen;
+                const barrelTipY = bodyCy - Math.sin(yawRad) * barrelLen;
                 const hpFrac = Math.max(0, Math.min(1, p.hp / 100));
                 const hpColor = hpFrac > 0.5 ? "#4ade80" : hpFrac > 0.25 ? "#fbbf24" : "#f87171";
-                const wpnIcon = p.weapon && p.weapon !== "nan" && p.weapon !== "" && !p.weapon.toLowerCase().includes("c4")
-                  ? weaponIconPath(p.weapon) : "";
+                // Arrow polygon: tip forward, base flared. Points defined in local space
+                // then rotated to yaw. yawRad=0 means facing +x (east, standard SVG: right).
+                const yawDeg = -p.yaw;   // SVG y-axis flips; rotate clockwise accordingly
+                // Flashed ring scale
+                const flashAlpha = p.flashDuration && p.flashDuration > 0
+                  ? Math.min(1, p.flashDuration / 2)
+                  : 0;
                 return (
                   <g key={p.steamid} opacity={p.alive ? 1 : 0.25}
                     style={{ transition: "opacity 0.3s ease" }}
                   >
-                    {/* Yaw direction line */}
-                    <line x1={px} y1={py} x2={fx} y2={fy}
-                      stroke={color} strokeWidth={3}
-                    />
-                    {/* Player circle */}
-                    <circle cx={px} cy={py} r={11}
-                      fill={color} stroke="#000" strokeWidth={2}
-                    />
-                    {/* Player name + HP (centered above dot) */}
+                    {/* Walking footprint pulse (subtle) */}
+                    {p.alive && p.walking && (
+                      <circle cx={bodyCx} cy={bodyCy} r={radius * 1.5}
+                        fill="none" stroke={color} strokeWidth={1} strokeOpacity={0.25}
+                      />
+                    )}
+
+                    {/* Defusing progress ring */}
+                    {p.alive && p.defusing && (
+                      <circle cx={bodyCx} cy={bodyCy} r={radius * 1.8}
+                        fill="none" stroke="#22d3ee" strokeWidth={2} strokeOpacity={0.9}
+                        strokeDasharray="4 2"
+                      >
+                        <animateTransform attributeName="transform" type="rotate"
+                          from={`0 ${bodyCx} ${bodyCy}`} to={`360 ${bodyCx} ${bodyCy}`}
+                          dur="1s" repeatCount="indefinite" />
+                      </circle>
+                    )}
+
+                    {/* Weapon silhouette along yaw */}
+                    {p.alive && wpnIconName && (
+                      <g transform={`rotate(${yawDeg} ${bodyCx} ${bodyCy})`}>
+                        <image href={wpnIconName}
+                          x={bodyCx + radius * 0.4} y={bodyCy - 6}
+                          width={p.scoped ? 24 : 18} height={12}
+                          preserveAspectRatio="xMidYMid meet"
+                          style={{ filter: `brightness(0) invert(0.9) drop-shadow(0 0 1px ${color})` }}
+                        />
+                      </g>
+                    )}
+
+                    {/* Scope sight line */}
+                    {p.alive && p.scoped && (
+                      <line x1={barrelTipX} y1={barrelTipY}
+                        x2={barrelTipX + Math.cos(yawRad) * 18}
+                        y2={barrelTipY - Math.sin(yawRad) * 18}
+                        stroke={color} strokeWidth={0.8} strokeOpacity={0.4}
+                        strokeDasharray="2 3"
+                      />
+                    )}
+
+                    {/* Directional arrow body (teardrop/triangle) */}
+                    <g transform={`rotate(${yawDeg} ${bodyCx} ${bodyCy})`}>
+                      <path
+                        d={`
+                          M ${bodyCx + radius * 1.15} ${bodyCy}
+                          L ${bodyCx - radius * 0.7} ${bodyCy - radius * 0.85}
+                          Q ${bodyCx - radius * 1.0} ${bodyCy} ${bodyCx - radius * 0.7} ${bodyCy + radius * 0.85}
+                          Z
+                        `}
+                        fill={color}
+                        stroke="#000"
+                        strokeWidth={1.5}
+                        strokeLinejoin="round"
+                      />
+                      {/* Inner highlight for depth */}
+                      <path
+                        d={`
+                          M ${bodyCx + radius * 0.75} ${bodyCy}
+                          L ${bodyCx - radius * 0.3} ${bodyCy - radius * 0.45}
+                          L ${bodyCx - radius * 0.3} ${bodyCy + radius * 0.45}
+                          Z
+                        `}
+                        fill="#fff"
+                        fillOpacity={0.22}
+                      />
+                    </g>
+
+                    {/* Muzzle flash */}
+                    {p.alive && fireEvent && fireEvent.alpha > 0 && (
+                      <circle cx={barrelTipX} cy={barrelTipY}
+                        r={6 * (0.4 + fireEvent.alpha * 0.8)}
+                        fill="url(#muzzle-flash)"
+                        opacity={fireEvent.alpha}
+                      />
+                    )}
+
+                    {/* Flashed white ring overlay */}
+                    {p.alive && flashAlpha > 0 && (
+                      <circle cx={bodyCx} cy={bodyCy} r={radius * 1.3}
+                        fill="none" stroke="#ffffff" strokeWidth={2}
+                        strokeOpacity={flashAlpha * 0.8}
+                      />
+                    )}
+
+                    {/* Player name + HP */}
                     <text x={px} y={py - 18} fill="#fff" fontSize={13}
                       fontFamily="monospace" stroke="#000" strokeWidth={3} paintOrder="stroke"
                       textAnchor="middle"
                     >
                       {p.name}{p.alive ? ` ${p.hp}` : ""}
                     </text>
-                    {/* Health bar (below dot) */}
+
+                    {/* Health bar */}
                     {p.alive && (
                       <g>
                         <rect x={px - 15} y={py + 14} width={30} height={3}
@@ -1873,18 +1634,16 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                         />
                       </g>
                     )}
-                    {/* Equipment row below health bar: weapon icon + armor icon */}
+                    {/* Equipment row */}
                     {p.alive && (
                       <g>
-                        {/* Weapon icon */}
-                        {wpnIcon && (
-                          <image href={wpnIcon}
+                        {wpnIconName && (
+                          <image href={wpnIconName}
                             x={px - 18} y={py + 19} width={28} height={14}
                             preserveAspectRatio="xMidYMid meet"
                             style={{ filter: "brightness(0) invert(0.9)" }}
                           />
                         )}
-                        {/* Armor/helmet icon */}
                         {p.armor > 0 && (
                           <image href={p.helmet ? "/icons/helmet.svg" : "/icons/kevlar.svg"}
                             x={px + 12} y={py + 19} width={12} height={12}
@@ -2037,8 +1796,9 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                   </div>
                 </div>
 
-                {/* Transport buttons row */}
-                <div className="flex items-center gap-1.5">
+                {/* Transport buttons row — wraps on narrow widths so controls
+                    stay accessible at any window size. */}
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <button
                     onClick={() => {
                       const prev = [...timeline.rounds].reverse()
@@ -2100,30 +1860,9 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                     {fmtTime(timeline.tick_max)}
                   </span>
 
-                  <div className="w-px h-5 bg-cs2-border/40 mx-1" />
-
-                  {/* Map zoom */}
-                  <div className="flex items-center gap-0.5">
-                    <button
-                      onClick={() => setMapScale((s) => { const next = Math.max(0.5, +(s - 0.1).toFixed(1)); if (next <= 1) setMapPan({ x: 0, y: 0 }); return next; })}
-                      className="hud-btn px-1.5 py-0.5 text-[10px]"
-                      title="Zoom out"
-                    >−</button>
-                    <span className="text-[10px] text-cs2-muted font-mono w-8 text-center">
-                      {Math.round(mapScale * 100)}%
-                    </span>
-                    <button
-                      onClick={() => setMapScale((s) => Math.min(2, +(s + 0.1).toFixed(1)))}
-                      className="hud-btn px-1.5 py-0.5 text-[10px]"
-                      title="Zoom in"
-                    >+</button>
-                    {mapScale !== 1 && (
-                      <button
-                        onClick={() => { setMapScale(1); setMapPan({ x: 0, y: 0 }); }}
-                        className="text-[9px] text-cs2-accent hover:underline ml-1"
-                      >Reset</button>
-                    )}
-                  </div>
+                  {/* Map zoom controls live as a floating overlay on the radar
+                      itself — see the absolute-positioned panel inside the
+                      .relative map container. */}
 
                   <div className="w-px h-5 bg-cs2-border/40 mx-1" />
 
@@ -2193,8 +1932,18 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
         </div>{/* /hud-panel */}
         </div>{/* /map area wrapper */}
 
+        {/* Splitter — drag to resize the sidebar. */}
+        <div
+          onMouseDown={startSidebarResize}
+          className="w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
+          title="Drag to resize"
+        />
+
         {/* ── Sidebar (right) ── */}
-        <div className="w-[320px] shrink-0 flex flex-col gap-2 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+        <div
+          className="shrink-0 flex flex-col gap-2 overflow-y-auto"
+          style={{ width: sidebarWidth, scrollbarWidth: "thin" }}
+        >
           {/* Scoreboard / player list — CS2-style with full loadout */}
           <div className="hud-panel p-2">
             {[2, 3].map((team) => {
@@ -2324,344 +2073,6 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
         </div>{/* /sidebar */}
       </div>{/* /main flex area */}
 
-      {/* ═══ Bottom section: Nade Analysis ═══ */}
-      <div className="px-2 pb-1">
-        <div className="hud-panel p-2 flex flex-col gap-2">
-          <button
-            onClick={() => setShowNadePanel((v) => !v)}
-            className="flex items-center justify-between w-full"
-          >
-            <p className="text-xs text-cs2-muted uppercase tracking-[0.15em]">
-              Nade Analysis
-            </p>
-            <span className="text-xs text-cs2-accent">
-              {showNadePanel ? "▲ Hide" : "▼ Show"}
-            </span>
-          </button>
-            {showNadePanel && (
-              <div>
-              <>
-              {/* Tab switcher */}
-              <div className="flex items-center gap-2 mb-1">
-                <button
-                  onClick={() => setNadeAnalysisTab("rounds")}
-                  className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded font-mono transition-all ${
-                    nadeAnalysisTab === "rounds" ? "bg-cs2-accent/20 text-cs2-accent border border-cs2-accent/40" : "text-cs2-muted hover:text-white"
-                  }`}
-                >Rounds</button>
-                <button
-                  onClick={() => setNadeAnalysisTab("patterns")}
-                  className={`text-[11px] uppercase tracking-wider px-2 py-0.5 rounded font-mono transition-all ${
-                    nadeAnalysisTab === "patterns" ? "bg-cs2-accent/20 text-cs2-accent border border-cs2-accent/40" : "text-cs2-muted hover:text-white"
-                  }`}
-                >
-                  Patterns {nadeLandingClusters.length > 0 && (
-                    <span className="ml-1 text-[10px] opacity-70">({nadeLandingClusters.length})</span>
-                  )}
-                </button>
-                {highlightedNadeIdx !== null && (
-                  <button
-                    onClick={() => setHighlightedNadeIdx(null)}
-                    className="text-[11px] text-cs2-accent hover:text-white transition ml-auto"
-                  >
-                    Clear highlight
-                  </button>
-                )}
-              </div>
-
-              {/* Patterns tab */}
-              {nadeAnalysisTab === "patterns" && (
-                <div className="flex flex-col gap-2 max-h-[500px] overflow-y-auto">
-                  {nadeLandingClusters.length === 0 ? (
-                    <p className="text-xs text-cs2-muted">No repeated nade positions found across rounds.</p>
-                  ) : nadeLandingClusters
-                    .filter((c) => nadeTypeFilter.has(c.type))
-                    .map((cluster, ci) => {
-                    const color = GRENADE_COLOR[cluster.type] ?? "#9ca3af";
-                    const uniqueRounds = [...new Set(cluster.occurrences.map((o) => o.roundNum))].sort((a, b) => a - b);
-                    const uniquePlayers = [...new Set(cluster.occurrences.map((o) => o.throwerName))];
-                    return (
-                      <div key={ci} className="px-2 py-1.5 rounded bg-cs2-border/10 hover:bg-cs2-border/20 transition">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-xs px-1.5 rounded" style={{ color, background: `${color}20` }}>
-                            {cluster.type.replace("grenade", "")}
-                          </span>
-                          <span className="text-xs text-white font-mono">
-                            {cluster.occurrences.length}× across {uniqueRounds.length} rounds
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-cs2-muted mb-1">
-                          <span>Rounds:</span>
-                          {uniqueRounds.map((rn) => (
-                            <button
-                              key={rn}
-                              onClick={() => {
-                                const occ = cluster.occurrences.find((o) => o.roundNum === rn);
-                                if (occ) {
-                                  setCurrentTick(occ.throwTick);
-                                  setHighlightedNadeIdx(occ.globalIdx);
-                                }
-                              }}
-                              className="font-mono px-1 rounded hover:bg-cs2-accent/20 hover:text-cs2-accent transition"
-                            >
-                              R{rn}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-cs2-muted">
-                          <span>By:</span>
-                          <span className="text-gray-400">{uniquePlayers.join(", ")}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Rounds tab */}
-              {nadeAnalysisTab === "rounds" && (
-              <div className="flex flex-col gap-1.5 max-h-[500px] overflow-y-auto">
-                {roundNades.map(({ round: r, nades, byPlayer }) => {
-                  const isCurrent = r.num === score.round;
-                  return (
-                    <div
-                      key={r.num}
-                      className={`text-left px-2 py-1.5 rounded text-xs transition ${
-                        isCurrent
-                          ? "bg-cs2-accent/15 border border-cs2-accent/40"
-                          : "hover:bg-cs2-border/20"
-                      }`}
-                    >
-                      {/* Round header — click to jump */}
-                      <button
-                        onClick={() => setCurrentTick(r.start_tick)}
-                        className="flex items-center justify-between w-full mb-1"
-                      >
-                        <span className="font-mono text-white">
-                          R{r.num}
-                          {r.winner && (
-                            <span
-                              className="ml-1"
-                              style={{ color: TEAM_COLOR[r.winner === "T" ? 2 : 3] }}
-                            >
-                              {r.winner} win
-                            </span>
-                          )}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          {roundPatterns[r.num] && (
-                            <span
-                              className="text-[10px] font-mono px-1 py-px rounded bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/30"
-                              title={`Repeated in rounds: ${roundPatterns[r.num].rounds.join(", ")}`}
-                            >
-                              {roundPatterns[r.num].label}
-                            </span>
-                          )}
-                          <span className="text-cs2-muted">
-                            {nades.length} nade{nades.length !== 1 ? "s" : ""}
-                          </span>
-                        </span>
-                      </button>
-
-                      {/* Nade timing bar — click to expand */}
-                      {nades.length > 0 && (() => {
-                        const isExpanded = expandedTimeline === r.num;
-                        const roundLen = r.end_tick - r.start_tick;
-                        if (roundLen <= 0) return null;
-                        return (
-                          <>
-                            {/* Compact bar + expand toggle */}
-                            <div className="flex items-center gap-1 mb-1">
-                              <div
-                                className={`relative flex-1 rounded-full bg-cs2-border/30 overflow-hidden transition-all ${isExpanded ? "h-3" : "h-2"}`}
-                              >
-                                {nades.map((n) => {
-                                  const pct = ((n.throwTick - r.start_tick) / roundLen) * 100;
-                                  const color = GRENADE_COLOR[n.type] ?? "#9ca3af";
-                                  const isHighlighted = highlightedNadeIdx === n.globalIdx;
-                                  return (
-                                    <button
-                                      key={n.globalIdx}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setHighlightedNadeIdx(
-                                          highlightedNadeIdx === n.globalIdx ? null : n.globalIdx,
-                                        );
-                                        setCurrentTick(n.throwTick);
-                                      }}
-                                      className="absolute top-0 h-full transition-all"
-                                      style={{
-                                        left: `${Math.min(pct, 98)}%`,
-                                        width: isExpanded ? "5px" : "4px",
-                                        background: color,
-                                        opacity: isHighlighted ? 1 : 0.7,
-                                        boxShadow: isHighlighted ? `0 0 6px ${color}` : "none",
-                                        borderRadius: "2px",
-                                      }}
-                                      title={`${n.throwerName} · ${n.type.replace("grenade", "")} · ${((n.throwTick - r.start_tick) / 64).toFixed(1)}s`}
-                                    />
-                                  );
-                                })}
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedTimeline(isExpanded ? null : r.num);
-                                }}
-                                className="text-[10px] text-cs2-accent/50 hover:text-cs2-accent shrink-0"
-                                title={isExpanded ? "Collapse timeline" : "Expand timeline"}
-                              >
-                                {isExpanded ? "−" : "+"}
-                              </button>
-                            </div>
-                            {/* Expanded timeline detail */}
-                            {isExpanded && (
-                              <div className="bg-cs2-border/10 rounded p-2 mb-1.5 flex flex-col gap-1">
-                                <div className="flex items-center justify-between text-[10px] text-cs2-muted font-mono mb-0.5">
-                                  <span>0s</span>
-                                  <span>Round timeline</span>
-                                  <span>{(roundLen / 64).toFixed(0)}s</span>
-                                </div>
-                                {/* Per-nade row in the expanded view */}
-                                {nades
-                                  .slice()
-                                  .sort((a, b) => a.throwTick - b.throwTick)
-                                  .map((n) => {
-                                    const pct = ((n.throwTick - r.start_tick) / roundLen) * 100;
-                                    const color = GRENADE_COLOR[n.type] ?? "#9ca3af";
-                                    const isHighlighted = highlightedNadeIdx === n.globalIdx;
-                                    const timeSec = ((n.throwTick - r.start_tick) / 64).toFixed(1);
-                                    return (
-                                      <button
-                                        key={n.globalIdx}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setHighlightedNadeIdx(
-                                            highlightedNadeIdx === n.globalIdx ? null : n.globalIdx,
-                                          );
-                                          setCurrentTick(n.throwTick);
-                                        }}
-                                        className={`flex items-center gap-1.5 py-0.5 px-1 rounded text-[11px] transition-all ${
-                                          isHighlighted ? "bg-cs2-accent/15" : "hover:bg-cs2-border/20"
-                                        }`}
-                                      >
-                                        {/* Position indicator */}
-                                        <div className="relative flex-1 h-1.5 rounded-full bg-cs2-border/20">
-                                          <div
-                                            className="absolute top-0 h-full rounded-full transition-all"
-                                            style={{
-                                              left: `${Math.min(pct, 97)}%`,
-                                              width: "6px",
-                                              background: color,
-                                              boxShadow: isHighlighted ? `0 0 8px ${color}` : `0 0 3px ${color}60`,
-                                            }}
-                                          />
-                                        </div>
-                                        <span className="font-mono shrink-0 w-[30px] text-right" style={{ color }}>
-                                          {timeSec}s
-                                        </span>
-                                        <span className="shrink-0 w-2 h-2 rounded-full" style={{ background: TEAM_COLOR[n.team] ?? "#666" }} />
-                                        <span className="text-gray-400 truncate w-[55px] shrink-0 text-left">
-                                          {n.throwerName}
-                                        </span>
-                                        <span className="font-mono shrink-0" style={{ color }}>
-                                          {n.type.replace("grenade", "")}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-
-                      {/* Per-team, per-player nade breakdown */}
-                      {[2, 3].map((team) => {
-                        const players = byPlayer[team];
-                        if (!players || players.length === 0) return null;
-                        return (
-                          <div key={team} className="mt-0.5">
-                            <div className="flex items-center gap-1 mb-0.5">
-                              <span
-                                className="w-1.5 h-1.5 rounded-full shrink-0"
-                                style={{ background: TEAM_COLOR[team] }}
-                              />
-                              <span className="text-[11px] uppercase tracking-wider" style={{ color: TEAM_COLOR[team] }}>
-                                {teamNames[team]}
-                              </span>
-                            </div>
-                            {players.map((pl) => {
-                              const types = Object.entries(pl.types).filter(([, n]) => n > 0);
-                              return (
-                                <div key={pl.steamid} className="flex items-center gap-1 ml-3 mt-0.5">
-                                  <span className="text-gray-400 text-[11px] w-[70px] truncate shrink-0">
-                                    {pl.name}
-                                  </span>
-                                  <div className="flex gap-0.5 flex-wrap">
-                                    {types.map(([type, count]) => {
-                                      // Find matching nade(s) in this round for click-to-isolate
-                                      const matchingNades = nades.filter(
-                                        (n) => n.thrower === pl.steamid && n.type === type,
-                                      );
-                                      const isAnyHighlighted = matchingNades.some(
-                                        (n) => n.globalIdx === highlightedNadeIdx,
-                                      );
-                                      return (
-                                        <button
-                                          key={type}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (isAnyHighlighted) {
-                                              setHighlightedNadeIdx(null);
-                                            } else if (matchingNades.length > 0) {
-                                              setHighlightedNadeIdx(matchingNades[0].globalIdx);
-                                              setCurrentTick(matchingNades[0].throwTick);
-                                            }
-                                          }}
-                                          className="font-mono px-1 rounded cursor-pointer transition-all"
-                                          style={{
-                                            color: GRENADE_COLOR[type] ?? "#9ca3af",
-                                            background: isAnyHighlighted
-                                              ? `${GRENADE_COLOR[type] ?? "#9ca3af"}40`
-                                              : `${GRENADE_COLOR[type] ?? "#9ca3af"}15`,
-                                            boxShadow: isAnyHighlighted
-                                              ? `0 0 8px ${GRENADE_COLOR[type] ?? "#9ca3af"}60`
-                                              : "none",
-                                          }}
-                                        >
-                                          {count}× {type.replace("grenade", "")}
-                                          {type === "flashbang" && matchingNades.length > 0 && (() => {
-                                            const totalFlashed = matchingNades.reduce(
-                                              (sum, n) => sum + (flashEffectiveness[n.globalIdx] ?? 0), 0,
-                                            );
-                                            if (totalFlashed === 0) return null;
-                                            return (
-                                              <span className="ml-0.5 text-[10px] opacity-80" title={`~${totalFlashed} enemies near flash(es)`}>
-                                                ({totalFlashed} hit)
-                                              </span>
-                                            );
-                                          })()}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-              )}
-              </>
-              </div>
-            )}
-          </div>{/* /hud-panel nade analysis */}
-        </div>{/* /bottom section */}
 
     </div>
   );
