@@ -23,26 +23,26 @@ A pro-level CS2 demo analysis platform. Mines demos from HLTV and FACEIT, extrac
 ### 7. Insights · Heatmap mode — Aggregated grenade landings across the entire match, filterable by HE / Smoke / Flash / Molly
 ![Insights — Heatmap](screenshots/insights-heatmap.png)
 
-### 8. Players — Cross-demo per-player aggregates rebuilt from cached timelines
-![Players](screenshots/players.png)
-
-### 9. Economy — Track equipment value and buy types round by round
+### 8. Economy — Track equipment value and buy types round by round
 ![Economy Tracker](screenshots/economy.png)
 
-### 10. Heatmap — See where players position, die, and land utility
+### 9. Heatmap — See where players position, die, and land utility
 ![Heatmap](screenshots/heatmap.png)
 
-### 11. Stats — Per-player scoreboard with K/D, HS%, first kills, and multi-kill rounds
+### 10. Stats — Per-player scoreboard with K/D, HS%, first kills, and multi-kill rounds
 ![Stats Panel](screenshots/stats.png)
 
-### 12. Anti-Strat — Select an opponent team and generate a scouting report
+### 11. Anti-Strat — Select an opponent team and generate a scouting report
 ![Anti-Strat Report](screenshots/anti-strat.png)
 
-### 13. Anti-Strat — Utility tendency and AWP position heatmaps
+### 12. Anti-Strat — Utility tendency and AWP position heatmaps
 ![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
 
-### 14. Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
+### 13. Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
 ![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
+
+### 14. Players — Cross-demo per-player aggregates rebuilt from cached timelines
+![Players](screenshots/players.png)
 
 ---
 
