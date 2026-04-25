@@ -23,6 +23,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -53,12 +54,14 @@ from backend.models.schemas import (
 from backend.analysis.metrics import MetricsPipeline
 from backend.analysis.player_stats import PlayerStatsStore
 from backend.rcon.bridge import RCONBridge, generate_console_string
+from backend.utils.logging_setup import install_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+# Install the richer logging config BEFORE any logger is used below so
+# every module-level getLogger() inherits the shared handler + formatter.
+install_logging()
 logger = logging.getLogger(__name__)
+logger.info("== CS2 Meta Engine starting (log level=%s) ==",
+            logging.getLevelName(logging.getLogger().level))
 
 app = FastAPI(
     title="CS2 Utility Meta-Analysis Engine",
@@ -73,6 +76,51 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ─── Request logging middleware ────────────────────────────────────────
+# Every API call gets a single log line with method, path, status, and
+# elapsed time. This is the "live feed" the user wants — whatever the
+# frontend does, the backend reflects it in the terminal in real time.
+#
+# Health-check spam and status polls are demoted to DEBUG so the log
+# doesn't drown in routine noise (the frontend polls /api/ingest/status
+# every 1.5s while a pipeline runs).
+from fastapi import Request
+
+_http_logger = logging.getLogger("backend.http")
+_QUIET_PATH_PREFIXES = ("/api/health", "/api/ingest/status")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    path = request.url.path
+    quiet = any(path.startswith(p) for p in _QUIET_PATH_PREFIXES)
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        _http_logger.exception(
+            "%s %s → EXCEPTION after %.0f ms",
+            request.method, path, elapsed_ms,
+        )
+        raise
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    status = response.status_code
+    level = (
+        logging.DEBUG if quiet
+        else logging.WARNING if status >= 400
+        else logging.INFO
+    )
+    _http_logger.log(
+        level,
+        "%s %-40s %d %.0f ms",
+        request.method, path[:40], status, elapsed_ms,
+    )
+    return response
 
 # Singleton pipeline (shared across requests)
 _pipeline = MetricsPipeline()
@@ -650,7 +698,9 @@ def _load_roster(match_id: Optional[int]) -> Optional[dict]:
 @app.get("/api/match-info/{demo_file}", summary="Match metadata from roster sidecar")
 async def get_match_info(demo_file: str):
     """Return team names and rosters for a demo file, parsed from the HLTV
-    roster sidecar written during scraping."""
+    roster sidecar written during scraping. New rosters include a
+    `players_detailed` list on each team where every entry is
+    `{name, hltv_id}`; old rosters expose only `players` (name strings)."""
     name = _safe_demo_name(demo_file)
     stem = Path(name).stem
     match_id = _parse_match_id(stem)
@@ -668,6 +718,521 @@ async def get_match_info(demo_file: str):
         "event": roster.get("event", "") if roster else None,
         "date": roster.get("date", "") if roster else None,
     }
+
+
+# ─── Player photo proxy ─────────────────────────────────────────────────
+# HLTV's image CDN (`static.hltv.org`) is fronted by Cloudflare with a
+# managed-challenge rule that 403s every naive hotlink — browsers loading
+# <img src="https://static.hltv.org/..."> directly get blocked. The
+# scraper already uses curl_cffi with a chrome124 impersonation profile
+# to punch through the same protection for match pages, so we re-use that
+# session to fetch bodyshots, cache them to disk, and serve them from
+# our own origin. The frontend points every <PlayerAvatar> at
+# /api/player-photo/{id}.png and stops worrying about CORS/CF entirely.
+
+_PHOTO_CACHE_DIR = Path("backend/data/player_photos")
+
+
+def _sniff_image_mime(head: bytes) -> str:
+    """Detect the real image format from the first few bytes. HLTV's
+    `static.hltv.org/images/playerprofile/bodyshot/*.png` URLs actually
+    serve WebP (and sometimes JPEG) despite the `.png` suffix, so we
+    can't trust the filename — sniff instead. Defaults to `image/webp`
+    since that's what HLTV currently serves for most bodyshots."""
+    if head.startswith(b"\x89PNG"):
+        return "image/png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    if head.startswith(b"GIF8"):
+        return "image/gif"
+    return "image/webp"
+
+
+# Progress state for the photo-warming background task. Shared between
+# the POST kick-off endpoint and the GET status-poll endpoint, mirroring
+# how `_ingest_state` works for demo scraping.
+_photo_warm_state: dict = {
+    "running": False,
+    "done": 0,
+    "total": 0,
+    "ok": 0,
+    "missing": 0,
+    "errors": 0,
+    "started_at": 0.0,
+}
+
+
+def _read_photo_generation() -> int:
+    """Increments every time the photo cache is cleared. Stored as a
+    plain integer in a sidecar file so it survives uvicorn reloads;
+    the frontend reads it via the warm-status endpoint and uses it as
+    a cache-bust query token (`?v={gen}`) so the *browser* HTTP cache
+    invalidates on every server-side wipe — even when the user just
+    reloads the page instead of clicking the Refresh button."""
+    f = _PHOTO_CACHE_DIR / ".generation"
+    if not f.exists():
+        return 0
+    try:
+        return int(f.read_text().strip() or "0")
+    except Exception:
+        return 0
+
+
+def _bump_photo_generation() -> int:
+    _PHOTO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    f = _PHOTO_CACHE_DIR / ".generation"
+    cur = _read_photo_generation() + 1
+    try:
+        f.write_text(str(cur))
+    except Exception as exc:
+        logger.warning("photo-cache: could not write generation — %s", exc)
+    return cur
+
+
+def _fetch_player_photo(hltv_id: int, scraper) -> str:
+    """Fetch (or confirm missing) the bodyshot image for `hltv_id`,
+    writing it to `_PHOTO_CACHE_DIR`. Returns one of:
+        "ok"       — image bytes written to cache
+        "missing"  — HLTV has no bodyshot for this id; 404 marker written
+        "error"    — transient failure (network, CF challenge, etc.)
+                     Caller may choose to retry later.
+
+    Called in a loop from the /api/player-photos/warm background task,
+    and also from the single-image GET endpoint for lazy fetches.
+    Shared helper so warm and lazy paths stay in lockstep.
+    """
+    _PHOTO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_path = _PHOTO_CACHE_DIR / f"{hltv_id}.png"
+    missing_marker = _PHOTO_CACHE_DIR / f"{hltv_id}.404"
+
+    if cache_path.exists() and cache_path.stat().st_size > 0:
+        return "ok"
+    if missing_marker.exists():
+        return "missing"
+
+    # Prefer the live profile-page <img src> (current photo); fall back
+    # to the classic static endpoint if scraping turns up nothing.
+    scraped_url = _scrape_player_image_url(hltv_id, scraper)
+    urls: list[str] = []
+    if scraped_url:
+        urls.append(scraped_url)
+    urls.append(
+        f"https://static.hltv.org/images/playerprofile/bodyshot/{hltv_id}.png"
+    )
+
+    for url in urls:
+        try:
+            resp = scraper._session.get(url, timeout=15)
+        except Exception as exc:
+            logger.debug("photo %d: %s fetch error — %s", hltv_id, url, exc)
+            continue
+        if resp.status_code == 404:
+            # Specifically 404 — try the next URL before giving up.
+            continue
+        if resp.status_code != 200:
+            continue
+        ct = resp.headers.get("content-type", "").lower()
+        if not ct.startswith("image/"):
+            continue
+        cache_path.write_bytes(resp.content)
+        return "ok"
+
+    missing_marker.write_bytes(b"")
+    return "missing"
+
+
+def _scrape_player_image_url(hltv_id: int, scraper) -> Optional[str]:
+    """Visit the HLTV player page and return the URL of the current
+    bodyshot image embedded on it.
+
+    HLTV's CDN structure (verified live on 2026-04-24):
+
+        Main photo:    img-cdn.hltv.org/playerbodyshot/{token}.png?...
+                       (token is a content-hash, not the player id)
+                       Marked up as `<img class="bodyshot-img">` inside
+                       `<div class="playerBodyshot">`.
+
+        Stale fallback: static.hltv.org/images/playerprofile/bodyshot/{id}.png
+                       (often a 5+ year old snapshot — only used if the
+                       primary scrape fails entirely.)
+
+    Player pages also contain bodyshots for OTHER players (Player of the
+    Week, FPL avatars, recent transfer images) — we have to be selective
+    or we'll grab someone else's photo.
+
+    Selector strategy, in order of specificity:
+        1. `.playerBodyshot .bodyshot-img` — *the* primary photo for
+           this profile, scoped to the section that's about this player.
+        2. `img.bodyshot-img` — same class, in case the parent wrapper
+           was renamed in a layout tweak.
+        3. First `img-cdn.hltv.org/playerbodyshot/{token}.png` URL whose
+           parent isn't a known "other player" container (FPL, transfer,
+           player-of-the-week). DOM order; first hit wins.
+    """
+    from urllib.parse import urljoin
+    try:
+        soup = scraper._get(f"https://www.hltv.org/player/{hltv_id}/-")
+    except Exception as exc:
+        logger.debug("player-photo %d: page fetch failed — %s", hltv_id, exc)
+        return None
+
+    def _abs(src: str) -> str:
+        return urljoin("https://www.hltv.org/", src)
+
+    # 1) Most specific — main profile photo.
+    el = soup.select_one(".playerBodyshot .bodyshot-img")
+    if el and el.get("src"):
+        url = _abs(el["src"])
+        logger.debug("player-photo %d: primary scrape — %s", hltv_id, url)
+        return url
+
+    # 2) Just the class, if the wrapper got renamed.
+    el = soup.select_one("img.bodyshot-img")
+    if el and el.get("src"):
+        url = _abs(el["src"])
+        logger.debug("player-photo %d: class-only scrape — %s", hltv_id, url)
+        return url
+
+    # 3) Last resort — first hltv-cdn playerbodyshot URL that isn't
+    #    inside a "show some OTHER player" widget. Skips Player of the
+    #    Week, FPL roster avatars, and transfer-news images.
+    SKIP_CLASSES = {
+        "playerOfTheWeekBodyshot",
+        "playerOfTheWeekBodyshotContainer",
+        "fpl-avatar",
+        "fpl-player",
+        "transfer-player-image",
+        "transfer-player-image-container",
+    }
+
+    def _ancestor_classes(node) -> set[str]:
+        out: set[str] = set()
+        cur = node
+        for _ in range(6):  # 6 levels up is plenty
+            if cur is None:
+                break
+            for c in (cur.get("class") or []):
+                out.add(c)
+            cur = cur.parent
+        return out
+
+    for img in soup.select("img[src]"):
+        src = img.get("src") or ""
+        if "img-cdn.hltv.org/playerbodyshot/" not in src.lower():
+            continue
+        if _ancestor_classes(img) & SKIP_CLASSES:
+            continue
+        url = _abs(src)
+        logger.debug("player-photo %d: cdn fallback — %s", hltv_id, url)
+        return url
+
+    return None
+
+
+@app.get(
+    "/api/player-photo/{hltv_id}.png",
+    summary="Proxy + cache an HLTV player bodyshot image",
+)
+async def get_player_photo(hltv_id: int):
+    """Lazy per-id fetch — if the cache is already populated (e.g. the
+    user warmed it via /api/player-photos/warm), this is a straight
+    FileResponse with no HLTV traffic. Otherwise calls `_fetch_player_photo`
+    to pull it now. Heavy (~1-3s) on a cold cache."""
+    cache_path = _PHOTO_CACHE_DIR / f"{hltv_id}.png"
+    missing_marker = _PHOTO_CACHE_DIR / f"{hltv_id}.404"
+
+    if missing_marker.exists():
+        raise HTTPException(status_code=404, detail="No HLTV photo for this player")
+    if cache_path.exists() and cache_path.stat().st_size > 0:
+        return FileResponse(
+            cache_path,
+            media_type=_sniff_image_mime(cache_path.read_bytes()[:16]),
+            headers={"Cache-Control": "public, max-age=604800"},
+        )
+
+    from backend.ingestion.hltv_scraper import HLTVScraper
+    result = _fetch_player_photo(hltv_id, HLTVScraper())
+    if result == "ok":
+        return FileResponse(
+            cache_path,
+            media_type=_sniff_image_mime(cache_path.read_bytes()[:16]),
+            headers={"Cache-Control": "public, max-age=604800"},
+        )
+    raise HTTPException(
+        status_code=404 if result == "missing" else 502,
+        detail="No HLTV photo for this player" if result == "missing"
+               else "HLTV fetch failed",
+    )
+
+
+# ─── Proactive photo warming ────────────────────────────────────────────
+# The frontend's Refresh flow clears the on-disk cache, then kicks off
+# this endpoint to warm every known HLTV id in the background. A sibling
+# GET endpoint reports progress so the button can show
+# "Loading images (42 / 70)…" in real time.
+
+def _collect_known_hltv_ids() -> list[int]:
+    """Union every `hltv_id` across every roster sidecar. Same source
+    `/api/player-hltv-ids` uses, but returns ints in roster order."""
+    demo_dir = settings.demo_dir
+    if not demo_dir.exists():
+        return []
+    seen: set[int] = set()
+    out: list[int] = []
+    for path in sorted(demo_dir.glob("*.roster.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        for team_key in ("team1", "team2"):
+            team = data.get(team_key) or {}
+            for entry in team.get("players_detailed") or []:
+                pid = entry.get("hltv_id")
+                if isinstance(pid, int) and pid not in seen:
+                    seen.add(pid)
+                    out.append(pid)
+    return out
+
+
+async def _warm_player_photos_task():
+    """Background task — iterate known HLTV ids, fetch each photo,
+    update `_photo_warm_state` as we go. Single-worker (sequential) so
+    we stay within HLTV's polite request pace; the scraper's shared
+    delay between match-page fetches doesn't apply to images, so we
+    add a small yield between fetches to avoid hammering the CDN."""
+    from backend.ingestion.hltv_scraper import HLTVScraper
+    scraper = HLTVScraper()
+
+    ids = _collect_known_hltv_ids()
+    _photo_warm_state.update(
+        running=True, done=0, total=len(ids),
+        ok=0, missing=0, errors=0, started_at=time.time(),
+    )
+    logger.info("photo-warm: started, %d ids", len(ids))
+
+    try:
+        for idx, hltv_id in enumerate(ids, start=1):
+            try:
+                # `_fetch_player_photo` is sync + networky; run in the
+                # default thread pool so we don't block the event loop.
+                result = await asyncio.to_thread(_fetch_player_photo, hltv_id, scraper)
+            except Exception as exc:
+                logger.warning("photo-warm %d: %s", hltv_id, exc)
+                result = "error"
+
+            if result == "ok":
+                _photo_warm_state["ok"] += 1
+            elif result == "missing":
+                _photo_warm_state["missing"] += 1
+            else:
+                _photo_warm_state["errors"] += 1
+            _photo_warm_state["done"] = idx
+
+            # Polite gap — 400 ms keeps us under ~2.5 rps peak, well
+            # inside what HLTV's CDN tolerates without CF challenging.
+            await asyncio.sleep(0.4)
+    finally:
+        elapsed = time.time() - _photo_warm_state["started_at"]
+        _photo_warm_state["running"] = False
+        logger.info(
+            "photo-warm: done in %.1fs — ok=%d missing=%d errors=%d",
+            elapsed,
+            _photo_warm_state["ok"],
+            _photo_warm_state["missing"],
+            _photo_warm_state["errors"],
+        )
+
+
+@app.post(
+    "/api/player-photos/warm",
+    summary="Pre-fetch every known HLTV player photo into the local cache",
+)
+async def warm_player_photos():
+    """Kick off the warming background task. Returns immediately with
+    the total. Clients should poll `/api/player-photos/warm/status` for
+    progress. Safe to call concurrently — a second call while one is
+    already running returns the in-flight total without restarting."""
+    if _photo_warm_state["running"]:
+        return {
+            "started": False,
+            "running": True,
+            "done": _photo_warm_state["done"],
+            "total": _photo_warm_state["total"],
+        }
+    ids = _collect_known_hltv_ids()
+    asyncio.create_task(_warm_player_photos_task())
+    return {"started": True, "running": True, "done": 0, "total": len(ids)}
+
+
+@app.get(
+    "/api/player-photos/warm/status",
+    summary="Progress snapshot of the current photo-warm task",
+)
+async def warm_player_photos_status():
+    return {
+        "running":    _photo_warm_state["running"],
+        "done":       _photo_warm_state["done"],
+        "total":      _photo_warm_state["total"],
+        "ok":         _photo_warm_state["ok"],
+        "missing":    _photo_warm_state["missing"],
+        "errors":     _photo_warm_state["errors"],
+        # Cache generation — frontend uses this as the `?v=` query token
+        # on every avatar URL so the browser HTTP cache invalidates in
+        # lockstep with the server-side wipe, even when the user
+        # reloads instead of clicking Refresh.
+        "generation": _read_photo_generation(),
+    }
+
+
+@app.post(
+    "/api/player-photos/clear",
+    summary="Invalidate the entire on-disk player-photo cache",
+)
+async def clear_player_photos():
+    """Delete every cached image and `.404` marker under the photo cache
+    directory so the next render re-fetches from HLTV. Called from the
+    Players page Refresh button so users can force-update stale photos.
+    Also bumps the cache generation counter so reloading clients see a
+    new `?v=` token and the browser HTTP cache evicts in lockstep."""
+    if not _PHOTO_CACHE_DIR.exists():
+        gen = _bump_photo_generation()
+        return {"deleted": 0, "generation": gen}
+    deleted = 0
+    for p in _PHOTO_CACHE_DIR.iterdir():
+        # Skip the .generation sidecar — we manage that separately.
+        if p.name == ".generation":
+            continue
+        if p.is_file():
+            try:
+                p.unlink()
+                deleted += 1
+            except Exception as exc:
+                logger.warning("photo-cache: failed to delete %s — %s", p.name, exc)
+    gen = _bump_photo_generation()
+    logger.info("photo-cache cleared: %d files removed (gen → %d)", deleted, gen)
+    return {"deleted": deleted, "generation": gen}
+
+
+@app.post(
+    "/api/rosters/refresh",
+    summary="Re-scrape HLTV for every existing roster sidecar, backfilling HLTV player ids",
+)
+async def refresh_rosters():
+    """Walk every `*.roster.json` in the demo directory and, for each one
+    that's missing the `players_detailed` field (or whose ids are all
+    null), hit the HLTV match page again and rewrite the sidecar with the
+    current format.
+
+    Does NOT re-download demos — only touches the sidecar JSON files.
+    Paced by `hltv_request_delay` between match-page fetches so we stay
+    polite to HLTV. Returns a summary of how many rosters were processed.
+    """
+    demo_dir = settings.demo_dir
+    if not demo_dir.exists():
+        return {"checked": 0, "refreshed": 0, "failed": 0, "skipped": 0}
+
+    from backend.ingestion.hltv_scraper import HLTVScraper
+    scraper = HLTVScraper()
+
+    checked = 0
+    refreshed = 0
+    failed = 0
+    skipped = 0
+
+    for path in sorted(demo_dir.glob("*.roster.json")):
+        checked += 1
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("refresh_rosters: unreadable sidecar %s: %s", path.name, exc)
+            failed += 1
+            continue
+
+        match_id = data.get("match_id")
+        if not isinstance(match_id, int):
+            skipped += 1
+            continue
+
+        # Skip rosters that already have every id populated. Cheap check
+        # so re-running the endpoint is idempotent.
+        def _has_full_ids(team: dict) -> bool:
+            detailed = team.get("players_detailed") or []
+            if not detailed:
+                return False
+            return all(isinstance(p.get("hltv_id"), int) for p in detailed)
+
+        if _has_full_ids(data.get("team1") or {}) and _has_full_ids(data.get("team2") or {}):
+            skipped += 1
+            continue
+
+        logger.info("refresh_rosters: updating %s (match %d)", path.name, match_id)
+        result = scraper.refresh_roster_sidecar(match_id, data, demo_dir)
+        if result is None:
+            failed += 1
+        else:
+            refreshed += 1
+
+    logger.info(
+        "refresh_rosters complete: %d checked, %d refreshed, %d skipped, %d failed",
+        checked, refreshed, skipped, failed,
+    )
+    return {
+        "checked": checked,
+        "refreshed": refreshed,
+        "skipped": skipped,
+        "failed": failed,
+    }
+
+
+@app.get(
+    "/api/player-hltv-ids",
+    summary="Aggregate name → HLTV player id map across every roster sidecar",
+)
+async def player_hltv_ids():
+    """Scans every `*.roster.json` in the demo directory and builds a single
+    `{name: hltv_id}` mapping. Used by the Players list + scoreboard to render
+    real HLTV body-shot images for demo-parsed players. Names are case-folded
+    on the key side so lookups from either ingested stats (case-sensitive
+    handles like "s1mple") or demo timelines match.
+
+    When a player appears on multiple teams or with slight name variants, the
+    most recent roster wins — rosters are iterated newest-first by filesystem
+    mtime, so the returned id is whatever HLTV last associated with that
+    displayed handle.
+    """
+    demo_dir = settings.demo_dir
+    if not demo_dir.exists():
+        return {"players": {}, "count": 0}
+
+    roster_paths = sorted(
+        demo_dir.glob("*.roster.json"),
+        key=lambda p: p.stat().st_mtime if p.exists() else 0,
+        reverse=True,
+    )
+
+    mapping: dict[str, int] = {}
+    for path in roster_paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        for team_key in ("team1", "team2"):
+            team = data.get(team_key) or {}
+            # Prefer players_detailed (new format). Fall back to nothing —
+            # old sidecars without ids simply don't contribute to the map.
+            for entry in team.get("players_detailed") or []:
+                name = (entry.get("name") or "").strip()
+                pid = entry.get("hltv_id")
+                if not name or not isinstance(pid, int):
+                    continue
+                key = name.lower()
+                # Newest-first iteration means we only set the key if it's
+                # not already claimed by a more recent roster.
+                mapping.setdefault(key, pid)
+
+    return {"players": mapping, "count": len(mapping)}
 
 
 @app.get(
@@ -1431,7 +1996,10 @@ async def faceit_download(req: FaceitIngestRequest):
 def _set_phase(phase: str, message: str = "") -> None:
     _ingest_state["phase"] = phase
     _ingest_state["message"] = message
-    logger.info("[ingest] %s — %s", phase, message)
+    # The module column already identifies the source as `main`; the
+    # old `[ingest]` bracketed prefix was redundant and ate horizontal
+    # space for every phase transition.
+    logger.info("phase=%s — %s", phase, message)
 
 
 def _reset_ingest_progress(total: int = 0) -> None:
@@ -1851,20 +2419,31 @@ def _ensure_timeline_for_demo(demo_path: Path) -> bool:
             with cache_path.open("r", encoding="utf-8") as f:
                 cached = json.load(f)
             if int(cached.get("cache_version", 0)) >= TIMELINE_CACHE_VERSION:
+                logger.debug("timeline cache hit: %s", demo_path.name)
                 return False
             logger.info(
-                "[player_stats] stale cache (v%s < v%s) — re-parsing %s",
+                "stale cache (v%s < v%s) — re-parsing %s",
                 cached.get("cache_version", 0), TIMELINE_CACHE_VERSION,
                 demo_path.name,
             )
         except Exception as exc:
             logger.warning(
-                "[player_stats] cache unreadable, re-parsing %s: %s",
+                "cache unreadable, re-parsing %s: %s",
                 demo_path.name, exc,
             )
     try:
-        logger.info("[player_stats] parsing %s", demo_path.name)
+        size_mb = demo_path.stat().st_size / (1024 * 1024)
+        logger.info("parsing %s (%.1f MB)", demo_path.name, size_mb)
+        parse_start = time.perf_counter()
         bundle = extract_match_timeline(demo_path)
+        logger.info(
+            "parsed %s in %.1fs — %d players, %d rounds, %d events",
+            demo_path.name,
+            time.perf_counter() - parse_start,
+            len(bundle.get("players", []) or []),
+            len(bundle.get("rounds", []) or []),
+            len(bundle.get("events", []) or []),
+        )
         with cache_path.open("w", encoding="utf-8") as f:
             json.dump(bundle, f, separators=(",", ":"))
         _ingest_state["demos_parsed_this_run"] += 1

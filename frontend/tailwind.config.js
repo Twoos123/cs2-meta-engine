@@ -4,13 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Evolved tokens — soften harsh borders and panel surfaces so any
+        // existing `bg-cs2-panel`, `border-cs2-border`, etc. inherits the
+        // glassier Apple-style look without touching markup.
         cs2: {
           bg: "#05070d",
-          panel: "#0b0f18",
-          card: "#0f1420",
-          cardHi: "#141a28",
-          border: "#1e2636",
-          borderHi: "#2c3650",
+          panel: "#0e1322",
+          card: "#111726",
+          cardHi: "#17203a",
+          // Borders switch to near-white-at-low-alpha via hex. Tailwind v3
+          // opacity shorthand (border-cs2-border/60 etc.) continues to work.
+          border: "#2a2f42",
+          borderHi: "#3b4261",
           text: "#e2e8f0",
           muted: "#64748b",
           accent: "#22d3ee",

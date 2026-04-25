@@ -6,7 +6,6 @@
  * AWP positions, timing patterns, round win stats, and per-player habits.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Callout,
   MatchDemoEntry,
@@ -20,6 +19,10 @@ import {
   getMatchReplayTimeline,
   getRadarInfo,
 } from "../api/client";
+import AppHeader from "./AppHeader";
+import AppBackdrop from "./AppBackdrop";
+import Select from "./Select";
+import { useReveal } from "../hooks/useReveal";
 
 // ─── Constants ─────────────────────────────────────────────────────────
 const RADAR_PX = 1024;
@@ -171,8 +174,6 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════
 export default function AntiStratPage() {
-  const navigate = useNavigate();
-
   // ── Discovery state ──
   const [allDemos, setAllDemos] = useState<MatchDemoEntry[]>([]);
   const [matchInfoCache, setMatchInfoCache] = useState<Record<string, MatchInfoResponse>>({});
@@ -671,35 +672,37 @@ export default function AntiStratPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
-      {/* Header — consistent with all pages */}
-      <nav className="shrink-0 flex items-center gap-3 px-4 py-8 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button onClick={() => navigate("/")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Home">←</button>
-        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Anti-Strat</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => navigate("/ingest")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Ingest demos">Ingest</button>
-          <button onClick={() => navigate("/players")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Player profiles">Players</button>
-        </div>
-      </nav>
+    <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
+      <AppBackdrop tone="violet" />
+      <AppHeader />
 
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="relative flex-1 min-h-0 flex overflow-hidden">
       {/* ── Sidebar ── */}
-      <aside className="w-80 shrink-0 border-r border-cs2-border/50 flex flex-col overflow-y-auto" style={{ scrollbarWidth: "thin", backgroundColor: "rgba(15, 20, 32, 0.8)" }}>
+      <aside className="w-80 shrink-0 border-r border-white/5 flex flex-col overflow-y-auto glass-sidebar" style={{ scrollbarWidth: "thin" }}>
 
         {/* Controls */}
-        <div className="px-4 py-4 space-y-4 border-b border-cs2-border/30">
+        <div className="px-5 py-5 space-y-4 border-b border-white/5">
+          <div className="mb-1">
+            <span className="section-eyebrow" style={{ color: "#fca5a5" }}>SCOUT</span>
+            <p className="mt-2 text-sm font-semibold text-white">Configure the report</p>
+          </div>
           <div className="space-y-1.5">
             <label className="text-[10px] text-cs2-muted uppercase tracking-[0.12em] font-semibold">Map</label>
-            <select
+            <Select
               value={selectedMap}
-              onChange={(e) => { setSelectedMap(e.target.value); setTeamName(""); setPhase("idle"); setTimelines([]); }}
-              className="hud-input w-full"
-            >
-              <option value="">Select a map...</option>
-              {maps.map((m) => (
-                <option key={m} value={m}>{m} ({allDemos.filter((d) => d.map_name === m).length} demos)</option>
-              ))}
-            </select>
+              onChange={(v) => { setSelectedMap(v); setTeamName(""); setPhase("idle"); setTimelines([]); }}
+              className="w-full"
+              placeholder="Select a map…"
+              options={[
+                { value: "", label: "Select a map…" },
+                ...maps.map((m) => ({
+                  value: m,
+                  label: m,
+                  icon: `/icons/maps/${m}.png`,
+                  hint: `${allDemos.filter((d) => d.map_name === m).length}`,
+                })),
+              ]}
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -710,15 +713,16 @@ export default function AntiStratPage() {
                 <span className="text-[11px] text-cs2-muted">Discovering teams...</span>
               </div>
             ) : (
-              <select
+              <Select
                 value={teamName}
-                onChange={(e) => { setTeamName(e.target.value); setTimelines([]); setPhase("idle"); }}
-                className="hud-input w-full"
-                disabled={teamNames.length === 0}
-              >
-                <option value="">{selectedMap ? "Select a team..." : "Pick a map first"}</option>
-                {teamNames.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+                onChange={(v) => { setTeamName(v); setTimelines([]); setPhase("idle"); }}
+                className="w-full"
+                placeholder={selectedMap ? "Select a team…" : "Pick a map first"}
+                options={[
+                  { value: "", label: selectedMap ? "Select a team…" : "Pick a map first", disabled: teamNames.length === 0 },
+                  ...teamNames.map((t) => ({ value: t, label: t })),
+                ]}
+              />
             )}
           </div>
 
@@ -768,24 +772,30 @@ export default function AntiStratPage() {
       {/* ── Main report ── */}
       <main className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
         {phase === "idle" && timelines.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-cs2-muted">
-            <svg viewBox="0 0 24 24" className="w-10 h-10 opacity-15" fill="none" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V19.5a2.25 2.25 0 002.25 2.25h.75" />
-            </svg>
-            <p className="text-xs">Select a map and team to generate a scouting report</p>
-          </div>
+          <AntiStratEmptyState
+            hasMap={!!selectedMap}
+            hasTeam={!!teamName}
+            teamCount={teamNames.length}
+          />
         )}
 
         {phase === "timelines" && (
-          <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="w-10 h-10 border-2 border-cs2-accent border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-cs2-muted">
-              Parsing {loadProgress.loaded}/{loadProgress.total} demos...
-            </p>
-            <div className="w-72 h-2 rounded-full bg-cs2-border/50 overflow-hidden">
+          <div className="flex flex-col items-center justify-center h-full gap-5 px-8">
+            <div className="w-12 h-12 border-2 border-cs2-accent border-t-transparent rounded-full animate-spin" />
+            <div className="text-center">
+              <p className="text-lg font-semibold text-white">Parsing demos</p>
+              <p className="text-sm text-cs2-muted mt-1 font-mono">
+                {loadProgress.loaded} / {loadProgress.total}
+              </p>
+            </div>
+            <div className="w-80 h-1.5 rounded-full bg-white/5 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-cs2-accent to-cs2-green transition-all duration-300"
-                style={{ width: `${loadProgress.total > 0 ? (loadProgress.loaded / loadProgress.total) * 100 : 0}%` }}
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${loadProgress.total > 0 ? (loadProgress.loaded / loadProgress.total) * 100 : 0}%`,
+                  background: "linear-gradient(90deg, #22d3ee, #4ade80)",
+                  boxShadow: "0 0 12px rgba(34,211,238,0.4)",
+                }}
               />
             </div>
           </div>
@@ -1039,6 +1049,157 @@ export default function AntiStratPage() {
         )}
       </main>
       </div>{/* /flex content area */}
+    </div>
+  );
+}
+
+/**
+ * Empty-state hero shown before the user picks a map + team. Sets expectations
+ * for what Anti-Strat does and nudges them through the sidebar flow.
+ */
+function AntiStratEmptyState({
+  hasMap,
+  hasTeam,
+  teamCount,
+}: {
+  hasMap: boolean;
+  hasTeam: boolean;
+  teamCount: number;
+}) {
+  const hero = useReveal<HTMLDivElement>();
+  const cards = useReveal<HTMLDivElement>();
+  const step = hasTeam ? 3 : hasMap ? 2 : 1;
+
+  const features = [
+    {
+      title: "Site hit frequency",
+      desc: "See which bombsite the opponent prefers, split by pistol / eco / force / full-buy rounds.",
+      color: "#f87171",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+          <path d="M3 12h6l2-6 4 12 2-6h4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      title: "Utility tendencies",
+      desc: "Aggregate smokes, flashes, and molotovs across every parsed demo onto a single radar heatmap.",
+      color: "#fb923c",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3v18M3 12h18" />
+        </svg>
+      ),
+    },
+    {
+      title: "AWP positions",
+      desc: "Common AWP hold spots and peek timings, colour-coded by scope state and round phase.",
+      color: "#5B9BD5",
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="relative min-h-full flex items-center justify-center px-8 py-16 overflow-hidden">
+      {/* Ambient violet glow behind the hero. */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse at center, rgba(192,132,252,0.08) 0%, transparent 60%)",
+        }}
+      />
+
+      <div
+        ref={hero.ref}
+        className={`reveal ${hero.shown ? "in" : ""} relative max-w-3xl w-full text-center`}
+      >
+        <span className="section-eyebrow" style={{ color: "#fca5a5" }}>
+          SCOUT
+        </span>
+        <h1 className="mt-4 text-[clamp(2rem,5vw,3.5rem)] font-bold tracking-tight leading-[1.05] text-white">
+          Scout the{" "}
+          <span className="gradient-text">opponent</span>.
+        </h1>
+        <p className="mt-5 text-sm md:text-base text-cs2-muted leading-relaxed max-w-xl mx-auto">
+          Aggregate every parsed demo of a team on a single map to surface their
+          habits — site preference, utility patterns, AWP hold spots, and
+          per-player timing.
+        </p>
+
+        {/* Step indicator — matches sidebar flow */}
+        <div className="mt-10 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.04] border border-white/10">
+          <StepDot n={1} label="Pick a map" active={step >= 1} done={step > 1} />
+          <div className="w-6 h-px bg-white/10" />
+          <StepDot n={2} label="Pick a team" active={step >= 2} done={step > 2} />
+          <div className="w-6 h-px bg-white/10" />
+          <StepDot n={3} label="Analyze" active={step >= 3} done={false} />
+        </div>
+
+        {hasMap && !hasTeam && teamCount === 0 && (
+          <p className="mt-4 text-[11px] text-cs2-muted font-mono">
+            No teams found for this map — parse at least one demo first.
+          </p>
+        )}
+
+        {/* Feature cards */}
+        <div
+          ref={cards.ref}
+          className={`reveal reveal-delay-2 ${cards.shown ? "in" : ""} mt-14 grid grid-cols-1 md:grid-cols-3 gap-3 text-left`}
+        >
+          {features.map((f) => (
+            <div
+              key={f.title}
+              className="hud-panel p-4 transition-all hover:-translate-y-0.5"
+              style={{ borderColor: `${f.color}18` }}
+            >
+              <div className="flex items-center gap-2 mb-2" style={{ color: f.color }}>
+                {f.icon}
+                <span className="text-xs font-semibold uppercase tracking-[0.15em]">
+                  {f.title}
+                </span>
+              </div>
+              <p className="text-[11px] text-cs2-muted leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-10 text-[10px] text-cs2-muted/70 font-mono uppercase tracking-[0.2em]">
+          Configure on the left · Runs locally
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StepDot({ n, label, active, done }: { n: number; label: string; active: boolean; done: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold font-mono border transition-colors ${
+          done
+            ? "bg-cs2-green/20 border-cs2-green/40 text-cs2-green"
+            : active
+              ? "bg-cs2-accent/20 border-cs2-accent/50 text-cs2-accent"
+              : "bg-white/[0.04] border-white/10 text-cs2-muted"
+        }`}
+      >
+        {done ? "✓" : n}
+      </span>
+      <span
+        className={`text-[11px] font-semibold uppercase tracking-[0.15em] ${
+          active ? "text-white" : "text-cs2-muted"
+        }`}
+      >
+        {label}
+      </span>
     </div>
   );
 }

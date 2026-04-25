@@ -251,18 +251,25 @@ class MetricsPipeline:
             insensitive). When set by /api/ingest/hltv's team_name filter,
             only that team's roster is used.
         """
-        logger.info("=== MetricsPipeline.run() ===")
+        logger.info(
+            "pipeline run | map=%s types=%s clear=%s",
+            map_name or "<all>",
+            ",".join(grenade_types or []) or "<all>",
+            clear_existing,
+        )
         if player_names:
             name_list = [n for n in player_names if n]
-            logger.info("  player filter: %d names — %s", len(name_list), name_list)
+            logger.info("player filter: %d names — %s", len(name_list), name_list)
         df = self._parser.parse_directory(
             demo_dir,
             map_name=map_name,
             player_names=player_names,
         )
         if df.empty:
-            logger.warning("No data parsed — aborting pipeline.")
+            logger.warning("no data parsed — aborting pipeline")
             return []
+        logger.info("parsed %d grenade rows across %d unique demos",
+                    len(df), df["demo_file"].nunique() if "demo_file" in df.columns else 0)
 
         if grenade_types:
             df = df[df["grenade_type"].isin(grenade_types)]
@@ -276,6 +283,11 @@ class MetricsPipeline:
             for g in types:
                 clusters = self._clusterer.cluster(df, map_name=m, grenade_type=g)
                 rankings = self._clusterer.rank(clusters)
+                logger.info(
+                    "cluster %s/%s → %d clusters, %d ranked",
+                    m, g.replace("grenade", ""),
+                    len(clusters), len(rankings),
+                )
                 if rankings:
                     if clear_existing:
                         self._delete_clusters(map_name=m, grenade_type=g)
@@ -297,12 +309,13 @@ class MetricsPipeline:
                 executes = detect_executes(
                     df, [r.cluster for r in all_clusters_for_map], m,
                 )
+                logger.info("execute detection %s → %d combos", m, len(executes))
                 if clear_existing:
                     self._delete_executes(map_name=m)
                 if executes:
                     self._persist_executes(executes, m)
 
-        logger.info("Pipeline complete — %d ranked lineups stored.", len(all_rankings))
+        logger.info("pipeline complete — %d ranked lineups stored", len(all_rankings))
         return all_rankings
 
     # ------------------------------------------------------------------

@@ -19,7 +19,9 @@ import {
   RadarInfo,
   TimelinePosition,
   getMatchReplayInsights,
+  warmPlayerPhotosStatus,
 } from "../api/client";
+import PlayerAvatar from "./PlayerAvatar";
 
 const RADAR_PX = 1024;
 
@@ -210,6 +212,16 @@ const smoothPath = (pts: [number, number][]): string => {
 export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo, onBack, onLiveStatus }: Props) {
   const [currentTick, setCurrentTick] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // Server-side photo cache generation. Drives the `?v=N` cache-bust
+  // on every PlayerAvatar in the scoreboard so reloading the replay
+  // viewer after a Reset Photos doesn't keep showing browser-cached
+  // stale images.
+  const [photoCacheVersion, setPhotoCacheVersion] = useState<number>(0);
+  useEffect(() => {
+    warmPlayerPhotosStatus()
+      .then((s) => setPhotoCacheVersion(s.generation || 0))
+      .catch(() => {});
+  }, []);
   const [speed, setSpeed] = useState(1);
   const [insights, setInsights] = useState<string | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -416,6 +428,21 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
   }, [matchInfo, timeline]);
 
   // Dynamic team names: always shows which org is on which side RIGHT NOW.
+  // Lowercased-name → HLTV player id, sourced from the roster sidecar via
+  // matchInfo. Drives the bodyshot images in the scoreboard. Empty when the
+  // roster predates HLTV-id capture; PlayerAvatar just falls back to
+  // initials in that case.
+  const hltvIdByName = useMemo<Record<string, number>>(() => {
+    const out: Record<string, number> = {};
+    for (const team of [matchInfo?.team1, matchInfo?.team2]) {
+      for (const entry of team?.players_detailed ?? []) {
+        if (!entry?.name || typeof entry.hltv_id !== "number") continue;
+        out[entry.name.trim().toLowerCase()] = entry.hltv_id;
+      }
+    }
+    return out;
+  }, [matchInfo]);
+
   // Since team_num 2 = T and 3 = CT, and playerStates already uses per-tick tn,
   // we need to figure out which org is currently T vs CT.
   const teamNames = useMemo<Record<number, string>>(() => {
@@ -861,8 +888,10 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                 )}
                 <button
                   onClick={() => setCurrentTick(ro.startTick)}
-                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded transition-all flex-1 min-w-0 ${
-                    isCurrent ? "bg-cs2-accent/25 ring-1 ring-cs2-accent" : "hover:bg-cs2-border/20"
+                  className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg transition-all flex-1 min-w-0 border ${
+                    isCurrent
+                      ? "bg-cs2-accent/15 border-cs2-accent/50 shadow-[0_0_14px_rgba(34,211,238,0.18)]"
+                      : "border-transparent hover:bg-white/[0.04] hover:border-white/10"
                   }`}
                 >
                   {/* Round number */}
@@ -1684,8 +1713,12 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                   const ICON_FILTER_WHITE = "brightness(0) invert(0.85)";
                   return (
                     <div key={i}
-                      className="flex items-center gap-2 px-3 py-1 rounded text-sm font-mono"
-                      style={{ background: "rgba(0,0,0,0.8)" }}
+                      className="flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-mono border border-white/10"
+                      style={{
+                        background: "rgba(15, 20, 32, 0.75)",
+                        backdropFilter: "blur(10px) saturate(140%)",
+                        WebkitBackdropFilter: "blur(10px) saturate(140%)",
+                      }}
                     >
                       <span className="font-semibold" style={{ color: TEAM_COLOR[k.attackerTeam] ?? "#fff" }}>
                         {k.attacker}
@@ -1764,8 +1797,8 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                     onChange={(e) => setCurrentTick(Number(e.target.value))}
                     className="w-full hud-scrubber"
                     style={{
-                      background: `linear-gradient(to right, #22d3ee ${progress}%, #1e2636 ${progress}%)`,
-                      borderRadius: 2,
+                      background: `linear-gradient(to right, #22d3ee ${progress}%, rgba(255,255,255,0.08) ${progress}%)`,
+                      borderRadius: 9999,
                     }}
                   />
                   {/* Round start tick marks */}
@@ -1840,16 +1873,12 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                     </svg>
                   </button>
 
-                  <div className="w-px h-5 bg-cs2-border/40 mx-1" />
+                  <div className="w-px h-5 bg-white/10 mx-1" />
 
                   <div className="flex items-center gap-1">
                     {[0.5, 1, 2, 4].map((s) => (
                       <button key={s} onClick={() => setSpeed(s)}
-                        className={`text-xs px-2 py-1 rounded font-mono transition-all ${
-                          speed === s
-                            ? "bg-cs2-accent text-cs2-bg font-bold shadow-[0_0_8px_rgba(34,211,238,0.3)]"
-                            : "hud-btn"
-                        }`}
+                        className={`hud-tab ${speed === s ? "hud-tab-active" : "hud-tab-idle"} font-mono`}
                       >{s}×</button>
                     ))}
                   </div>
@@ -1864,18 +1893,14 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                       itself — see the absolute-positioned panel inside the
                       .relative map container. */}
 
-                  <div className="w-px h-5 bg-cs2-border/40 mx-1" />
+                  <div className="w-px h-5 bg-white/10 mx-1" />
 
                   <button
                     onClick={() => setShowNotes((s) => !s)}
-                    className={`text-[10px] px-2 py-1 rounded font-semibold transition-all ${
-                      showNotes
-                        ? "bg-amber-500/15 text-amber-400 border border-amber-500/40"
-                        : "hud-btn"
-                    }`}
+                    className={`hud-tab ${showNotes ? "hud-tab-active" : "hud-tab-idle"}`}
                     title="Toggle notes panel"
                   >
-                    Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+                    Notes{notes.length > 0 ? ` · ${notes.length}` : ""}
                   </button>
                 </div>
 
@@ -1977,12 +2002,21 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                             borderColor: p.alive ? `${TEAM_COLOR[p.team]}22` : "transparent",
                           }}
                         >
-                          {/* Top row: HP number + Name + Armor + Bomb */}
+                          {/* Top row: HP number + Avatar + Name + Armor + Bomb */}
                           <div className="flex items-center gap-2 px-2.5 py-1">
                             {/* HP number */}
                             <span className="text-sm font-bold font-mono w-7 text-right shrink-0" style={{ color: p.alive ? hpColor : "#666" }}>
                               {p.alive ? p.hp : "☠"}
                             </span>
+                            {/* HLTV bodyshot (falls back to initials when
+                                the player isn't in a scraped roster). */}
+                            <PlayerAvatar
+                              name={p.name}
+                              hltvId={hltvIdByName[p.name.trim().toLowerCase()] ?? null}
+                              size={28}
+                              accent={TEAM_COLOR[p.team]}
+                              cacheBust={photoCacheVersion || undefined}
+                            />
                             {/* HP bar (thin, behind name area) */}
                             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                               <span className="text-sm text-white truncate font-semibold">{p.name}</span>

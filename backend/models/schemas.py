@@ -26,6 +26,12 @@ class HLTVMatch(BaseModel):
     # grenade throws to only the requested team's players.
     team1_players: List[str] = Field(default_factory=list)
     team2_players: List[str] = Field(default_factory=list)
+    # Parallel lists of HLTV player IDs (from the /player/{id}/… href on the
+    # match page). Empty entries fall back to name-only. Used downstream to
+    # render real HLTV body-shot images in the frontend:
+    #   https://img-cdn.hltv.org/playerbodyshot/{id}.png?w=200
+    team1_player_ids: List[Optional[int]] = Field(default_factory=list)
+    team2_player_ids: List[Optional[int]] = Field(default_factory=list)
     team1_logo: Optional[str] = None
     team2_logo: Optional[str] = None
 

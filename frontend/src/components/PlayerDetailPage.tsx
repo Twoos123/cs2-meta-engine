@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { PlayerProfileDetail, getPlayerDetail } from "../api/client";
+import {
+  PlayerProfileDetail,
+  getMatchInfo,
+  getPlayerDetail,
+  getPlayerHltvIds,
+  warmPlayerPhotosStatus,
+} from "../api/client";
 import PlayerStatTile from "./PlayerStatTile";
 import PlayerRoleRadar from "./PlayerRoleRadar";
+import AppHeader from "./AppHeader";
+import AppBackdrop from "./AppBackdrop";
+import PlayerAvatar from "./PlayerAvatar";
 
 const ROLE_COLORS: Record<string, string> = {
   AWP: "#5B9BD5",
@@ -21,14 +30,68 @@ export default function PlayerDetailPage() {
   const navigate = useNavigate();
   const { steamid } = useParams<{ steamid: string }>();
   const [detail, setDetail] = useState<PlayerProfileDetail | null>(null);
+  const [hltvId, setHltvId] = useState<number | null>(null);
+  // Team logo + name for this player, inferred from roster sidecars of
+  // the demos they appear in. Used as a faded background on the header
+  // card so the detail page reads as "belongs to this team".
+  const [teamLogo, setTeamLogo] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState<string | null>(null);
+  // Server-driven cache-bust token. Read from the warm-status endpoint
+  // so reloading or curl-clearing the photo cache invalidates the
+  // browser HTTP cache for this avatar too — same mechanism the player
+  // list uses.
+  const [photoCacheVersion, setPhotoCacheVersion] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Pull the photo cache generation independently of the profile
+    // fetch so the avatar URL gets its `?v=N` token early — no need to
+    // wait on the slower demo→roster walk below.
+    warmPlayerPhotosStatus()
+      .then((s) => setPhotoCacheVersion(s.generation || 0))
+      .catch(() => {});
+
     if (!steamid) return;
     setLoading(true);
     getPlayerDetail(steamid)
-      .then(setDetail)
+      .then(async (d) => {
+        setDetail(d);
+        // Look up the HLTV id for this player's displayed name. Done
+        // after the profile loads so we have the canonical name to match
+        // against the aggregated roster map.
+        try {
+          const ids = await getPlayerHltvIds();
+          setHltvId(ids.players?.[d.name.trim().toLowerCase()] ?? null);
+        } catch {
+          setHltvId(null);
+        }
+        // Resolve the player's team + logo. Walk their most-recent demos
+        // (already ordered newest-first by the backend) and for each,
+        // pull the match-info and see which team this player is listed
+        // on. First hit wins — a pro who switched orgs gets their
+        // current team because we start with the newest demo.
+        try {
+          const lcName = d.name.trim().toLowerCase();
+          for (const demo of (d.demos ?? []).slice(0, 5)) {
+            const info = await getMatchInfo(demo.demo_file).catch(() => null);
+            if (!info) continue;
+            for (const team of [info.team1, info.team2]) {
+              if (!team) continue;
+              const onTeam = (team.players ?? []).some(
+                (n) => n.trim().toLowerCase() === lcName,
+              );
+              if (onTeam) {
+                setTeamLogo(team.logo || null);
+                setTeamName(team.name || null);
+                return;
+              }
+            }
+          }
+        } catch {
+          // No roster info — just leave the background empty.
+        }
+      })
       .catch((e) => setError(e?.response?.data?.detail ?? e?.message ?? "Failed to load profile"))
       .finally(() => setLoading(false));
   }, [steamid]);
@@ -73,37 +136,78 @@ export default function PlayerDetailPage() {
   const roleColor = ROLE_COLORS[s.role] ?? "#94a3b8";
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
-      <nav className="shrink-0 flex items-center gap-3 px-4 py-8 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button onClick={() => navigate("/players")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Players">←</button>
-        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Player Profile</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => navigate("/ingest")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Ingest demos">Ingest</button>
-          <button onClick={() => navigate("/players")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Player profiles">Players</button>
-        </div>
-      </nav>
+    <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
+      <AppBackdrop tone="violet" />
+      <AppHeader
+        actions={
+          <button
+            onClick={() => navigate("/players")}
+            className="hud-btn"
+            title="Back to player list"
+          >
+            ← All players
+          </button>
+        }
+      />
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "thin" }}>
+      <div className="relative flex-1 min-h-0 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: "thin" }}>
         <div className="max-w-6xl mx-auto space-y-4">
-          {/* Header */}
-          <div className="hud-panel p-4 flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-0">
+          {/* Header — team logo sits as an oversized, faded watermark
+              in the background so the card reads as "this player on this
+              org" without stealing attention from the name and stats. */}
+          <div className="hud-panel p-6 flex flex-wrap items-center gap-6 relative overflow-hidden">
+            {teamLogo && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                aria-hidden
+                style={{
+                  // Right-anchored and oversized so the logo reads
+                  // clearly as a watermark without sliding off-card.
+                  backgroundImage: `url(${teamLogo})`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 2rem center",
+                  backgroundSize: "auto 200%",
+                  opacity: 0.35,
+                  filter: "saturate(130%) drop-shadow(0 0 24px rgba(0,0,0,0.6))",
+                  // Fade the left 45% so the avatar + name + stats
+                  // sitting there stay fully legible — the logo only
+                  // bleeds in from the right side of the card.
+                  maskImage:
+                    "linear-gradient(90deg, transparent 0%, transparent 30%, black 60%, black 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(90deg, transparent 0%, transparent 30%, black 60%, black 100%)",
+                }}
+              />
+            )}
+            <PlayerAvatar
+              name={detail.name}
+              hltvId={hltvId}
+              size={128}
+              shape="rounded"
+              accent={roleColor}
+              className="relative z-10"
+              cacheBust={photoCacheVersion || undefined}
+            />
+            <div className="flex-1 min-w-0 relative z-10">
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-white truncate">{detail.name}</h2>
+                <h2 className="text-4xl font-bold tracking-tight text-white truncate">{detail.name}</h2>
                 <span
-                  className="px-2 py-0.5 rounded text-[11px] font-bold"
-                  style={{ background: `${roleColor}20`, color: roleColor }}
+                  className="px-2 py-0.5 rounded-md text-[11px] font-bold border"
+                  style={{ background: `${roleColor}20`, color: roleColor, borderColor: `${roleColor}40` }}
                 >
                   {s.role}
                 </span>
+                {/* Team name label intentionally omitted — the oversized
+                    team logo watermarked in the header background already
+                    conveys which org this player belongs to. */}
               </div>
-              <p className="text-[11px] text-cs2-muted mt-1 font-mono">
+              <p className="text-[11px] text-cs2-muted mt-1.5 font-mono">
                 {s.matches} matches · {s.rounds_played} rounds · steamid {detail.steamid}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative z-10">
               <div className="text-right">
-                <p className="text-[10px] text-cs2-muted uppercase tracking-[0.12em]">Rating</p>
+                <p className="text-[10px] text-cs2-muted uppercase tracking-[0.18em]">Rating</p>
                 <p className="text-3xl font-bold font-mono text-cs2-accent">{s.rating.toFixed(2)}</p>
               </div>
             </div>

@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MatchTimeline, RadarInfo } from "../api/client";
+import Select from "./Select";
 
 interface Props {
   timeline: MatchTimeline;
@@ -377,16 +378,15 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
 
         <div className="hud-panel p-3 space-y-3">
           <h3 className="text-xs text-cs2-muted uppercase tracking-[0.15em]">Player</h3>
-          <select
+          <Select
             value={selectedPlayer}
-            onChange={(e) => setSelectedPlayer(e.target.value)}
-            className="hud-input w-full text-xs"
-          >
-            <option value="all">All Players</option>
-            {timeline.players.map((p) => (
-              <option key={p.steamid} value={p.steamid}>{p.name}</option>
-            ))}
-          </select>
+            onChange={setSelectedPlayer}
+            className="w-full"
+            options={[
+              { value: "all", label: "All Players" },
+              ...timeline.players.map((p) => ({ value: p.steamid, label: p.name })),
+            ]}
+          />
         </div>
 
         <div className="hud-panel p-3">

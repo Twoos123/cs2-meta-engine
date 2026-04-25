@@ -16,6 +16,7 @@ import {
   getMatchReplayTimeline,
 } from "../api/client";
 import NadeAnalysisPanel from "./NadeAnalysisPanel";
+import Select from "./Select";
 
 const GRENADE_COLOR: Record<string, string> = {
   smokegrenade: "#cbd5e1",
@@ -1190,22 +1191,20 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
           {radarMode !== "round" && (
             <div className="flex items-center gap-2 flex-wrap mb-1.5 w-full">
               <label className="text-[10px] text-cs2-muted uppercase tracking-wider font-mono">Player</label>
-              <select
+              <Select
                 value={radarPlayerFocus ?? "all"}
-                onChange={(e) => setRadarPlayerFocus(e.target.value === "all" ? null : e.target.value)}
-                className="hud-input text-[11px] py-0.5 px-1.5 cursor-pointer min-w-[120px]"
-              >
-                <option value="all">All players</option>
-                {[2, 3].map((team) => (
-                  <optgroup key={team} label={teamNames[team] ?? (team === 2 ? "T" : "CT")}>
-                    {timeline.players
+                onChange={(v) => setRadarPlayerFocus(v === "all" ? null : v)}
+                minWidth={140}
+                groups={[
+                  { label: "All", options: [{ value: "all", label: "All players" }] },
+                  ...[2, 3].map((team) => ({
+                    label: teamNames[team] ?? (team === 2 ? "T" : "CT"),
+                    options: timeline.players
                       .filter((p) => sidToTeam[p.steamid] === team)
-                      .map((p) => (
-                        <option key={p.steamid} value={p.steamid}>{p.name}</option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
+                      .map((p) => ({ value: p.steamid, label: p.name })),
+                  })),
+                ]}
+              />
 
               {/* Nade-type filter — applies to both heatmap (which dots
                   show) and patterns (which thrown nades render). */}
@@ -1244,18 +1243,18 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
                   {/* Round picker — "All rounds" overlays every round; pick
                       a specific one to drill in (also unlocks all 10 players). */}
                   <label className="text-[10px] text-cs2-muted uppercase tracking-wider font-mono">Round</label>
-                  <select
-                    value={patternRoundFocus ?? "all"}
-                    onChange={(e) => setPatternRoundFocus(e.target.value === "all" ? null : Number(e.target.value))}
-                    className="hud-input text-[11px] py-0.5 px-1.5 cursor-pointer min-w-[90px]"
-                  >
-                    <option value="all">All rounds</option>
-                    {timeline.rounds.map((r) => (
-                      <option key={r.num} value={r.num}>
-                        R{r.num}{r.winner ? ` · ${r.winner}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    value={patternRoundFocus == null ? "all" : String(patternRoundFocus)}
+                    onChange={(v) => setPatternRoundFocus(v === "all" ? null : Number(v))}
+                    minWidth={110}
+                    options={[
+                      { value: "all", label: "All rounds" },
+                      ...timeline.rounds.map((r) => ({
+                        value: String(r.num),
+                        label: `R${r.num}${r.winner ? ` · ${r.winner}` : ""}`,
+                      })),
+                    ]}
+                  />
                   <button
                     onClick={() => setPatternPlaying((v) => !v)}
                     className="hud-btn text-[10px] py-0.5 px-2"

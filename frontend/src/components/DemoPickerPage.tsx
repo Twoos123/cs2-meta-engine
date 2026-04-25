@@ -19,6 +19,9 @@ import {
   getMatchReplayDemos,
   uploadDemo,
 } from "../api/client";
+import AppHeader from "./AppHeader";
+import AppBackdrop from "./AppBackdrop";
+import { useReveal } from "../hooks/useReveal";
 
 const formatBytes = (n: number): string => {
   if (n < 1024) return `${n} B`;
@@ -34,6 +37,7 @@ const formatDate = (mtime: number): string => {
 
 export default function DemoPickerPage() {
   const navigate = useNavigate();
+  const hero = useReveal<HTMLDivElement>();
   const [demos, setDemos] = useState<MatchDemoEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,18 +154,24 @@ export default function DemoPickerPage() {
   }, [demos]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d]">
-      {/* Header */}
-      <nav className="shrink-0 flex items-center gap-3 px-4 py-8 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button onClick={() => navigate("/")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Home">←</button>
-        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Match Replay</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <button onClick={() => navigate("/ingest")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Ingest demos">Ingest</button>
-          <button onClick={() => navigate("/players")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Player profiles">Players</button>
-        </div>
-      </nav>
+    <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d]">
+      <AppBackdrop tone="green" />
+      <AppHeader />
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4" style={{ scrollbarWidth: "thin" }}>
+      <div className="relative flex-1 min-h-0 overflow-y-auto px-4 md:px-6 pt-8 pb-12 space-y-6" style={{ scrollbarWidth: "thin" }}>
+
+      <div ref={hero.ref} className={`reveal ${hero.shown ? "in" : ""} max-w-7xl mx-auto w-full`}>
+        <span className="section-eyebrow" style={{ color: "#86efac" }}>REWATCH</span>
+        <h1 className="page-title mt-3">
+          Pick a demo to <span className="accent">rewatch</span>
+        </h1>
+        <p className="mt-3 text-sm text-cs2-muted leading-relaxed max-w-2xl">
+          Browse your library, upload a new .dem file, or link the folder to CS2
+          so Replay buttons jump straight in.
+        </p>
+      </div>
+
+      <div className="max-w-7xl mx-auto w-full space-y-4">
 
       {/* ── CS2 link status banner ── */}
       {linkInfo && (
@@ -344,7 +354,8 @@ export default function DemoPickerPage() {
           </div>
         </section>
       ))}
-      </div>
+      </div>{/* /max-w-7xl content */}
+      </div>{/* /scrollable */}
     </div>
   );
 }

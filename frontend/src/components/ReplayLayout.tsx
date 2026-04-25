@@ -20,6 +20,8 @@ import EconomyPanel from "./EconomyPanel";
 import HeatmapPanel from "./HeatmapPanel";
 import StatsPanel from "./StatsPanel";
 import InsightsPanel from "./InsightsPanel";
+import AppHeader from "./AppHeader";
+import AppBackdrop from "./AppBackdrop";
 
 const TABS = [
   { to: "", label: "Replay", end: true },
@@ -107,17 +109,18 @@ export default function ReplayLayout() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d]">
-      {/* Tab bar — three flex zones (left: tabs, center: match-up, right:
-          nav buttons). The center zone is flex-1 with min-w-0 so it gives
-          way to the fixed-width zones on narrow screens, and its own
-          contents progressively hide (logos → event → score) via
-          responsive utilities so nothing overlaps. */}
-      <nav className="shrink-0 grid grid-cols-3 items-center gap-2 px-3 py-3 border-b border-cs2-border/50 bg-[#0a0e18]">
+    <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d]">
+      <AppBackdrop tone="green" />
+      <AppHeader />
+
+      {/* Replay sub-bar — tabs on the left, live matchup in the center.
+          Sits BELOW the global AppHeader so primary navigation stays
+          identical to every other page. */}
+      <nav className="relative shrink-0 grid grid-cols-3 items-center gap-2 px-4 py-2.5 border-b border-white/5 bg-white/[0.015] backdrop-blur-md">
         <div className="shrink-0 flex items-center gap-1 justify-self-start">
           <button
             onClick={() => navigate("/replay")}
-            className="hud-btn text-sm py-1.5 px-3 mr-1"
+            className="hud-btn text-sm py-1 px-3 mr-1"
             title="Back to demo picker"
           >
             ←
@@ -128,11 +131,7 @@ export default function ReplayLayout() {
               to={tab.to ? `${basePath}/${tab.to}` : basePath}
               end
               className={({ isActive }) =>
-                `px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] rounded transition-all ${
-                  isActive
-                    ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40 shadow-[0_0_10px_rgba(34,211,238,0.15)]"
-                    : "text-cs2-muted hover:text-white border border-transparent hover:bg-cs2-border/20"
-                }`
+                `hud-tab ${isActive ? "hud-tab-active" : "hud-tab-idle"}`
               }
             >
               {tab.label}
@@ -147,25 +146,25 @@ export default function ReplayLayout() {
             <>
               <div className="flex items-center gap-2 lg:gap-3 min-w-0 max-w-full">
                 {matchInfo.team1.logo && (
-                  <img src={matchInfo.team1.logo} alt="" className="hidden md:block w-7 h-7 lg:w-9 lg:h-9 object-contain shrink-0" />
+                  <img src={matchInfo.team1.logo} alt="" className="hidden md:block w-7 h-7 lg:w-8 lg:h-8 object-contain shrink-0" />
                 )}
-                <span className="text-base lg:text-xl font-bold uppercase tracking-[0.06em] truncate"
+                <span className="text-sm lg:text-base font-bold uppercase tracking-[0.06em] truncate"
                   style={{ color: liveStatus ? (liveStatus.team1CurrentSide === 2 ? "#DCBF6E" : "#5B9BD5") : "#fff" }}>
                   {matchInfo.team1.name}
                 </span>
                 {liveStatus ? (
-                  <span className="font-mono text-lg lg:text-2xl font-bold text-white tabular-nums shrink-0">
+                  <span className="font-mono text-base lg:text-lg font-bold text-white tabular-nums shrink-0">
                     {liveStatus.team1Score} : {liveStatus.team2Score}
                   </span>
                 ) : (
-                  <span className="text-sm font-semibold uppercase tracking-[0.2em] text-cs2-muted/60 shrink-0">vs</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-cs2-muted/60 shrink-0">vs</span>
                 )}
-                <span className="text-base lg:text-xl font-bold uppercase tracking-[0.06em] truncate"
+                <span className="text-sm lg:text-base font-bold uppercase tracking-[0.06em] truncate"
                   style={{ color: liveStatus ? (liveStatus.team1CurrentSide === 2 ? "#5B9BD5" : "#DCBF6E") : "#fff" }}>
                   {matchInfo.team2.name}
                 </span>
                 {matchInfo.team2.logo && (
-                  <img src={matchInfo.team2.logo} alt="" className="hidden md:block w-7 h-7 lg:w-9 lg:h-9 object-contain shrink-0" />
+                  <img src={matchInfo.team2.logo} alt="" className="hidden md:block w-7 h-7 lg:w-8 lg:h-8 object-contain shrink-0" />
                 )}
               </div>
               <div className="hidden lg:flex items-center gap-3 text-[10px] uppercase tracking-[0.15em] text-cs2-muted/80 mt-0.5 font-mono">
@@ -188,22 +187,7 @@ export default function ReplayLayout() {
           )}
         </div>
 
-        <div className="shrink-0 flex items-center gap-2 justify-self-end">
-          <button
-            onClick={() => navigate("/ingest")}
-            className="hud-btn text-sm py-1.5 px-3"
-            title="Ingest demos"
-          >
-            Ingest
-          </button>
-          <button
-            onClick={() => navigate("/players")}
-            className="hud-btn text-sm py-1.5 px-3"
-            title="Player profiles"
-          >
-            Players
-          </button>
-        </div>
+        <div /> {/* right zone reserved — keeps the center truly centered */}
       </nav>
 
       {/* Sub-views */}

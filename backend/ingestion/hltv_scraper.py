@@ -318,16 +318,16 @@ class HLTVScraper:
 
                 # Expensive filter: must fetch match page to see maps + demo link
                 logger.info(
-                    "  → fetching match page %d (%s vs %s)",
+                    "→ fetch match %d (%s vs %s)",
                     match.match_id, match.team1, match.team2,
                 )
                 enriched = self._enrich_with_maps_and_demo(match)
                 if enriched is None:
-                    logger.info("    match page fetch failed — skipping")
+                    logger.info("match page fetch failed — skipping")
                     continue
 
                 logger.info(
-                    "    maps on page: %s | per-map demos: %s",
+                    "maps: %s | per-map demos: %s",
                     enriched.maps_played or "[]",
                     sorted(enriched.match.demo_urls.keys()) or "[none]",
                 )
@@ -336,7 +336,7 @@ class HLTVScraper:
                     map_list_norm = [_normalize_map(m) for m in enriched.maps_played]
                     if normalized_map not in map_list_norm:
                         logger.info(
-                            "    %s not played in this match — skipping",
+                            "skipped — %s not played in this match",
                             normalized_map,
                         )
                         continue
@@ -346,7 +346,7 @@ class HLTVScraper:
                     continue
 
                 logger.info(
-                    "  ✓ %s vs %s (%s) — demo available",
+                    "✓ %s vs %s (%s) — demo available",
                     match.team1,
                     match.team2,
                     match.event,
@@ -424,6 +424,15 @@ class HLTVScraper:
         # .dem because skip_existing sees the unsuffixed file.
         filename = f"{match.match_id}_{token}.dem" if token else f"{match.match_id}.dem"
         dest = output_dir / filename
+
+        # Write (or refresh) the roster sidecar regardless of whether the
+        # demo is cached. Rosters evolve as the scraper gains new fields
+        # (HLTV player IDs, team logos, etc.) — if we only wrote them on
+        # first download, re-ingesting a team whose demos already exist
+        # would leave the sidecars stuck in their old shape and downstream
+        # features (player bodyshot images, team-coloured avatars) would
+        # never light up.
+        self._write_roster_sidecar(match, output_dir)
 
         if skip_existing and dest.exists():
             logger.info("Demo already exists: %s", dest)
@@ -509,36 +518,76 @@ class HLTVScraper:
             "Saved demo → %s (%.1f MB)", dest, len(extracted) / (1024 * 1024)
         )
 
-        # Sidecar roster file — lets the pipeline filter throws by player name
-        # when the user passes team_name=… to /api/ingest/hltv.
-        if match.team1_players or match.team2_players:
-            roster_path = output_dir / f"{match.match_id}.roster.json"
-            try:
-                roster_path.write_text(
-                    json.dumps(
-                        {
-                            "match_id": match.match_id,
-                            "event": match.event or "",
-                            "date": match.date or "",
-                            "team1": {
-                                "name": match.team1,
-                                "players": list(match.team1_players),
-                                "logo": match.team1_logo or "",
-                            },
-                            "team2": {
-                                "name": match.team2,
-                                "players": list(match.team2_players),
-                                "logo": match.team2_logo or "",
-                            },
-                        },
-                        indent=2,
-                    ),
-                    encoding="utf-8",
-                )
-            except Exception as exc:
-                logger.warning("Could not write roster sidecar for %d: %s", match.match_id, exc)
-
         return dest
+
+    @staticmethod
+    def _write_roster_sidecar(match: HLTVMatch, output_dir: Path) -> None:
+        """Write (or overwrite) the `{match_id}.roster.json` sidecar.
+
+        Called both before the skip-existing check and after a fresh
+        download so cached demos get their sidecars refreshed as the
+        scraper format evolves (HLTV player ids, team logos, etc.).
+        Silently no-ops when no roster data was extracted — nothing to
+        write, and an existing sidecar from an older scrape stays put.
+        """
+        if not (match.team1_players or match.team2_players):
+            return
+
+        def _players_with_ids(
+            names: List[str], ids: List[Optional[int]]
+        ) -> List[dict]:
+            """Zip names with HLTV ids. Ids are parallel to names but may
+            be shorter on very old cached rosters, so clamp to len(names)
+            and pad missing slots with None."""
+            out: List[dict] = []
+            for i, name in enumerate(names):
+                pid = ids[i] if i < len(ids) else None
+                out.append({"name": name, "hltv_id": pid})
+            return out
+
+        roster_path = output_dir / f"{match.match_id}.roster.json"
+        try:
+            roster_path.write_text(
+                json.dumps(
+                    {
+                        "match_id": match.match_id,
+                        "event": match.event or "",
+                        "date": match.date or "",
+                        "team1": {
+                            "name": match.team1,
+                            # Kept for backward compatibility with older
+                            # /api/match-info consumers + the team-name
+                            # grenade filter in main.py.
+                            "players": list(match.team1_players),
+                            "players_detailed": _players_with_ids(
+                                match.team1_players, match.team1_player_ids
+                            ),
+                            "logo": match.team1_logo or "",
+                        },
+                        "team2": {
+                            "name": match.team2,
+                            "players": list(match.team2_players),
+                            "players_detailed": _players_with_ids(
+                                match.team2_players, match.team2_player_ids
+                            ),
+                            "logo": match.team2_logo or "",
+                        },
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            logger.info(
+                "roster sidecar → %s (%d + %d players)",
+                roster_path.name,
+                len(match.team1_players),
+                len(match.team2_players),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Could not write roster sidecar for %d: %s",
+                match.match_id, exc,
+            )
 
     # ------------------------------------------------------------------
     # Private parsing helpers
@@ -576,6 +625,74 @@ class HLTVScraper:
         def __init__(self, match: HLTVMatch, maps_played: List[str]) -> None:
             self.match = match
             self.maps_played = maps_played
+
+    def refresh_roster_sidecar(
+        self, match_id: int, existing_sidecar: dict, output_dir: Path,
+    ) -> Optional[dict]:
+        """Re-scrape the HLTV match page for an existing cached demo and
+        overwrite its `*.roster.json` sidecar with the current format
+        (including `players_detailed` with HLTV ids).
+
+        Called by `/api/rosters/refresh` to backfill ids on rosters that
+        were written before the scraper captured them. Returns the new
+        sidecar dict on success, None on failure.
+
+        Does NOT re-download the demo — cheap by design, just a single
+        match page HTML fetch per roster.
+        """
+        match_url = self._absolute(f"/matches/{match_id}/-")
+        try:
+            soup = self._get(match_url)
+        except Exception as exc:
+            logger.warning(
+                "refresh_roster: match page %d fetch failed: %s",
+                match_id, exc,
+            )
+            return None
+
+        rosters = self._extract_rosters(soup)
+        if not rosters[0] and not rosters[1]:
+            logger.warning(
+                "refresh_roster: no roster found on match page %d", match_id,
+            )
+            return None
+
+        # Extract team logos too — the old format might be missing those.
+        team1_logo, team2_logo = self._extract_team_logos(soup)
+
+        # Pull event/date from existing sidecar if present (we don't want
+        # to re-fetch the match card view just for event metadata).
+        team1_name = (existing_sidecar.get("team1") or {}).get("name") or ""
+        team2_name = (existing_sidecar.get("team2") or {}).get("name") or ""
+        event = existing_sidecar.get("event") or ""
+        date = existing_sidecar.get("date") or ""
+
+        # Build a transient HLTVMatch so we can reuse the same sidecar
+        # writer as fresh ingests — keeps the JSON shape in lockstep.
+        match = HLTVMatch(
+            match_id=match_id,
+            team1=team1_name,
+            team2=team2_name,
+            event=event,
+            date=date,
+            team1_players=[p["name"] for p in rosters[0]],
+            team2_players=[p["name"] for p in rosters[1]],
+            team1_player_ids=[p["hltv_id"] for p in rosters[0]],
+            team2_player_ids=[p["hltv_id"] for p in rosters[1]],
+            team1_logo=team1_logo
+                or (existing_sidecar.get("team1") or {}).get("logo") or None,
+            team2_logo=team2_logo
+                or (existing_sidecar.get("team2") or {}).get("logo") or None,
+        )
+        self._write_roster_sidecar(match, output_dir)
+        return {
+            "team1_id_count": sum(
+                1 for p in rosters[0] if isinstance(p["hltv_id"], int)
+            ),
+            "team2_id_count": sum(
+                1 for p in rosters[1] if isinstance(p["hltv_id"], int)
+            ),
+        }
 
     def _enrich_with_maps_and_demo(
         self, match: HLTVMatch
@@ -624,8 +741,12 @@ class HLTVScraper:
             ]
 
         if map_scorelines:
-            logger.info(
-                "  %d played maps: %s",
+            # DEBUG rather than INFO — the raw HLTV scoreboard text is very
+            # long and the `maps on page` summary below tells the operator
+            # everything they need for the common case (is my filter-map in
+            # this match?). Flip LOG_LEVEL=DEBUG to see these again.
+            logger.debug(
+                "%d played maps: %s",
                 match.match_id, " | ".join(map_scorelines),
             )
 
@@ -636,7 +757,11 @@ class HLTVScraper:
                 match.match_id, sorted(demo_urls.keys()),
             )
 
-        team1_players, team2_players = self._extract_rosters(soup)
+        rosters = self._extract_rosters(soup)
+        team1_players = [p["name"] for p in rosters[0]]
+        team2_players = [p["name"] for p in rosters[1]]
+        team1_player_ids = [p["hltv_id"] for p in rosters[0]]
+        team2_player_ids = [p["hltv_id"] for p in rosters[1]]
         if team1_players or team2_players:
             logger.debug(
                 "  rosters: %s=%s, %s=%s",
@@ -653,6 +778,8 @@ class HLTVScraper:
                 "demo_urls": demo_urls,
                 "team1_players": team1_players,
                 "team2_players": team2_players,
+                "team1_player_ids": team1_player_ids,
+                "team2_player_ids": team2_player_ids,
                 "team1_logo": team1_logo,
                 "team2_logo": team2_logo,
             }
@@ -661,43 +788,152 @@ class HLTVScraper:
 
     def _extract_rosters(
         self, soup: BeautifulSoup
-    ) -> tuple[List[str], List[str]]:
+    ) -> tuple[List[dict], List[dict]]:
         """
         Pull the two team rosters from an HLTV match page.
 
-        HLTV has reorganized the match page markup several times, so we try a
-        handful of selectors before giving up. Each returns two lists parallel
-        to (match.team1, match.team2). On failure, both lists are empty —
-        the caller treats that as "no filter" and keeps every player.
+        Returns a pair of lists, parallel to (match.team1, match.team2). Each
+        entry is a dict with `name` (always) and `hltv_id` (optional int,
+        parsed from the /player/{id}/… link on the anchor — `None` when the
+        anchor was missing entirely). The HLTV ID drives the player
+        body-shot images shown in the app:
+            https://img-cdn.hltv.org/playerbodyshot/{id}.png
+
+        Strategy: locate two per-team containers (HLTV has reorganized the
+        match page layout several times, so we try a series of selectors),
+        then within each container pull **every anchor whose href points at
+        `/player/{id}/`** — that's a far more stable signal than the
+        class-based child selectors the page used to expose. Falls back to
+        the older flat-element approach only when no such anchors exist
+        (very old cached pages).
         """
-        selector_groups = [
-            ("div.lineup.standard-box", "a.flagAlign, .player a, .player"),
-            ("div.teamPlayers",         "a, .player"),
-            ("table.lineup",            "a.player-compare, td a"),
-            ("#all-teams .players",     "a"),
+        import re
+
+        # Ordered from most-specific to most-tolerant. Each entry is the
+        # CSS selector for a per-team container; the two containers must
+        # appear in team1, team2 order.
+        #
+        # `div.players` is the selector gigobyte/HLTV uses, which is the
+        # most-maintained community scraper for the current site. Kept
+        # first because it matches the 2024+ layout verbatim.
+        team_container_selectors = [
+            "div.players",
+            "div.lineup.standard-box",
+            "div.teamPlayers",
+            "table.lineup",
+            "#all-teams .players",
+            "div.players-holder",
+            "div.team-players",
         ]
 
-        for container_sel, player_sel in selector_groups:
-            containers = soup.select(container_sel)
+        _href_id_re = re.compile(r"/player/(\d+)/")
+
+        def _players_from(container) -> List[dict]:
+            out: List[dict] = []
+            seen_ids: set[int] = set()
+            seen_names: set[str] = set()
+
+            # PRIMARY — HLTV's current match page tags each roster row
+            # with `data-player-id` on an element with class `.flagAlign`
+            # (per gigobyte/HLTV's getMatch parser). This is the most
+            # reliable signal since it doesn't depend on anchor wrapping
+            # or nested span/text structure.
+            for el in container.select("[data-player-id]"):
+                raw = el.get("data-player-id")
+                if not raw:
+                    continue
+                try:
+                    pid = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if pid in seen_ids:
+                    continue
+                # Nickname lives in `.text-ellipsis` on the new layout;
+                # fall back to the element's own text otherwise.
+                name_el = el.select_one(".text-ellipsis")
+                name = (name_el.get_text(strip=True) if name_el
+                        else el.get_text(strip=True))
+                if not name or name.lower() == "tbd":
+                    continue
+                seen_ids.add(pid)
+                seen_names.add(name)
+                out.append({"name": name, "hltv_id": pid})
+                if len(out) >= 5:
+                    break
+            if out:
+                return out
+
+            # SECONDARY — older layouts / edge cases where the name sits
+            # inside an `<a href="/player/{id}/…">` rather than a
+            # data-attribute.
+            for anchor in container.select('a[href*="/player/"]'):
+                href = anchor.get("href") or ""
+                m = _href_id_re.search(href)
+                if not m:
+                    continue
+                pid = int(m.group(1))
+                if pid in seen_ids:
+                    continue
+                name = anchor.get_text(strip=True)
+                if not name or name.lower() == "tbd":
+                    continue
+                seen_ids.add(pid)
+                seen_names.add(name)
+                out.append({"name": name, "hltv_id": pid})
+                if len(out) >= 5:
+                    break
+            if out:
+                return out
+
+            # TERTIARY — dead-last fallback so we at least capture
+            # names when IDs are simply not on the page (very old
+            # cached HTML).
+            for el in container.select(".player, .flagAlign"):
+                name = el.get_text(strip=True)
+                if not name or name.lower() == "tbd" or name in seen_names:
+                    continue
+                seen_names.add(name)
+                out.append({"name": name, "hltv_id": None})
+                if len(out) >= 5:
+                    break
+            return out
+
+        for sel in team_container_selectors:
+            containers = soup.select(sel)
             if len(containers) < 2:
                 continue
-
-            def _players_from(container) -> List[str]:
-                names: List[str] = []
-                for el in container.select(player_sel):
-                    name = el.get_text(strip=True)
-                    if not name or name.lower() in {"tbd", ""}:
-                        continue
-                    if name not in names:
-                        names.append(name)
-                    if len(names) >= 5:
-                        break
-                return names
-
             t1 = _players_from(containers[0])
             t2 = _players_from(containers[1])
             if t1 and t2:
                 return t1, t2
+
+        # Last-ditch — scan the whole page for data-player-id tags in DOM
+        # order. HLTV lists team1 first, so the first 5 distinct ids are
+        # team1, next 5 team2. Only reached when no team container
+        # selector matched at all.
+        collected: List[dict] = []
+        seen_ids: set[int] = set()
+        for el in soup.select("[data-player-id]"):
+            raw = el.get("data-player-id")
+            if not raw:
+                continue
+            try:
+                pid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if pid in seen_ids:
+                continue
+            name_el = el.select_one(".text-ellipsis")
+            name = (name_el.get_text(strip=True) if name_el
+                    else el.get_text(strip=True))
+            if not name or name.lower() == "tbd":
+                continue
+            seen_ids.add(pid)
+            collected.append({"name": name, "hltv_id": pid})
+            if len(collected) >= 10:
+                break
+        if len(collected) >= 10:
+            return collected[:5], collected[5:10]
 
         return [], []
 

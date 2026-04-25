@@ -8,6 +8,7 @@ import {
   runPipeline,
   IngestionStatusResponse,
 } from "../api/client";
+import Select from "./Select";
 
 interface Props {
   onComplete?: () => void;
@@ -134,12 +135,11 @@ export default function IngestPanel({ onComplete }: Props) {
           <label className="text-[10px] text-cs2-muted uppercase tracking-[0.15em] mb-1 block">
             Map
           </label>
-          <select
-            className="hud-input w-full cursor-pointer"
+          <Select
             value={mapName}
-            onChange={(e) => setMapName(e.target.value)}
-          >
-            {[
+            onChange={setMapName}
+            className="w-full"
+            options={[
               "de_mirage",
               "de_dust2",
               "de_inferno",
@@ -149,12 +149,12 @@ export default function IngestPanel({ onComplete }: Props) {
               "de_vertigo",
               "de_overpass",
               "de_train",
-            ].map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+            ].map((m) => ({
+              value: m,
+              label: m,
+              icon: `/icons/maps/${m}.png`,
+            }))}
+          />
         </div>
         <div>
           <label className="text-[10px] text-cs2-muted uppercase tracking-[0.15em] mb-1 block">

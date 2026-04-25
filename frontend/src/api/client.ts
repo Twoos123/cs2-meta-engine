@@ -452,9 +452,17 @@ export const describeLineup = async (
 // Match replay (full-match 2D viewer)
 // ---------------------------------------------------------------------------
 
+export interface MatchRosterEntry {
+  name: string;
+  hltv_id: number | null;
+}
+
 export interface MatchTeamInfo {
   name: string;
   players: string[];
+  // Present on rosters scraped after HLTV-ID capture was added. Older
+  // roster sidecars only have `players` (string names).
+  players_detailed?: MatchRosterEntry[];
   logo?: string;
 }
 
@@ -474,6 +482,19 @@ export const getMatchInfo = async (
   const { data } = await api.get<MatchInfoResponse>(
     `/match-info/${encodeURIComponent(demoFile)}`,
   );
+  return data;
+};
+
+// HLTV player-id lookup, aggregated across every roster sidecar in the
+// demo directory. Returns a lowercase-name → hltv_id map; frontend uses
+// it to build body-shot image URLs for `PlayerAvatar`.
+export interface PlayerHltvIdsResponse {
+  players: Record<string, number>;
+  count: number;
+}
+
+export const getPlayerHltvIds = async (): Promise<PlayerHltvIdsResponse> => {
+  const { data } = await api.get<PlayerHltvIdsResponse>("/player-hltv-ids");
   return data;
 };
 
@@ -662,5 +683,68 @@ export const refreshPlayerStats = async (): Promise<{
   errors: number;
 }> => {
   const { data } = await api.post("/players/refresh");
+  return data;
+};
+
+// Re-scrape every existing roster sidecar so older ones pick up newly
+// captured fields (HLTV player ids, team logos). Long-running — the
+// backend respects HLTV's rate-limit delay between match-page fetches.
+export interface RefreshRostersResponse {
+  checked: number;
+  refreshed: number;
+  skipped: number;
+  failed: number;
+}
+export const refreshRosters = async (): Promise<RefreshRostersResponse> => {
+  const { data } = await api.post<RefreshRostersResponse>(
+    "/rosters/refresh",
+    null,
+    { timeout: 600_000 },  // 10 min — up to ~3s per roster at HLTV pace
+  );
+  return data;
+};
+
+// Wipe the on-disk player-photo cache. Next render re-fetches every
+// image via the scrape-first strategy, so users see whatever photos
+// HLTV is displaying on its site *right now*.
+export const clearPlayerPhotos = async (): Promise<{ deleted: number }> => {
+  const { data } = await api.post<{ deleted: number }>("/player-photos/clear");
+  return data;
+};
+
+// Kick off the background photo-warming task. Returns immediately with
+// the total count so the UI can render "Loading images (0/N)…". Poll
+// `warmPlayerPhotosStatus()` for progress updates until `running: false`.
+export interface WarmPlayerPhotosStartResponse {
+  started: boolean;
+  running: boolean;
+  done: number;
+  total: number;
+}
+export const warmPlayerPhotos = async (): Promise<WarmPlayerPhotosStartResponse> => {
+  const { data } = await api.post<WarmPlayerPhotosStartResponse>(
+    "/player-photos/warm",
+  );
+  return data;
+};
+
+export interface WarmPlayerPhotosStatus {
+  running: boolean;
+  done: number;
+  total: number;
+  ok: number;
+  missing: number;
+  errors: number;
+  // Server-side cache-generation counter. Bumps every time the photo
+  // cache is cleared. Frontend uses it as the `?v=N` cache-bust on
+  // every avatar URL so the browser HTTP cache invalidates whenever
+  // the server wipes — even when the user reloads instead of clicking
+  // Refresh.
+  generation: number;
+}
+export const warmPlayerPhotosStatus = async (): Promise<WarmPlayerPhotosStatus> => {
+  const { data } = await api.get<WarmPlayerPhotosStatus>(
+    "/player-photos/warm/status",
+  );
   return data;
 };

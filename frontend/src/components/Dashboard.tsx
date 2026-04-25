@@ -18,6 +18,10 @@ import {
 import LineupCard from "./LineupCard";
 import ScatterPlot from "./ScatterPlot";
 import SettingsPanel from "./SettingsPanel";
+import AppHeader from "./AppHeader";
+import AppBackdrop from "./AppBackdrop";
+import Select from "./Select";
+import { useReveal } from "../hooks/useReveal";
 
 const GRENADE_TYPES = [
   { id: "smokegrenade", label: "Smoke" },
@@ -339,60 +343,61 @@ export default function Dashboard() {
     : "—";
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
-      {/* ── Header ── */}
-      <nav className="shrink-0 flex items-center gap-3 px-4 py-8 border-b border-cs2-border/50 bg-[#0a0e18]">
-        <button onClick={() => navigate("/")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Home">←</button>
-        <h1 className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Grenade Lineups</h1>
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
-          <select
-            value={selectedMap}
-            onChange={(e) => setSelectedMap(e.target.value)}
-            className="hud-input min-w-[180px] cursor-pointer"
-          >
-            {downloadedMaps.length > 0 && (
-              <optgroup label="Downloaded">
-                {downloadedMaps.map((d) => (
-                  <option key={d.map_name} value={d.map_name}>
-                    {d.map_name} ({d.count})
-                    {ingestedMaps.has(d.map_name) ? " ●" : ""}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            <optgroup label="All maps">
-              {ALL_MAPS.filter(
-                (m) => !downloadedMaps.some((d) => d.map_name === m),
-              ).map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                  {ingestedMaps.has(m) ? " ●" : ""}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+    <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
+      <AppBackdrop tone="cyan" />
+      <AppHeader
+        actions={
+          <>
+            <Select
+              value={selectedMap}
+              onChange={setSelectedMap}
+              minWidth={180}
+              title="Select map"
+              groups={[
+                ...(downloadedMaps.length > 0
+                  ? [{
+                      label: "Downloaded",
+                      options: downloadedMaps.map((d) => ({
+                        value: d.map_name,
+                        label: d.map_name,
+                        icon: `/icons/maps/${d.map_name}.png`,
+                        hint: `${d.count}`,
+                        dot: ingestedMaps.has(d.map_name) ? "#22d3ee" : undefined,
+                      })),
+                    }]
+                  : []),
+                {
+                  label: "All maps",
+                  options: ALL_MAPS.filter(
+                    (m) => !downloadedMaps.some((d) => d.map_name === m),
+                  ).map((m) => ({
+                    value: m,
+                    label: m,
+                    icon: `/icons/maps/${m}.png`,
+                    dot: ingestedMaps.has(m) ? "#22d3ee" : undefined,
+                  })),
+                },
+              ]}
+            />
+            <button onClick={() => setShowSettings(true)} className="hud-btn">
+              Settings
+            </button>
+            <button
+              onClick={handleClearData}
+              disabled={clearing}
+              className="hud-btn-danger"
+            >
+              {clearing ? "Clearing…" : "Clear"}
+            </button>
+          </>
+        }
+      />
 
-          <button
-            onClick={() => setShowSettings(true)}
-            className="hud-btn"
-          >
-            Settings
-          </button>
+      <div className="relative flex-1 min-h-0 overflow-y-auto space-y-8 px-4 md:px-6 pt-8 pb-12" style={{ scrollbarWidth: "thin" }}>
+      {/* ── Page title ── */}
+      <DashboardHero selectedMap={selectedMap} />
 
-          <button
-            onClick={handleClearData}
-            disabled={clearing}
-            className="hud-btn-danger"
-          >
-            {clearing ? "Clearing…" : "Clear"}
-          </button>
-
-          <button onClick={() => navigate("/ingest")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Ingest demos">Ingest</button>
-          <button onClick={() => navigate("/players")} className="hud-btn text-sm py-1.5 px-4 min-w-[72px]" title="Player profiles">Players</button>
-        </div>
-      </nav>
-
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-6 p-4 md:p-6" style={{ scrollbarWidth: "thin" }}>
+      <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* ── Grenade type tabs + side filter ── */}
       <>
       <div className="flex items-center gap-3 flex-wrap px-1">
@@ -409,84 +414,77 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1 ml-auto items-center flex-wrap">
+        <div className="flex gap-1.5 ml-auto items-center flex-wrap">
           <button
             onClick={() => setHideNoise((v) => !v)}
-            className={`text-[10px] px-2.5 py-1 rounded font-mono uppercase tracking-[0.15em] border transition mr-1 ${
-              hideNoise
-                ? "border-cs2-accent text-cs2-accent bg-cs2-accent/10"
-                : "border-cs2-border text-cs2-muted hover:text-gray-300"
-            }`}
+            className={`hud-tab ${hideNoise ? "hud-tab-active" : "hud-tab-idle"}`}
             title="Hide noise: singleton losses + short flight distance throws"
           >
             {hideNoise ? "Noise Hidden" : "Hide Noise"}
           </button>
           <button
             onClick={() => setShowExecutes((v) => !v)}
-            className={`text-[10px] px-2.5 py-1 rounded font-mono uppercase tracking-[0.15em] border transition mr-1 ${
-              showExecutes
-                ? "border-cs2-green text-cs2-green bg-cs2-green/10"
-                : "border-cs2-border text-cs2-muted hover:text-gray-300"
-            }`}
+            className={`hud-tab ${showExecutes ? "hud-tab-active" : "hud-tab-idle"}`}
             title="Show detected execute combos for this map"
           >
-            Executes{executes.length > 0 ? ` (${executes.length})` : ""}
+            Executes{executes.length > 0 ? ` · ${executes.length}` : ""}
           </button>
           {availablePlayers.length > 0 && (
-            <select
+            <Select
               value={selectedPlayer}
-              onChange={(e) => setSelectedPlayer(e.target.value)}
-              className="hud-input text-[10px] py-1 px-2 mr-2 cursor-pointer"
+              onChange={setSelectedPlayer}
+              minWidth={160}
               title="Filter to lineups thrown by a specific player"
-            >
-              <option value="">All players</option>
-              {availablePlayers.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "All players" },
+                ...availablePlayers.map((p) => ({ value: p, label: p })),
+              ]}
+            />
           )}
-          {(["all", "T", "CT"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setSelectedSide(s)}
-              className={`text-[10px] px-2.5 py-1 rounded font-mono uppercase tracking-[0.15em] border transition ${
-                selectedSide === s
-                  ? "border-cs2-accent text-cs2-accent bg-cs2-accent/10"
-                  : "border-cs2-border text-cs2-muted hover:text-gray-300"
-              }`}
-              title={
-                s === "all"
-                  ? "Show both sides"
-                  : s === "T"
-                    ? "Only T-side lineups"
-                    : "Only CT-side lineups"
-              }
-            >
-              {s === "all" ? "Both" : s}
-            </button>
-          ))}
+          <div className="flex gap-1 ml-1">
+            {(["all", "T", "CT"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelectedSide(s)}
+                className={`hud-tab ${selectedSide === s ? "hud-tab-active" : "hud-tab-idle"}`}
+                title={
+                  s === "all"
+                    ? "Show both sides"
+                    : s === "T"
+                      ? "Only T-side lineups"
+                      : "Only CT-side lineups"
+                }
+              >
+                {s === "all" ? "Both" : s}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ── Execute combos ── */}
       {showExecutes && executes.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em] px-1">
-            <span className="text-cs2-green">/</span> detected executes
-            <span className="text-cs2-muted normal-case tracking-normal font-normal ml-3">
+        <div className="space-y-4">
+          <div className="px-1">
+            <span className="section-eyebrow" style={{ color: "#86efac" }}>DETECTED EXECUTES</span>
+            <p className="mt-1.5 text-xs text-cs2-muted">
               {selectedMap} &middot;{" "}
-              <span className="text-gray-300 font-mono">{executes.length}</span> combos
-            </span>
-          </h2>
+              <span className="text-gray-300 font-mono">{executes.length}</span> coordinated combos
+            </p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {executes.map((ex) => (
               <div
                 key={ex.execute_id}
-                className="hud-panel p-4 flex flex-col gap-2"
-                style={{ borderTopColor: "#4ade80", borderTopWidth: 2 }}
+                className="hud-panel p-5 flex flex-col gap-3 relative overflow-hidden group transition-all hover:border-cs2-green/40"
               >
+                <div
+                  className="absolute inset-x-0 top-0 h-px"
+                  style={{
+                    background:
+                      "linear-gradient(90deg, transparent 0%, rgba(74,222,128,0.6) 50%, transparent 100%)",
+                  }}
+                />
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-[13px] font-semibold text-white leading-tight">
@@ -571,17 +569,15 @@ export default function Dashboard() {
         </div>
 
         <div>
-          <div className="hud-panel p-5 h-full flex flex-col justify-between gap-4">
+          <div className="hud-panel p-6 h-full flex flex-col justify-between gap-5">
             <div>
-              <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em] mb-1">
-                / session
-              </p>
-              <p className="text-xs text-gray-400 leading-relaxed">
+              <span className="section-eyebrow">SESSION</span>
+              <p className="mt-3 text-sm text-gray-300 leading-relaxed">
                 Click a dot in the chart to highlight a lineup, or browse the
                 ranked grid below.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <Stat label="Lineups" value={String(filteredLineups.length)} color="text-cs2-accent" />
               <Stat label="Map" value={selectedMap.replace("de_", "")} color="text-cs2-blue" />
               <Stat label="Type" value={selectedType.replace("grenade", "")} color="text-cs2-smoke" />
@@ -601,10 +597,10 @@ export default function Dashboard() {
       {/* ── Lineup grid ── */}
       {filteredLineups.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-4 px-1 flex-wrap gap-2">
-            <h2 className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">
-              <span className="text-cs2-accent">/</span> discovered nades
-              <span className="text-cs2-muted normal-case tracking-normal font-normal ml-3">
+          <div className="flex items-end justify-between mb-5 px-1 flex-wrap gap-3">
+            <div>
+              <span className="section-eyebrow">DISCOVERED NADES</span>
+              <p className="mt-1.5 text-xs text-cs2-muted">
                 {selectedMap} &middot; {selectedType.replace("grenade", "")} &middot;{" "}
                 <span className="text-gray-300 font-mono">{mainNades.length}</span>{" "}
                 main &middot;{" "}
@@ -626,8 +622,8 @@ export default function Dashboard() {
                     <span className="text-cs2-accent">filtered to selection</span>
                   </>
                 )}
-              </span>
-            </h2>
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               {focusedNade && (
                 <button
@@ -671,16 +667,16 @@ export default function Dashboard() {
                   <section key={g.name}>
                     <button
                       onClick={() => toggleGroup(g.name)}
-                      className="w-full flex items-center gap-3 mb-3 group"
+                      className="w-full flex items-center gap-3 mb-4 group"
                     >
                       <span className="text-cs2-accent font-mono text-sm group-hover:drop-shadow-[0_0_6px_rgba(34,211,238,0.6)] transition">
                         {collapsed ? "▸" : "▾"}
                       </span>
-                      <span className="text-[11px] uppercase tracking-[0.18em] font-semibold text-white">
+                      <span className="text-sm font-semibold tracking-tight text-white">
                         {g.name}
                       </span>
-                      <div className="flex-1 h-px bg-gradient-to-r from-cs2-border to-transparent" />
-                      <span className="text-[10px] text-cs2-muted font-mono">
+                      <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+                      <span className="text-[10px] text-cs2-muted font-mono uppercase tracking-[0.15em]">
                         {g.items.length} nade{g.items.length === 1 ? "" : "s"}{" "}
                         &middot; {variationCount} variation
                         {variationCount === 1 ? "" : "s"} &middot; impact{" "}
@@ -727,11 +723,32 @@ export default function Dashboard() {
       )}
 
       </>
+      </div>{/* /max-w-7xl inner */}
       </div>{/* /scrollable content */}
 
       {/* ── Settings modal ── */}
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
 
+    </div>
+  );
+}
+
+function DashboardHero({ selectedMap }: { selectedMap: string }) {
+  const { ref, shown } = useReveal<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      className={`reveal ${shown ? "in" : ""} max-w-7xl mx-auto w-full`}
+    >
+      <span className="section-eyebrow">DISCOVER</span>
+      <h1 className="page-title mt-3">
+        Grenade lineups for{" "}
+        <span className="accent">{selectedMap.replace("de_", "")}</span>
+      </h1>
+      <p className="mt-3 text-sm text-cs2-muted leading-relaxed max-w-2xl">
+        Impact-ranked lineups mined from real demos. Click a dot in the scatter
+        to focus a lineup, or filter by grenade, side, and player.
+      </p>
     </div>
   );
 }
@@ -746,9 +763,9 @@ function Stat({
   color: string;
 }) {
   return (
-    <div className="bg-cs2-panel/80 border border-cs2-border rounded-lg px-3 py-2">
-      <p className="text-[9px] text-cs2-muted uppercase tracking-[0.15em]">{label}</p>
-      <p className={`text-sm font-bold font-mono ${color} mt-0.5`}>{value}</p>
+    <div className="rounded-xl bg-white/[0.03] border border-white/5 px-3.5 py-2.5 transition-colors hover:bg-white/[0.05]">
+      <p className="text-[9px] text-cs2-muted uppercase tracking-[0.18em] font-semibold">{label}</p>
+      <p className={`text-lg font-bold font-mono ${color} mt-1 tracking-tight`}>{value}</p>
     </div>
   );
 }
