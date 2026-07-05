@@ -55,6 +55,7 @@ from backend.analysis.metrics import MetricsPipeline
 from backend.analysis.player_stats import PlayerStatsStore
 from backend.rcon.bridge import RCONBridge, generate_console_string
 from backend.utils.logging_setup import install_logging
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # Install the richer logging config BEFORE any logger is used below so
 # every module-level getLogger() inherits the shared handler + formatter.
@@ -77,6 +78,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Prometheus metrics at /metrics — scraped in-cluster via ServiceMonitor.
+# The ingress only routes /api and /, so /metrics is never reachable from
+# outside the cluster. Health probes are excluded to keep panels clean.
+Instrumentator(
+    excluded_handlers=["/metrics", "/api/health"],
+).instrument(app).expose(app, include_in_schema=False)
+
 
 # ─── Request logging middleware ────────────────────────────────────────
 # Every API call gets a single log line with method, path, status, and
@@ -89,7 +97,7 @@ app.add_middleware(
 from fastapi import Request
 
 _http_logger = logging.getLogger("backend.http")
-_QUIET_PATH_PREFIXES = ("/api/health", "/api/ingest/status")
+_QUIET_PATH_PREFIXES = ("/api/health", "/api/ingest/status", "/metrics")
 
 
 @app.middleware("http")

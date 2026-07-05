@@ -42,7 +42,7 @@ jobs:
 
       - name: Deploy to k3s
         run: |
-          kubectl apply -f k8s/
+          kubectl apply -R -f k8s/
           kubectl -n cs2 set image deploy/backend "backend=$REGISTRY/cs2-backend:$TAG"
           kubectl -n cs2 set image deploy/web "nginx=$REGISTRY/cs2-web:$TAG"
           kubectl -n cs2 rollout status deploy/backend --timeout=300s

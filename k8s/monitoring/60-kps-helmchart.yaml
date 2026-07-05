@@ -1,0 +1,84 @@
+# kube-prometheus-stack via k3s's built-in helm-controller — declarative
+# Helm, no CLI. Values are tuned for a single-node k3s box: control-plane
+# component scrapes that k3s embeds (etcd/scheduler/controller-manager/proxy)
+# are disabled so they don't show as permanently-down targets.
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: kps
+  namespace: kube-system
+spec:
+  repo: https://prometheus-community.github.io/helm-charts
+  chart: kube-prometheus-stack
+  version: 87.10.1
+  targetNamespace: monitoring
+  createNamespace: true
+  valuesContent: |-
+    fullnameOverride: kps
+
+    kubeEtcd:
+      enabled: false          # k3s uses sqlite, there is no etcd
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeProxy:
+      enabled: false
+    defaultRules:
+      rules:
+        etcd: false
+        kubeControllerManager: false
+        kubeSchedulerAlerting: false
+        kubeSchedulerRecording: false
+        kubeProxy: false
+
+    prometheusOperator:
+      resources:
+        requests: { cpu: 50m, memory: 100Mi }
+        limits: { memory: 256Mi }
+
+    prometheus:
+      prometheusSpec:
+        scrapeInterval: 30s
+        retention: 10d
+        routePrefix: /prometheus
+        externalUrl: http://192.168.6.50/prometheus
+        # pick up ServiceMonitors/Rules from ALL namespaces, not just the release's
+        serviceMonitorSelectorNilUsesHelmValues: false
+        podMonitorSelectorNilUsesHelmValues: false
+        ruleSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        resources:
+          requests: { cpu: 100m, memory: 512Mi }
+          limits: { memory: 1Gi }
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: local-path
+              accessModes: [ReadWriteOnce]
+              resources:
+                requests:
+                  storage: 20Gi
+
+    alertmanager:
+      alertmanagerSpec:
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 128Mi }
+
+    grafana:
+      admin:
+        existingSecret: grafana-admin     # created imperatively, never committed
+        userKey: admin-user
+        passwordKey: admin-password
+      grafana.ini:
+        server:
+          domain: 192.168.6.50
+          root_url: "%(protocol)s://%(domain)s/grafana"
+          serve_from_sub_path: true
+      persistence:
+        enabled: true
+        size: 2Gi
+      resources:
+        requests: { cpu: 50m, memory: 128Mi }
+        limits: { memory: 300Mi }

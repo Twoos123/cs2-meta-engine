@@ -1,0 +1,37 @@
+# App-specific alert rules (the chart already ships the standard node/pod
+# ruleset). Deliberately no latency alert: first-view demo parses and AI
+# insight calls legitimately run for minutes — a p95 alert would only cry wolf.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cs2-meta-engine
+  namespace: monitoring
+spec:
+  groups:
+    - name: cs2-meta-engine
+      rules:
+        - alert: Cs2BackendDown
+          expr: absent(up{job="backend", namespace="cs2"} == 1)
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: cs2-meta-engine backend is down
+            description: >-
+              Prometheus has had no healthy backend scrape target in
+              namespace cs2 for 2 minutes.
+        - alert: Cs2High5xxRate
+          expr: sum(rate(http_requests_total{namespace="cs2", status=~"5.."}[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: cs2-meta-engine is serving 5xx responses
+            description: More than 0.1 errors/s over 5 minutes.
+        - alert: Cs2BackendRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="cs2", container="backend"}[30m]) > 2
+          labels:
+            severity: warning
+          annotations:
+            summary: cs2-meta-engine backend is restart-looping
+            description: More than 2 backend container restarts in 30 minutes.

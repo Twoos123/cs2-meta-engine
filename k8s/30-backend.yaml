@@ -89,6 +89,8 @@ kind: Service
 metadata:
   name: backend
   namespace: cs2
+  labels:
+    app: backend      # ServiceMonitor selects on this
 spec:
   selector:
     app: backend

@@ -1,0 +1,17 @@
+# Scrapes the FastAPI /metrics endpoint through the backend Service.
+# /metrics is not routed by the public ingress — cluster-internal only.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  namespace: cs2
+  labels:
+    app: backend
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
