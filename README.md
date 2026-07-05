@@ -197,6 +197,20 @@ cd frontend && npm run dev
 
 Open `http://localhost:5173`
 
+### Run with Docker (production)
+```bash
+cp .env.example .env    # fill in ANTHROPIC_API_KEY etc.
+docker compose up -d --build
+```
+
+Open `http://localhost` (set `WEB_PORT` in `.env` to publish on a different port).
+
+Two images: nginx serves the built frontend and reverse-proxies `/api` to the
+FastAPI backend (single origin, no CORS). Demos, the SQLite DB, and parsed
+timeline caches persist in the `demos`, `app-data`, and `player-photos` named
+volumes. The backend runs as a non-root user with a pinned dependency lock
+(`requirements.lock`).
+
 ---
 
 ## Navigation

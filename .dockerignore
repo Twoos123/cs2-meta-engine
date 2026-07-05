@@ -1,0 +1,43 @@
+# VCS / tooling
+.git
+.gitignore
+.claude
+.vscode
+.idea
+.playwright-mcp
+
+# Python
+__pycache__
+**/__pycache__
+*.pyc
+.venv
+venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Node
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# Runtime state — lives in named volumes, never in the image
+demos
+data
+backend/data/player_photos
+**/*.db
+**/*.db-journal
+*.log
+logs
+
+# Docs / assets not needed inside images
+screenshots
+README.md
+
+# Secrets
+.env
+.env.*
+
+# Compose file isn't part of any image
+docker-compose.yml
