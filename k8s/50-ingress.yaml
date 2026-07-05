@@ -1,0 +1,27 @@
+# Traefik (bundled with k3s) terminates :80 and does the path routing that
+# nginx did under compose: /api straight to FastAPI, everything else to the
+# static bundle. nginx's own /api proxy block is dormant under k8s.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cs2-meta-engine
+  namespace: cs2
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080

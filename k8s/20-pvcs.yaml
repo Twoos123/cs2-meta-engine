@@ -1,0 +1,38 @@
+# Backed by k3s's bundled local-path provisioner (single node, single disk —
+# host dirs under /var/lib/rancher/k3s/storage). WaitForFirstConsumer, so
+# dirs appear when the backend pod first schedules.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data
+  namespace: cs2
+spec:
+  storageClassName: local-path
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi        # SQLite DB + parsed-timeline JSON cache
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demos
+  namespace: cs2
+spec:
+  storageClassName: local-path
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 80Gi        # .dem files run 100 MB–1 GB+ each
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: player-photos
+  namespace: cs2
+spec:
+  storageClassName: local-path
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi         # HLTV player photo cache

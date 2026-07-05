@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: cs2
+  labels:
+    app: backend
+spec:
+  # Hard cap at 1: HLTV/FACEIT ingest and photo-warm status live in
+  # process-local globals the UI polls, and SQLite has a single writer.
+  replicas: 1
+  strategy:
+    type: Recreate       # RWO volumes + single-writer DB — never two pods at once
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: cs2-meta-engine/backend:latest
+          imagePullPolicy: Never     # imported into k3s containerd; registry arrives in Phase 3
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: cs2-config
+            - secretRef:
+                name: cs2-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "3"
+              memory: 3Gi          # demo parses spike; 110 MB demo observed at ~614 Mi
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12   # 60 s boot budget
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: app-data
+              mountPath: /app/data
+            - name: demos
+              mountPath: /app/demos
+            - name: player-photos
+              mountPath: /app/backend/data/player_photos
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: app-data
+        - name: demos
+          persistentVolumeClaim:
+            claimName: demos
+        - name: player-photos
+          persistentVolumeClaim:
+            claimName: player-photos
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: cs2
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
