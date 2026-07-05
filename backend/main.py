@@ -66,7 +66,7 @@ logger.info("== CS2 Meta Engine starting (log level=%s) ==",
 app = FastAPI(
     title="CS2 Utility Meta-Analysis Engine",
     description="Discover and practice pro-level grenade lineups powered by demoparser2, DBSCAN, and RCON.",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 app.add_middleware(
@@ -264,7 +264,7 @@ from backend.models.schemas import (  # noqa: E402
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "1.1.0"}
 
 
 # ---------------------------------------------------------------------------
