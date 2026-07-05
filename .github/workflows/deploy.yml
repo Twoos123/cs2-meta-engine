@@ -21,7 +21,7 @@ jobs:
       KUBECONFIG: /home/debian/.kube/config
       REGISTRY: localhost:5000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Compute image tag
         run: echo "TAG=${GITHUB_SHA::12}" >> "$GITHUB_ENV"
