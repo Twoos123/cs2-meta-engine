@@ -28,8 +28,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: backend
-          image: cs2-meta-engine/backend:latest
-          imagePullPolicy: Never     # imported into k3s containerd; registry arrives in Phase 3
+          image: localhost:5000/cs2-backend:latest
+          imagePullPolicy: IfNotPresent   # pulled from the local registry; CI pins SHA tags
           ports:
             - containerPort: 8000
               name: http

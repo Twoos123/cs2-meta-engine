@@ -1,5 +1,6 @@
 # VCS / tooling
 .git
+.github
 .gitignore
 .claude
 .vscode

@@ -23,8 +23,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: nginx
-          image: cs2-meta-engine/web:latest
-          imagePullPolicy: Never
+          image: localhost:5000/cs2-web:latest
+          imagePullPolicy: IfNotPresent   # pulled from the local registry; CI pins SHA tags
           ports:
             - containerPort: 8080
               name: http

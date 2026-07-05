@@ -1,0 +1,52 @@
+# Push-to-deploy: build both images on the self-hosted runner (the k3s VM),
+# push to the loopback registry, roll the Deployments to the new SHA tag.
+# Runner, registry, and cluster share one node, so images never cross the LAN.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "screenshots/**"
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    env:
+      KUBECONFIG: /home/debian/.kube/config
+      REGISTRY: localhost:5000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        run: echo "TAG=${GITHUB_SHA::12}" >> "$GITHUB_ENV"
+
+      - name: Build images
+        run: |
+          docker build -f docker/backend.Dockerfile \
+            -t "$REGISTRY/cs2-backend:$TAG" -t "$REGISTRY/cs2-backend:latest" .
+          docker build -f docker/frontend.Dockerfile \
+            -t "$REGISTRY/cs2-web:$TAG" -t "$REGISTRY/cs2-web:latest" .
+
+      - name: Push to local registry
+        run: |
+          docker push "$REGISTRY/cs2-backend:$TAG"
+          docker push "$REGISTRY/cs2-backend:latest"
+          docker push "$REGISTRY/cs2-web:$TAG"
+          docker push "$REGISTRY/cs2-web:latest"
+
+      - name: Deploy to k3s
+        run: |
+          kubectl apply -f k8s/
+          kubectl -n cs2 set image deploy/backend "backend=$REGISTRY/cs2-backend:$TAG"
+          kubectl -n cs2 set image deploy/web "nginx=$REGISTRY/cs2-web:$TAG"
+          kubectl -n cs2 rollout status deploy/backend --timeout=300s
+          kubectl -n cs2 rollout status deploy/web --timeout=120s
+
+      - name: Smoke test
+        run: curl -fsS --retry 5 --retry-delay 3 --retry-all-errors http://localhost/api/health
