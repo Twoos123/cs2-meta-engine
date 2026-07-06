@@ -55,6 +55,7 @@ from backend.analysis.metrics import MetricsPipeline
 from backend.analysis.player_stats import PlayerStatsStore
 from backend.rcon.bridge import RCONBridge, generate_console_string
 from backend.utils.logging_setup import install_logging
+from backend.utils.ai_cache import ai_cache
 from prometheus_fastapi_instrumentator import Instrumentator
 
 # Install the richer logging config BEFORE any logger is used below so
@@ -1534,6 +1535,15 @@ async def get_match_replay_insights(demo_file: str):
     if name in _INSIGHTS_CACHE:
         return _INSIGHTS_CACHE[name]
 
+    # Disk-backed second layer — LLM output survives pod restarts.
+    persisted = ai_cache.get("insights", name)
+    if persisted is not None:
+        resp = MatchInsightsResponse(
+            demo_file=name, summary=persisted, model=_get_ai_model_name(),
+        )
+        _INSIGHTS_CACHE[name] = resp
+        return resp
+
     cache_path = _TIMELINE_CACHE_DIR / f"{name}.json"
     if not cache_path.exists():
         # Force a parse first so the digest builder has data.
@@ -1569,6 +1579,7 @@ async def get_match_replay_insights(demo_file: str):
         model=_get_ai_model_name(),
     )
     _INSIGHTS_CACHE[name] = resp
+    ai_cache.put("insights", name, summary)
     return resp
 
 
@@ -1765,6 +1776,11 @@ async def describe_lineup(
     clicks are free.
     """
     cache_key = f"{cluster_id}:{map_name}"
+    if cache_key not in _DESCRIPTION_CACHE:
+        # Disk-backed second layer — survives pod restarts.
+        persisted = ai_cache.get("describe", cache_key)
+        if persisted is not None:
+            _DESCRIPTION_CACHE[cache_key] = persisted
     if cache_key in _DESCRIPTION_CACHE:
         return LineupDescriptionResponse(
             cluster_id=cluster_id,
@@ -1805,6 +1821,7 @@ async def describe_lineup(
         logger.exception("LLM call failed for cluster %d", cluster_id)
         raise HTTPException(status_code=502, detail=f"AI error: {exc}")
     _DESCRIPTION_CACHE[cache_key] = description
+    ai_cache.put("describe", cache_key, description)
 
     return LineupDescriptionResponse(
         cluster_id=cluster_id,
@@ -2514,3 +2531,24 @@ async def refresh_player_stats():
         _player_stats.refresh_from_cache, _TIMELINE_CACHE_DIR,
     )
     return result
+
+
+# ---------------------------------------------------------------------------
+# HLTV match catalog (tournaments/matches browser)
+# ---------------------------------------------------------------------------
+# Included last: the router builder receives the shared ingest lock, the
+# timeline parser, and the photo-warm starter, all defined above.
+
+from backend.api.catalog import build_catalog_router  # noqa: E402
+from backend.ingestion.match_catalog import MatchCatalog  # noqa: E402
+
+_catalog = MatchCatalog()
+app.include_router(
+    build_catalog_router(
+        catalog=_catalog,
+        ingest_lock=_ingest_lock,
+        ensure_timeline=_ensure_timeline_for_demo,
+        start_photo_warm=warm_player_photos,
+        timeline_dir=_TIMELINE_CACHE_DIR,
+    )
+)

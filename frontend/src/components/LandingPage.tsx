@@ -79,6 +79,17 @@ const features: Feature[] = [
     span: "default",
     visual: <IngestVisual />,
   },
+  {
+    title: "Tournaments",
+    eyebrow: "Browse",
+    description:
+      "The HLTV results feed as a persistent catalog — recent events, matches, and scores. Big-event demos auto-pull; everything else is one click away.",
+    route: "/matches",
+    color: "#fb923c",
+    colorRgb: "251, 146, 60",
+    span: "wide",
+    visual: <TournamentVisual />,
+  },
 ];
 
 // Icons served from frontend/public/icons/maps — sourced from the
@@ -776,6 +787,28 @@ function PlayerVisual() {
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+function TournamentVisual() {
+  // Bracket-ish rows: event name, match pairing, score — echoes the catalog page.
+  const rows = [
+    { event: "IEM Katowice", pair: "NAVI  2:1  FaZe", stars: 5 },
+    { event: "BLAST Premier", pair: "Spirit  2:0  G2", stars: 4 },
+    { event: "ESL Pro League", pair: "Vitality  1:2  MOUZ", stars: 3 },
+  ];
+  return (
+    <div className="w-full pointer-events-none flex flex-col gap-2.5 mt-4 max-w-md ml-auto">
+      {rows.map((r) => (
+        <div key={r.event} className="flex items-center gap-3">
+          <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-cs2-muted w-28 shrink-0 truncate">
+            {r.event}
+          </span>
+          <span className="flex-1 text-[11px] font-mono text-white/80 truncate">{r.pair}</span>
+          <span className="text-[10px] text-amber-400 shrink-0">{"★".repeat(r.stars)}</span>
+        </div>
+      ))}
     </div>
   );
 }

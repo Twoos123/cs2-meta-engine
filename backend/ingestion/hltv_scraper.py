@@ -358,6 +358,45 @@ class HLTVScraper:
 
         return collected[:limit]
 
+    def list_results(
+        self,
+        *,
+        max_pages: int = 2,
+        skip_match_ids: Optional[set] = None,
+    ) -> List[HLTVMatch]:
+        """
+        Shallow scrape of /results for the match catalog: match id, teams,
+        event, date, stars, series score — WITHOUT the per-match page fetch
+        that get_matches() does. One request per page, so an incremental
+        hourly refresh costs a page or two.
+        """
+        skip_ids: set = skip_match_ids or set()
+        rows: List[HLTVMatch] = []
+        for page in range(max_pages):
+            url = self._absolute(f"/results?offset={page * 100}")
+            try:
+                soup = self._get(url)
+            except Exception as exc:
+                logger.error("catalog: failed to fetch %s: %s", url, exc)
+                break
+            divs = soup.select("div.result-con")
+            if not divs:
+                break
+            for div in divs:
+                try:
+                    m = self._parse_result_div(div)
+                except Exception as exc:
+                    logger.warning("catalog: could not parse result div: %s", exc)
+                    continue
+                if m is None or m.match_id in skip_ids:
+                    continue
+                rows.append(m)
+        return rows
+
+    def enrich(self, match: HLTVMatch) -> Optional["HLTVScraper._EnrichedMatch"]:
+        """Public wrapper over the match-page enrichment (maps/demo/rosters/logos)."""
+        return self._enrich_with_maps_and_demo(match)
+
     def get_demo_link(self, match: HLTVMatch) -> Optional[str]:
         """Fetch (or refresh) the demo download link for a match."""
         match_url = self._absolute(f"/matches/{match.match_id}/-")
@@ -612,11 +651,37 @@ class HLTVScraper:
         event_tag = div.select_one(".event-name")
         event = event_tag.get_text(strip=True) if event_tag else "Unknown Event"
 
+        # Shallow catalog metadata — every field is best-effort because HLTV
+        # markup shifts; a miss just leaves the column NULL/0.
+        date_unix: Optional[int] = None
+        raw_ts = div.get("data-zonedgrouping-entry-unix")
+        if raw_ts:
+            try:
+                date_unix = int(int(raw_ts) / 1000)   # HLTV stores milliseconds
+            except (ValueError, TypeError):
+                pass
+
+        stars = len(div.select(".stars i"))
+
+        score1 = score2 = None
+        score_el = div.select_one(".result-score")
+        if score_el:
+            parts = score_el.get_text(strip=True).split("-")
+            if len(parts) == 2:
+                try:
+                    score1, score2 = int(parts[0].strip()), int(parts[1].strip())
+                except ValueError:
+                    pass
+
         return HLTVMatch(
             match_id=match_id,
             team1=team1,
             team2=team2,
             event=event,
+            date_unix=date_unix,
+            stars=stars,
+            score1=score1,
+            score2=score2,
         )
 
     class _EnrichedMatch:

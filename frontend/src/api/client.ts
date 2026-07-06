@@ -748,3 +748,83 @@ export const warmPlayerPhotosStatus = async (): Promise<WarmPlayerPhotosStatus> 
   );
   return data;
 };
+
+// ---------------------------------------------------------------------------
+// HLTV match catalog (tournaments/matches browser)
+// ---------------------------------------------------------------------------
+
+export interface CatalogEventEntry {
+  event: string;
+  match_count: number;
+  first_date_unix: number | null;
+  last_date_unix: number | null;
+  max_stars: number;
+  big: boolean;
+}
+
+export interface CatalogMatchEntry {
+  match_id: number;
+  team1: string;
+  team2: string;
+  event: string;
+  date_unix: number | null;
+  stars: number;
+  score1: number | null;
+  score2: number | null;
+  maps: string[];            // normalized tokens ("mirage", ...)
+  demo_available: number;    // -1 unknown / 0 no / 1 yes
+  team1_logo: string | null;
+  team2_logo: string | null;
+  local_maps: string[];      // map tokens whose .dem is on disk
+}
+
+export interface CatalogStatus {
+  running: boolean;
+  phase: string;
+  detail: string;
+  last_refresh_unix: number | null;
+  demo_disk_used_gb: number;
+  demo_retention_gb: number;
+  autopull_enabled: boolean;
+}
+
+export const getCatalogEvents = async (days = 45): Promise<CatalogEventEntry[]> => {
+  const { data } = await api.get<CatalogEventEntry[]>("/catalog/events", {
+    params: { days },
+  });
+  return data;
+};
+
+export const getCatalogMatches = async (
+  params: { event?: string; team?: string; days?: number; limit?: number } = {},
+): Promise<CatalogMatchEntry[]> => {
+  const { data } = await api.get<CatalogMatchEntry[]>("/catalog/matches", { params });
+  return data;
+};
+
+export const getCatalogStatus = async (): Promise<CatalogStatus> => {
+  const { data } = await api.get<CatalogStatus>("/catalog/status");
+  return data;
+};
+
+export const refreshCatalog = async (pages?: number): Promise<{ status: string }> => {
+  const { data } = await api.post("/catalog/refresh", null, {
+    params: pages ? { pages } : {},
+  });
+  return data;
+};
+
+export const fetchCatalogMatch = async (
+  matchId: number,
+  map?: string,
+): Promise<{ status: string }> => {
+  const { data } = await api.post(`/catalog/matches/${matchId}/fetch`, null, {
+    params: map ? { map } : {},
+  });
+  return data;
+};
+
+export const backfillRosters = async (): Promise<{ status: string }> => {
+  const { data } = await api.post("/catalog/backfill-rosters");
+  return data;
+};

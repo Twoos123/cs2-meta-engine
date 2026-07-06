@@ -34,6 +34,46 @@ class HLTVMatch(BaseModel):
     team2_player_ids: List[Optional[int]] = Field(default_factory=list)
     team1_logo: Optional[str] = None
     team2_logo: Optional[str] = None
+    # Shallow /results metadata captured for the match catalog.
+    date_unix: Optional[int] = None      # epoch seconds from the results row
+    stars: int = 0                       # HLTV star rating (0-5)
+    score1: Optional[int] = None
+    score2: Optional[int] = None
+
+
+class CatalogEventEntry(BaseModel):
+    event: str
+    match_count: int
+    first_date_unix: Optional[int] = None
+    last_date_unix: Optional[int] = None
+    max_stars: int = 0
+    big: bool = False
+
+
+class CatalogMatchEntry(BaseModel):
+    match_id: int
+    team1: str
+    team2: str
+    event: str
+    date_unix: Optional[int] = None
+    stars: int = 0
+    score1: Optional[int] = None
+    score2: Optional[int] = None
+    maps: List[str] = Field(default_factory=list)
+    demo_available: int = -1             # -1 unknown / 0 no / 1 yes
+    team1_logo: Optional[str] = None
+    team2_logo: Optional[str] = None
+    local_maps: List[str] = Field(default_factory=list)
+
+
+class CatalogStatusResponse(BaseModel):
+    running: bool
+    phase: str
+    detail: str
+    last_refresh_unix: Optional[int] = None
+    demo_disk_used_gb: float
+    demo_retention_gb: float
+    autopull_enabled: bool
 
 
 class DemoIngestionResult(BaseModel):

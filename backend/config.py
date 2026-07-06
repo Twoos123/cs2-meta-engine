@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     openrouter_model: str = "google/gemma-3-27b-it:free"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
+    # HLTV match catalog (tournaments/matches browser)
+    catalog_refresh_pages: int = 2          # /results pages per refresh (100 matches each)
+    catalog_autopull: bool = True           # auto-download demos for big-event matches
+    catalog_autopull_min_stars: int = 2     # HLTV star rating threshold
+    catalog_autopull_event_regex: str = (
+        r"major|iem|esl pro league|blast premier|pgl|katowice|cologne"
+    )
+    demo_retention_gb: float = 50.0         # FIFO cap on the demos volume
+
     # Database — set DATABASE_URL for Supabase/PostgreSQL; leave empty for SQLite
     database_url: str = ""
 
