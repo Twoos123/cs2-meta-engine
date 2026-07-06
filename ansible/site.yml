@@ -1,0 +1,25 @@
+# Configures the cs2-docker VM from a fresh Debian 13 cloud image to the
+# full serving stack. Mirrors (and replaces) the manual Phase 1-4 setup.
+#
+# Fresh-runner registration needs a short-lived token:
+#   ansible-playbook site.yml -e runner_token=$(gh api -X POST \
+#     repos/Twoos123/cs2-meta-engine/actions/runners/registration-token --jq .token)
+# Without -e runner_token the runner role only converges an already-registered
+# runner (install/service state) and skips registration.
+- name: Configure cs2-docker
+  hosts: cs2_docker
+  become: true
+  vars:
+    app_repo: https://github.com/Twoos123/cs2-meta-engine.git
+    app_dir: /opt/cs2-meta-engine
+    runner_version: "2.335.1"
+    runner_dir: /home/debian/actions-runner
+    runner_repo_url: https://github.com/Twoos123/cs2-meta-engine
+    runner_service: actions.runner.Twoos123-cs2-meta-engine.cs2-docker.service
+  roles:
+    - common
+    - docker
+    - registry
+    - k3s
+    - gha_runner
+    - cs2_app

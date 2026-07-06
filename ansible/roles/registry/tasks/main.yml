@@ -1,0 +1,17 @@
+---
+- name: Registry data volume
+  community.docker.docker_volume:
+    name: registry-data
+
+# Loopback-only: runner, registry, and k3s share this node, so images never
+# cross the LAN and plain HTTP needs no TLS/auth.
+- name: Local image registry container
+  community.docker.docker_container:
+    name: registry
+    image: registry:3
+    restart_policy: unless-stopped
+    published_ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    state: started

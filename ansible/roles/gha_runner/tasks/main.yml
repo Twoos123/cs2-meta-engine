@@ -1,0 +1,52 @@
+---
+- name: Check for existing runner registration
+  ansible.builtin.stat:
+    path: "{{ runner_dir }}/.runner"
+  register: runner_marker
+
+- name: Runner directory
+  ansible.builtin.file:
+    path: "{{ runner_dir }}"
+    state: directory
+    owner: debian
+    group: debian
+    mode: "0755"
+
+- name: Download and unpack the actions runner
+  ansible.builtin.unarchive:
+    src: "https://github.com/actions/runner/releases/download/v{{ runner_version }}/actions-runner-linux-x64-{{ runner_version }}.tar.gz"
+    dest: "{{ runner_dir }}"
+    remote_src: true
+    creates: "{{ runner_dir }}/config.sh"
+  become: false
+  when: not runner_marker.stat.exists
+
+- name: Runner dependencies (libicu etc.)
+  ansible.builtin.command: "{{ runner_dir }}/bin/installdependencies.sh"
+  args:
+    creates: /usr/lib/x86_64-linux-gnu/libicu*    # loose guard; script is idempotent
+  when: not runner_marker.stat.exists
+
+- name: Register runner (requires -e runner_token=...)
+  ansible.builtin.command: >
+    ./config.sh --url {{ runner_repo_url }} --token {{ runner_token }}
+    --name cs2-docker --unattended --replace
+  args:
+    chdir: "{{ runner_dir }}"
+  become: false
+  when:
+    - not runner_marker.stat.exists
+    - runner_token is defined
+  no_log: true
+
+- name: Install runner systemd service
+  ansible.builtin.command: ./svc.sh install debian
+  args:
+    chdir: "{{ runner_dir }}"
+    creates: "/etc/systemd/system/{{ runner_service }}"
+
+- name: Runner service enabled and running
+  ansible.builtin.systemd:
+    name: "{{ runner_service }}"
+    enabled: true
+    state: started

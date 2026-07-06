@@ -1,0 +1,41 @@
+---
+- name: Install k3s (server, bundled traefik/local-path/servicelb)
+  ansible.builtin.shell: curl -sfL https://get.k3s.io | sh -
+  args:
+    creates: /usr/local/bin/k3s
+
+- name: containerd mirror config for the loopback registry
+  ansible.builtin.template:
+    src: registries.yaml.j2
+    dest: /etc/rancher/k3s/registries.yaml
+    mode: "0644"
+  notify: restart k3s
+
+- name: k3s service enabled
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+
+- name: kubeconfig directory for debian
+  ansible.builtin.file:
+    path: /home/debian/.kube
+    state: directory
+    owner: debian
+    group: debian
+    mode: "0700"
+
+- name: kubeconfig copy for debian user
+  ansible.builtin.copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: /home/debian/.kube/config
+    remote_src: true
+    owner: debian
+    group: debian
+    mode: "0600"
+
+- name: KUBECONFIG in interactive shells
+  ansible.builtin.lineinfile:
+    path: /home/debian/.bashrc
+    line: export KUBECONFIG=$HOME/.kube/config
+    state: present

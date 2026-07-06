@@ -40,6 +40,17 @@ skills.md
 .env.local
 .env.*.local
 
+# ---- Terraform (state + secrets stay local) ----
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars
+terraform/tf-token.json
+terraform/crash.log
+
+# ---- Ansible ----
+ansible/*.retry
+
 # ---- Claude Code metadata ----
 .claude/
 

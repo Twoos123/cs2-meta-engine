@@ -211,6 +211,16 @@ timeline caches persist in the `demos`, `app-data`, and `player-photos` named
 volumes. The backend runs as a non-root user with a pinned dependency lock
 (`requirements.lock`).
 
+### Self-hosted production deployment
+
+This repo also carries the full infrastructure-as-code for the production
+deployment on a self-hosted Proxmox box:
+
+- [`terraform/`](terraform/README.md) — VM provisioning via the Proxmox API (bpg provider)
+- [`ansible/`](ansible/README.md) — OS → Docker → registry → k3s → CI runner → app, idempotent
+- [`k8s/`](k8s/README.md) — Kubernetes manifests incl. Prometheus/Grafana monitoring
+- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — push-to-deploy on a self-hosted runner
+
 ---
 
 ## Navigation

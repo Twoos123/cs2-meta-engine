@@ -1,0 +1,64 @@
+---
+- name: App directory owned by debian
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: debian
+    group: debian
+
+- name: Clone / update the app repo
+  ansible.builtin.git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dir }}"
+    version: main
+  become: false
+
+# Secrets are created only if missing — values are never managed by Ansible.
+- name: cs2-secrets (empty placeholders if missing)
+  ansible.builtin.shell: |
+    set -e
+    export KUBECONFIG=/home/debian/.kube/config
+    kubectl create namespace cs2 --dry-run=client -o yaml | kubectl apply -f -
+    if ! kubectl -n cs2 get secret cs2-secrets >/dev/null 2>&1; then
+      kubectl -n cs2 create secret generic cs2-secrets \
+        --from-literal=ANTHROPIC_API_KEY= --from-literal=OPENROUTER_API_KEY= \
+        --from-literal=FACEIT_API_KEY= --from-literal=RCON_PASSWORD=changeme
+      echo CREATED
+    fi
+  register: cs2_secrets
+  changed_when: "'CREATED' in cs2_secrets.stdout"
+  become: false
+
+- name: grafana-admin secret (generated password if missing)
+  ansible.builtin.shell: |
+    set -e
+    export KUBECONFIG=/home/debian/.kube/config
+    kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+    if ! kubectl -n monitoring get secret grafana-admin >/dev/null 2>&1; then
+      PW=$(openssl rand -base64 18)
+      kubectl -n monitoring create secret generic grafana-admin \
+        --from-literal=admin-user=admin --from-literal=admin-password="$PW"
+      umask 077
+      printf '%s\n' "$PW" > /home/debian/grafana-admin-pass.txt
+      echo CREATED
+    fi
+  register: grafana_admin
+  changed_when: "'CREATED' in grafana_admin.stdout"
+  become: false
+
+# kubectl diff exits 0 (no drift) / 1 (drift) / >1 (error) — apply only on drift
+- name: Check Kubernetes manifest drift
+  ansible.builtin.command: kubectl diff -R -f {{ app_dir }}/k8s/
+  environment:
+    KUBECONFIG: /home/debian/.kube/config
+  register: k8s_diff
+  failed_when: k8s_diff.rc > 1
+  changed_when: false
+  become: false
+
+- name: Apply Kubernetes manifests (app + monitoring)
+  ansible.builtin.command: kubectl apply -R -f {{ app_dir }}/k8s/
+  environment:
+    KUBECONFIG: /home/debian/.kube/config
+  when: k8s_diff.rc == 1
+  become: false
