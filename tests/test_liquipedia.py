@@ -262,6 +262,9 @@ def test_photo_by_name_saves_image_and_attribution(photos, lp, monkeypatch):
 def test_photo_rejected_license_marks_missing_but_keeps_old(photos, lp, monkeypatch):
     m, d = photos
     _route(monkeypatch, lp, wiki=_fixture("players_query.json"), commons=_fixture("commons_files.json"))
+    from backend.ingestion import wikimedia as wm  # isolate Liquipedia: Commons has nothing
+
+    monkeypatch.setattr(wm, "lookup", lambda name: wm.PhotoRef("missing", "not on Wikidata"))
     key = m.name_key("ZywOo")
     assert m._fetch_player_photo(None, None, name="ZywOo") == "missing"
     reasons = json.loads((d / f"{key}.404").read_text())["reasons"]

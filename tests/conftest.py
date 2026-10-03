@@ -52,3 +52,16 @@ def client(tmp_root):
 
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def _no_wikimedia_network(monkeypatch):
+    """Tests never call Wikidata/Commons; tests that need them patch these."""
+    from backend.ingestion import wikimedia
+
+    def offline(*_a, **_k):
+        raise wikimedia.WikimediaError("network disabled in tests")
+
+    monkeypatch.setattr(wikimedia, "_get", offline)
+    monkeypatch.setattr(wikimedia, "fetch_image", offline)
+    monkeypatch.setattr(wikimedia, "CACHE_DIR", wikimedia.Path("data/wikimedia-test"))

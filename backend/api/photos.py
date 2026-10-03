@@ -43,6 +43,7 @@ from backend.api.deps import ADMIN as _ADMIN
 from backend import jobs
 from backend.config import settings
 from backend.ingestion import liquipedia as lp
+from backend.ingestion import wikimedia as wm
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -193,6 +194,27 @@ def _liquipedia_source(name: str) -> SourceResult:
     return ("image", body, res.attribution())
 
 
+def _wikimedia_source(name: str) -> SourceResult:
+    """Wikidata → Wikimedia Commons photo (CC BY / CC BY-SA / CC0 / PD only)."""
+    try:
+        ref = wm.lookup(name)
+    except wm.WikimediaError as exc:
+        return ("error", f"wikimedia: {exc}")
+    except Exception as exc:  # network
+        return ("error", f"wikimedia: {exc}")
+    if ref.status != "ok" or not ref.image_url:
+        return ("missing", f"wikimedia: {ref.reason}")
+    try:
+        status, ctype, body = wm.fetch_image(ref.image_url)
+    except Exception as exc:
+        return ("error", f"wikimedia image: {exc}")
+    if status == 404:
+        return ("missing", "wikimedia: image file 404")
+    if status != 200 or not ctype.lower().startswith("image/") or not body:
+        return ("error", f"wikimedia image: HTTP {status} {ctype}")
+    return ("image", body, ref.attribution(name))
+
+
 def _hltv_source(hltv_id: int, scraper, have_cached: bool) -> SourceResult:
     """HLTV bodyshot (secondary source). Prefers the live profile-page image;
     the years-old static endpoint is only acceptable as a first photo."""
@@ -305,6 +327,9 @@ def _fetch_player_photo(
         name = _hltv_names().get(int(hltv_id))
     sources: List[Source] = []
     if name:
+        # Commons first: most pros have a CC BY event photo there, while
+        # Liquipedia's images are almost all organiser-permission only.
+        sources.append(lambda _hc, n=name: _wikimedia_source(n))
         sources.append(lambda _hc, n=name: _liquipedia_source(n))
     if hltv_id is not None and scraper is not None:
         sources.append(lambda hc, i=int(hltv_id): _hltv_source(i, scraper, hc))
@@ -574,6 +599,31 @@ def _collect_known_hltv_ids() -> list[int]:
     return out
 
 
+def purge_unlicensed_photos() -> int:
+    """Delete cached photos with no reusable-license attribution: the
+    HLTV-era cache (no sidecar) or HLTV-sourced files. Skipped while the HLTV
+    fallback is switched on. Returns how many were removed."""
+    if settings.photo_hltv_fallback or not _PHOTO_CACHE_DIR.exists():
+        return 0
+    removed = 0
+    for png in _PHOTO_CACHE_DIR.glob("*.png"):
+        sidecar = png.with_suffix(".json")
+        source = None
+        try:
+            source = json.loads(sidecar.read_text(encoding="utf-8")).get("source")
+        except (OSError, ValueError):
+            pass
+        if source in ("wikimedia", "liquipedia"):
+            continue
+        for p in (png, sidecar, png.with_suffix(".checked")):
+            p.unlink(missing_ok=True)
+        removed += 1
+    if removed:
+        _bump_photo_generation()   # browsers drop their cached copies too
+        logger.info("photo cache: removed %d unlicensed photos", removed)
+    return removed
+
+
 async def _warm_player_photos_job(job_id: int, payload: dict) -> None:
     """Fetch every known player's photo. Liquipedia lookups are prefetched
     50 names per query; image downloads then go one at a time through the
@@ -592,6 +642,7 @@ async def _warm_player_photos_job(job_id: int, payload: dict) -> None:
             jobs.update_progress(job_id, state)
             last_write = time.time()
 
+    state["purged"] = await asyncio.to_thread(purge_unlicensed_photos)
     publish(force=True)
     logger.info("photo-warm: started, %d ids", len(ids))
 
@@ -674,7 +725,7 @@ async def warm_player_photos_status():
         # Cache generation — the frontend's `?v=` token on avatar URLs.
         "generation": _read_photo_generation(),
         "source":     "liquipedia",
-        "attribution": "Player photos via Liquipedia (reusable licenses only)",
+        "attribution": "Player photos via Wikimedia Commons / Liquipedia (reusable licenses only)",
     }
 
 
