@@ -28,6 +28,7 @@ from backend.config import settings
 
 try:  # psycopg2 is in requirements; only imported for real when used
     import psycopg2
+    import psycopg2.errors
     import psycopg2.extras
 
     IntegrityError: tuple[type[Exception], ...] = (
@@ -70,6 +71,7 @@ _OR_IGNORE_RE = re.compile(r"^\s*INSERT\s+OR\s+IGNORE\s+INTO\b", re.I)
 _OR_REPLACE_RE = re.compile(r"^\s*INSERT\s+OR\s+REPLACE\b", re.I)
 _PRAGMA_RE = re.compile(r"^\s*PRAGMA\b", re.I)
 _NOW_RE = re.compile(r"\(\s*datetime\(\s*'now'\s*\)\s*\)", re.I)
+_CREATE_IF_NOT_EXISTS_RE = re.compile(r"\s*CREATE\s+(UNIQUE\s+)?(TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\b", re.I)
 
 
 def _placeholders(sql: str) -> str:
@@ -226,7 +228,21 @@ class PgConnection:
         if pg_sql is None:
             return _NullCursor()
         cur = self.cursor()
-        cur.execute(pg_sql, tuple(params) if not isinstance(params, dict) else params)
+        args = tuple(params) if not isinstance(params, dict) else params
+        if _CREATE_IF_NOT_EXISTS_RE.match(pg_sql):
+            # Several pods run the same startup DDL at once; Postgres can
+            # still raise a duplicate-key error for concurrent CREATE …
+            # IF NOT EXISTS. The other process created it — that's success.
+            cur.execute("SAVEPOINT ddl_guard")
+            try:
+                cur.execute(pg_sql, args)
+            except (psycopg2.errors.UniqueViolation, psycopg2.errors.DuplicateTable,
+                    psycopg2.errors.DuplicateObject):
+                cur.execute("ROLLBACK TO SAVEPOINT ddl_guard")
+                return _NullCursor()
+            cur.execute("RELEASE SAVEPOINT ddl_guard")
+            return PgCursor(cur)
+        cur.execute(pg_sql, args)
         return PgCursor(cur)
 
     def executemany(self, sql: str, seq: Iterable[Sequence[Any]]):
