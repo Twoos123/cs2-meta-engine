@@ -6,6 +6,7 @@
  * AWP positions, timing patterns, round win stats, and per-player habits.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Callout,
   MatchDemoEntry,
@@ -23,6 +24,10 @@ import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 import Select from "./Select";
 import { useReveal } from "../hooks/useReveal";
+import SectionHeader from "./antistrat/SectionHeader";
+import DefaultSetupsPanel from "./antistrat/DefaultSetupsPanel";
+import ReportActions from "./antistrat/ReportActions";
+import { computeDefaultSetups } from "./antistrat/defaultSetups";
 
 // ─── Constants ─────────────────────────────────────────────────────────
 const RADAR_PX = 1024;
@@ -177,8 +182,13 @@ export default function AntiStratPage() {
   // ── Discovery state ──
   const [allDemos, setAllDemos] = useState<MatchDemoEntry[]>([]);
   const [matchInfoCache, setMatchInfoCache] = useState<Record<string, MatchInfoResponse>>({});
-  const [selectedMap, setSelectedMap] = useState("");
-  const [teamName, setTeamName] = useState("");
+  // Map + team live in the URL (?map=de_mirage&team=G2) so a report is
+  // shareable. Initial state comes from the URL; when both are present the
+  // analysis runs automatically once the team's demos have been discovered.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedMap, setSelectedMap] = useState(() => searchParams.get("map") ?? "");
+  const [teamName, setTeamName] = useState(() => searchParams.get("team") ?? "");
+  const autoRunRef = useRef(!!(searchParams.get("map") && searchParams.get("team")));
 
   // ── Loading state ──
   const [phase, setPhase] = useState<"idle" | "info" | "timelines" | "done">("idle");
@@ -186,6 +196,7 @@ export default function AntiStratPage() {
 
   // ── Loaded data ──
   const [timelines, setTimelines] = useState<MatchTimeline[]>([]);
+  const [loadedFiles, setLoadedFiles] = useState<string[]>([]); // demo_file per timeline (same order)
   const [teamSidSets, setTeamSidSets] = useState<Set<string>[]>([]);
   const [radar, setRadar] = useState<RadarInfo | null>(null);
   const [callouts, setCallouts] = useState<Callout[]>([]);
@@ -197,6 +208,17 @@ export default function AntiStratPage() {
   useEffect(() => {
     getMatchReplayDemos().then(setAllDemos).catch(() => {});
   }, []);
+
+  // ── Keep ?map=&team= in sync with the selection (replace: no history spam) ──
+  useEffect(() => {
+    const curMap = searchParams.get("map") ?? "";
+    const curTeam = searchParams.get("team") ?? "";
+    if (curMap === selectedMap && curTeam === teamName) return;
+    const next = new URLSearchParams(searchParams);
+    if (selectedMap) next.set("map", selectedMap); else next.delete("map");
+    if (teamName) next.set("team", teamName); else next.delete("team");
+    setSearchParams(next, { replace: true });
+  }, [selectedMap, teamName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Completeness / score per demo (from getMatchReplayDemos) ──
   // Fields may be absent on an older backend — treat missing as unknown.
@@ -245,6 +267,13 @@ export default function AntiStratPage() {
     return Array.from(names).sort();
   }, [mapDemos, matchInfoCache]);
 
+  // ── A team from the URL may differ in case ("g2") — snap to the real name ──
+  useEffect(() => {
+    if (!teamName) return;
+    const canon = teamNames.find((t) => t.toLowerCase() === teamName.toLowerCase());
+    if (canon && canon !== teamName) setTeamName(canon);
+  }, [teamNames]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Demos matching team ──
   const matchedDemos = useMemo(() => {
     if (!teamName) return [];
@@ -261,20 +290,26 @@ export default function AntiStratPage() {
     if (matchedDemos.length === 0) return;
     setPhase("timelines");
     setTimelines([]);
+    setLoadedFiles([]);
     setTeamSidSets([]);
     setLoadProgress({ loaded: 0, total: matchedDemos.length });
 
-    // Load radar + callouts
+    // Load radar + callouts (clear the previous map's first so a map switch
+    // never computes setups against stale callout origins)
+    setRadar(null);
+    setCallouts([]);
     getRadarInfo(selectedMap).then(setRadar).catch(() => {});
     getCallouts(selectedMap).then(setCallouts).catch(() => setCallouts([]));
 
     const loaded: MatchTimeline[] = [];
+    const files: string[] = [];
     const sidSets: Set<string>[] = [];
 
     for (const d of matchedDemos) {
       try {
         const tl = await getMatchReplayTimeline(d.demo_file);
         loaded.push(tl);
+        files.push(d.demo_file);
 
         // Build steamid set for the team in this demo
         const mi = matchInfoCache[d.demo_file];
@@ -291,9 +326,17 @@ export default function AntiStratPage() {
     }
 
     setTimelines(loaded);
+    setLoadedFiles(files);
     setTeamSidSets(sidSets);
     setPhase("done");
   }, [matchedDemos, selectedMap, teamName, matchInfoCache]);
+
+  // ── Shared link: run the analysis once the URL's team has been discovered ──
+  useEffect(() => {
+    if (!autoRunRef.current || phase !== "idle" || matchedDemos.length === 0) return;
+    autoRunRef.current = false;
+    handleAnalyze();
+  }, [phase, matchedDemos, handleAnalyze]);
 
   // ════════════════════════════════════════════════════════════════════
   // Aggregated computations (only run when phase === "done")
@@ -611,6 +654,13 @@ export default function AntiStratPage() {
     return Array.from(map.values()).sort((a, b) => b.kills - a.kills);
   }, [timelines, teamSidSets, phase]);
 
+  // ── G. Default setups (CT) / default spread (T) at 0:20 ──
+  const defaultSetups = useMemo(() => {
+    if (phase !== "done") return null;
+    const partialFlags = loadedFiles.map((f) => demoMetaByFile.get(f)?.complete === false);
+    return computeDefaultSetups(timelines, teamSidSets, partialFlags, callouts, selectedMap);
+  }, [phase, timelines, teamSidSets, loadedFiles, demoMetaByFile, callouts, selectedMap]);
+
   // Total rounds analyzed
   const totalRounds = useMemo(
     () => timelines.reduce((sum, tl) => sum + tl.rounds.length, 0),
@@ -643,19 +693,6 @@ export default function AntiStratPage() {
     return "";
   }, [teamName, matchedDemos, matchInfoCache]);
 
-  // Section header component
-  const SectionHeader = ({ num, title, sub }: { num: string; title: string; sub?: string }) => (
-    <div className="flex items-center gap-3 mb-3">
-      <div className="w-7 h-7 rounded-md bg-cs2-accent/10 border border-cs2-accent/30 flex items-center justify-center shrink-0">
-        <span className="text-cs2-accent font-mono font-bold text-[11px]">{num}</span>
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-        {sub && <p className="text-[10px] text-cs2-muted">{sub}</p>}
-      </div>
-    </div>
-  );
-
   // Win rate ring (SVG donut)
   const WinRateRing = ({ rate, size = 64, color, label }: { rate: number; size?: number; color: string; label: string }) => {
     const r = (size - 8) / 2;
@@ -684,18 +721,18 @@ export default function AntiStratPage() {
   };
 
   return (
-    <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
+    <div className="antistrat-report relative h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
       <AppBackdrop tone="violet" />
       <AppHeader />
 
       {/* Below lg the config sidebar becomes a top section and the whole
           page scrolls as one column; from lg up it's sidebar + report. */}
       <div
-        className="relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden"
+        className="antistrat-scroll relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden"
         style={{ scrollbarWidth: "thin" }}
       >
       {/* ── Sidebar ── */}
-      <aside className="w-full lg:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 flex flex-col lg:overflow-y-auto glass-sidebar" style={{ scrollbarWidth: "thin" }}>
+      <aside className="antistrat-noprint w-full lg:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 flex flex-col lg:overflow-y-auto glass-sidebar" style={{ scrollbarWidth: "thin" }}>
 
         {/* Controls */}
         <div className="px-4 sm:px-5 py-5 grid gap-4 sm:grid-cols-2 lg:flex lg:flex-col border-b border-white/5">
@@ -707,7 +744,7 @@ export default function AntiStratPage() {
             <label className="text-[10px] text-cs2-muted uppercase tracking-[0.12em] font-semibold">Map</label>
             <Select
               value={selectedMap}
-              onChange={(v) => { setSelectedMap(v); setTeamName(""); setPhase("idle"); setTimelines([]); }}
+              onChange={(v) => { autoRunRef.current = false; setSelectedMap(v); setTeamName(""); setPhase("idle"); setTimelines([]); }}
               className="w-full"
               placeholder="Select a map…"
               options={[
@@ -732,7 +769,7 @@ export default function AntiStratPage() {
             ) : (
               <Select
                 value={teamName}
-                onChange={(v) => { setTeamName(v); setTimelines([]); setPhase("idle"); }}
+                onChange={(v) => { autoRunRef.current = false; setTeamName(v); setTimelines([]); setPhase("idle"); }}
                 className="w-full"
                 placeholder={selectedMap ? "Select a team…" : "Pick a map first"}
                 options={[
@@ -841,7 +878,12 @@ export default function AntiStratPage() {
         )}
 
         {phase === "done" && (
-          <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+          <div className="antistrat-body p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+            {/* Print-only header line (shown by the @media print block in index.css) */}
+            <p className="antistrat-print-only hidden text-[11px] text-cs2-muted font-mono">
+              Anti-Strat report · {teamName} · {selectedMap} · {new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} · {timelines.length} demo{timelines.length === 1 ? "" : "s"} analysed{partialCount > 0 ? ` (${partialCount} partial)` : ""} · {totalRounds} rounds
+            </p>
+
             {/* ═══ Summary Banner ═══ */}
             <div className="hud-panel hud-corner p-4 sm:p-5">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -868,6 +910,9 @@ export default function AntiStratPage() {
                         {partialCount} partial demo{partialCount === 1 ? "" : "s"} — side stats may be skewed
                       </p>
                     )}
+                    <div className="mt-3">
+                      <ReportActions />
+                    </div>
                   </div>
                 </div>
                 {/* Overall win rate rings */}
@@ -880,9 +925,9 @@ export default function AntiStratPage() {
             </div>
 
             {/* ═══ Top row: Win Patterns + Site Hits side by side ═══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="antistrat-print-cols2 grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Win Patterns */}
-              <div className="hud-panel p-4 sm:p-5">
+              <div className="hud-panel antistrat-section p-4 sm:p-5">
                 <SectionHeader num="01" title="Round Win Patterns" sub="Win rates by category" />
                 <div className="grid grid-cols-2 gap-3">
                   <StatCard label="T-side" value={pct(winPatterns.tWins, winPatterns.tTotal)} sub={`${winPatterns.tWins}W – ${winPatterns.tTotal - winPatterns.tWins}L`} color="text-[#DCBF6E]" />
@@ -893,7 +938,7 @@ export default function AntiStratPage() {
               </div>
 
               {/* Site Hit Frequency */}
-              <div className="hud-panel p-4 sm:p-5">
+              <div className="hud-panel antistrat-section p-4 sm:p-5">
                 <SectionHeader num="02" title="T-Side Site Hits" sub={`${siteHits.total} T-side rounds`} />
                 {siteHits.total > 0 ? (
                   <div className="space-y-3">
@@ -924,7 +969,7 @@ export default function AntiStratPage() {
             </div>
 
             {/* ═══ First Blood Timing ═══ */}
-            <div className="hud-panel p-4 sm:p-5">
+            <div className="hud-panel antistrat-section p-4 sm:p-5">
               <SectionHeader num="03" title="First Blood Timing" sub="Average time to first kill per round" />
               <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div className="hud-panel px-1 py-3 sm:p-3 text-center">
@@ -942,15 +987,23 @@ export default function AntiStratPage() {
               </div>
             </div>
 
+            {/* ═══ Default setups (CT) + default spread (T) at 0:20 ═══ */}
+            {defaultSetups && (
+              <>
+                <DefaultSetupsPanel num="04" report={defaultSetups.ct} radar={radar} hasCallouts={callouts.length > 0} />
+                <DefaultSetupsPanel num="05" report={defaultSetups.t} radar={radar} hasCallouts={callouts.length > 0} />
+              </>
+            )}
+
             {/* ═══ Radar row: Utility + AWP side by side ═══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="antistrat-print-cols2 grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Utility Tendencies */}
-              <div className="hud-panel p-4 sm:p-5">
-                <SectionHeader num="04" title="Utility Tendencies" sub="Most common grenade usage" />
+              <div className="hud-panel antistrat-section p-4 sm:p-5">
+                <SectionHeader num="06" title="Utility Tendencies" sub="Most common grenade usage" />
                 <div className="space-y-4">
                   {radar && <RadarHeatmap radar={radar} points={utilityTendencies.points} label="Grenade landings" />}
                   {utilityTendencies.table.length > 0 && (
-                    <div className="max-h-48 overflow-y-auto rounded" style={{ scrollbarWidth: "thin" }}>
+                    <div className="antistrat-print-scrollfree max-h-48 overflow-y-auto rounded" style={{ scrollbarWidth: "thin" }}>
                       {utilityTendencies.table.slice(0, 12).map((t, i) => (
                         <div key={i} className="flex items-center gap-2 py-1.5 px-2 border-b border-cs2-border/10 last:border-0">
                           <span className="text-[10px] text-cs2-muted font-mono w-5 shrink-0">#{i + 1}</span>
@@ -971,15 +1024,15 @@ export default function AntiStratPage() {
               </div>
 
               {/* AWP Positions */}
-              <div className="hud-panel p-4 sm:p-5">
-                <SectionHeader num="05" title="AWP Positions" sub={awpData.primaryAwper ? `Primary: ${awpData.primaryAwper}` : "CT-side AWP holding spots"} />
+              <div className="hud-panel antistrat-section p-4 sm:p-5">
+                <SectionHeader num="07" title="AWP Positions" sub={awpData.primaryAwper ? `Primary: ${awpData.primaryAwper}` : "CT-side AWP holding spots"} />
                 {radar && <RadarHeatmap radar={radar} points={awpData.points} label="AWP positions (CT)" />}
               </div>
             </div>
 
             {/* ═══ Player Breakdown ═══ */}
             <div>
-              <SectionHeader num="06" title="Player Breakdown" sub={`${playerStats.length} players across ${timelines.length} demos`} />
+              <SectionHeader num="08" title="Player Breakdown" sub={`${playerStats.length} players across ${timelines.length} demos`} />
               <div className="space-y-2">
                 {playerStats.map((p) => {
                   const isExpanded = expandedPlayer === p.steamid;

@@ -673,3 +673,89 @@ body::before {
     filter: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Anti-Strat report — Print / Save as PDF (AntiStratPage "Print / PDF").
+   Everything is scoped to `.antistrat-report` (the page root) or classes
+   that only AntiStratPage + components/antistrat/* use, so printing any
+   other page is unaffected. The report keeps its dark HUD colours.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Keep the dark background + coloured bars / radars instead of letting
+     the browser strip backgrounds. */
+  html:has(.antistrat-report),
+  html:has(.antistrat-report) body,
+  .antistrat-report,
+  .antistrat-report * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html:has(.antistrat-report),
+  html:has(.antistrat-report) body {
+    background: #05070d !important;
+  }
+  html:has(.antistrat-report) body::before { display: none; }
+
+  /* The screen layout is a fixed-height app shell with inner scrollers —
+     unwind it so the whole report flows across pages. */
+  .antistrat-report {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .antistrat-report .antistrat-scroll,
+  .antistrat-report main {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide app header, ambient backdrop, config sidebar, buttons, toast. */
+  .antistrat-report > header,
+  .antistrat-report > [aria-hidden="true"],
+  html:has(.antistrat-report) .antistrat-noprint {
+    display: none !important;
+  }
+
+  /* Full-width report. */
+  .antistrat-report .antistrat-body {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .antistrat-report .antistrat-print-only { display: block !important; }
+
+  /* Side-by-side sections stay side-by-side on paper (print width is
+     below the `lg` breakpoint), radar + tables split inside setups. */
+  .antistrat-report .antistrat-print-cols2 {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .antistrat-report .antistrat-print-split {
+    display: grid !important;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr) !important;
+  }
+  .antistrat-report .antistrat-print-scrollfree {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Glass effects rasterise badly in PDFs — use flat panels. */
+  .antistrat-report .hud-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    background-color: #0c111c !important;
+  }
+
+  /* Don't split a section (or a player row) across pages. */
+  .antistrat-report .antistrat-section,
+  .antistrat-report .hud-panel {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .antistrat-report .antistrat-section-header {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}
