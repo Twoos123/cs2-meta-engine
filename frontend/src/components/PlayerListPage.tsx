@@ -22,8 +22,12 @@ import {
   fmtClutches,
   fmtPct,
   listPlayerStats,
+  type PlayerSource,
 } from "../api/players";
 import { useReveal } from "../hooks/useReveal";
+
+const SOURCE_PREF_KEY = "cs2.players.source";
+const playersCacheKey = (source: PlayerSource) => `${CACHE_KEYS.players}:${source}`;
 
 type SortKey = "rating" | "adr" | "kast" | "clutches" | "kd" | "kills" | "hs" | "openwr" | "matches";
 
@@ -145,12 +149,38 @@ export default function PlayerListPage() {
   const hero = useReveal<HTMLDivElement>();
   const podium = useReveal<HTMLDivElement>();
 
+  // Which demos feed the leaderboard: pros by default, so your own
+  // matchmaking / FACEIT games don't rank you above them. Remembered.
+  const [source, setSourceState] = useState<PlayerSource>(() => {
+    try {
+      const v = localStorage.getItem(SOURCE_PREF_KEY);
+      if (v === "pro" || v === "mine" || v === "all") return v;
+    } catch { /* storage blocked */ }
+    return "pro";
+  });
+  const sourceRef = useRef(source);
+  const setSource = (v: PlayerSource) => {
+    sourceRef.current = v;
+    // Re-apply the "2+ matches, else 1" default for the new player pool,
+    // unless the user has typed their own threshold.
+    if (!minMatchesEdited.current) {
+      minMatchesAutoSet.current = false;
+      setMinMatches(DEFAULT_MIN_MATCHES);
+    }
+    setSourceState(v);
+    try { localStorage.setItem(SOURCE_PREF_KEY, v); } catch { /* ignore */ }
+    const cached = readCache<PlayerSummaryStats[]>(playersCacheKey(v));
+    setPlayers(cached ?? []);
+    setLoading(cached == null);
+    void load(v);
+  };
+
   // Hydrate synchronously from localStorage on first render so the page
   // paints instantly on reload even before any network request
   // completes. `load()` runs in the background below to refresh with
   // current-server data.
   const [players, setPlayers] = useState<PlayerSummaryStats[]>(
-    () => readCache<PlayerSummaryStats[]>(CACHE_KEYS.players) ?? [],
+    () => readCache<PlayerSummaryStats[]>(playersCacheKey(source)) ?? [],
   );
   const [teamsIndex, setTeamsIndex] = useState<TeamsIndex | null>(() => {
     const cached = readCache<SerializableTeamsIndex>(CACHE_KEYS.teams);
@@ -164,7 +194,7 @@ export default function PlayerListPage() {
   // `loading` only true when there's nothing cached to paint — once we
   // have any cached rows, the background refresh is invisible.
   const [loading, setLoading] = useState(
-    () => readCache<PlayerSummaryStats[]>(CACHE_KEYS.players) == null,
+    () => readCache<PlayerSummaryStats[]>(playersCacheKey(source)) == null,
   );
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -176,6 +206,7 @@ export default function PlayerListPage() {
   // the effect below drops it to 1 once, on the first non-empty load.
   const [minMatches, setMinMatches] = useState(DEFAULT_MIN_MATCHES);
   const minMatchesAutoSet = useRef(false);
+  const minMatchesEdited = useRef(false);
   useEffect(() => {
     if (minMatchesAutoSet.current || players.length === 0) return;
     minMatchesAutoSet.current = true;
@@ -183,7 +214,7 @@ export default function PlayerListPage() {
     if (qualifying < MIN_QUALIFYING_PLAYERS) setMinMatches(1);
   }, [players]);
 
-  const load = async () => {
+  const load = async (src: PlayerSource = sourceRef.current) => {
     // Only show the spinner on the very first load (when nothing is
     // cached yet). On reloads or refreshes, the cached data is already
     // painted — a background refresh shouldn't flip the screen back to
@@ -191,17 +222,18 @@ export default function PlayerListPage() {
     setError(null);
     try {
       const [rows, idx, idsResp] = await Promise.all([
-        listPlayerStats(1),
+        listPlayerStats(1, src),
         loadTeamsIndex(),
         getPlayerHltvIds().catch(() => ({ players: {}, count: 0 })),
       ]);
+      if (src !== sourceRef.current) return; // a newer filter choice won
       setPlayers(rows);
       setTeamsIndex(idx);
       setHltvIds(idsResp.players ?? {});
       // Persist for the next page load — massively cuts perceived
       // latency for returning users since hydration from localStorage
       // is synchronous and shows results before any request fires.
-      writeCache(CACHE_KEYS.players, rows);
+      writeCache(playersCacheKey(src), rows);
       writeCache(CACHE_KEYS.hltvIds, idsResp.players ?? {});
       writeCache(CACHE_KEYS.teams, serializeTeamsIndex(idx));
     } catch (e: any) {
@@ -588,6 +620,35 @@ export default function PlayerListPage() {
               />
             </div>
             <div className="space-y-1.5">
+              <span className="block text-[10px] text-cs2-muted uppercase tracking-[0.18em] font-semibold">Players</span>
+              <div className="flex gap-1" role="group" aria-label="Which demos to include">
+                {([
+                  ["pro", "Pro"],
+                  ["mine", "My games"],
+                  ["all", "All"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={source === value}
+                    onClick={() => source !== value && setSource(value)}
+                    title={
+                      value === "pro" ? "Pro matches (HLTV demos)"
+                      : value === "mine" ? "Your matchmaking, FACEIT and uploaded demos"
+                      : "Every demo"
+                    }
+                    className={`px-3 py-2 rounded-full text-xs transition ${
+                      source === value
+                        ? "text-cs2-accent bg-cs2-accent/10 border border-cs2-accent/40"
+                        : "text-cs2-muted border border-white/10 hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
               <label className="text-[10px] text-cs2-muted uppercase tracking-[0.18em] font-semibold">Role</label>
               <Select
                 value={roleFilter}
@@ -646,7 +707,10 @@ export default function PlayerListPage() {
                 type="number"
                 min={1}
                 value={minMatches}
-                onChange={(e) => setMinMatches(Math.max(1, parseInt(e.target.value || "1", 10)))}
+                onChange={(e) => {
+                  minMatchesEdited.current = true;
+                  setMinMatches(Math.max(1, parseInt(e.target.value || "1", 10)));
+                }}
                 className="hud-input w-full sm:w-24"
               />
             </div>

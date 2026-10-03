@@ -217,13 +217,31 @@ def _to_summary(row: dict) -> dict:
     }
 
 
+def is_pro_demo(demo_file: str) -> bool:
+    """A pro (HLTV) demo is named `<match id>_<map>.dem` and has the roster
+    sidecar the scraper / browser extension writes. Matchmaking (match730-…),
+    FACEIT (faceit-…) and other uploads are "mine"."""
+    from backend.config import settings
+
+    head = demo_file.split("_", 1)[0]
+    return head.isdigit() and (settings.demo_dir / f"{head}.roster.json").exists()
+
+
 @router.get(
     "/api/players",
     response_model=List[PlayerProfileSummary],
     summary="List all players with cross-demo aggregated stats",
 )
-async def list_players(min_matches: int = Query(1, ge=1)):
-    rows = _player_stats.list_summaries()
+async def list_players(
+    min_matches: int = Query(1, ge=1),
+    source: str = Query("all", pattern="^(all|pro|mine)$",
+                        description="pro = HLTV pro demos, mine = your own/FACEIT/uploaded demos"),
+):
+    files = None
+    if source != "all":
+        pro = {f for f in _player_stats.demo_files() if is_pro_demo(f)}
+        files = pro if source == "pro" else set(_player_stats.demo_files()) - pro
+    rows = _player_stats.list_summaries(files)
     summaries = [_to_summary(r) for r in rows]
     summaries = [s for s in summaries if s["matches"] >= min_matches]
     summaries.sort(key=lambda s: s["rating"], reverse=True)

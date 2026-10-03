@@ -157,3 +157,23 @@ def test_radar_lower_level(client, map_name, two_level):
         assert client.get(info["lower_image_url"]).status_code == 200
     else:
         assert info["lower_level_max_units"] is None and info["lower_image_url"] is None
+
+
+def test_players_source_filter(client, tmp_root):
+    """Pro = HLTV demos (numeric id + roster sidecar); mine = everything else."""
+    import json as _json
+
+    from backend.api.deps import player_stats
+
+    def row(sid, demo):
+        return {"steamid": sid, "name": sid, "demo_file": demo, "map_name": "de_mirage", "side": "T",
+                "rounds_played": 10, "kills": 5, "deaths": 5}
+
+    (tmp_root / "demos" / "555.roster.json").write_text(_json.dumps({"match_id": 555}))
+    player_stats.upsert_rows([row("pro1", "555_mirage.dem"), row("me", "match730-1-2-3_mirage.dem"),
+                              row("me", "faceit-1-abc_mirage.dem")])
+    names = lambda src: {p["steamid"] for p in client.get(f"/api/players?source={src}").json()}
+    assert "pro1" in names("pro") and "me" not in names("pro")
+    assert "me" in names("mine") and "pro1" not in names("mine")
+    assert {"pro1", "me"} <= names("all")
+    assert client.get("/api/players?source=bogus").status_code == 422

@@ -687,11 +687,19 @@ class PlayerStatsStore:
     # Read path — summaries + detail
     # ------------------------------------------------------------------
 
-    def list_summaries(self) -> List[dict]:
+    def list_summaries(self, demo_files: Optional[Iterable[str]] = None) -> List[dict]:
         """
         Return one row per player with aggregated totals across all demos
-        and both sides. Used by the /api/players list page.
+        and both sides. Used by the /api/players list page. `demo_files`
+        restricts the aggregation to those demos (e.g. only pro matches).
         """
+        where, params = "", ()
+        if demo_files is not None:
+            files = sorted(set(demo_files))
+            if not files:
+                return []
+            where = f"WHERE demo_file IN ({', '.join('?' for _ in files)})"
+            params = tuple(files)
         sql = f"""
         SELECT
             steamid,
@@ -700,12 +708,17 @@ class PlayerStatsStore:
             {_BASE_SUMS_SQL},
             {_V2_SUMS_SQL}
         FROM player_stats
+        {where}
         GROUP BY steamid
         HAVING SUM(rounds_played) > 0
         """
         with self._connect() as conn:
-            rows = conn.execute(sql).fetchall()
+            rows = conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
+
+    def demo_files(self) -> List[str]:
+        with self._connect() as conn:
+            return [r[0] for r in conn.execute("SELECT DISTINCT demo_file FROM player_stats")]
 
     def get_detail(self, steamid: str) -> Optional[dict]:
         """

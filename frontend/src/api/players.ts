@@ -56,9 +56,15 @@ export interface MatchPlayerStatsResponse {
   players: PlayerSummaryStats[];
 }
 
-export const listPlayerStats = async (minMatches = 1): Promise<PlayerSummaryStats[]> => {
+/** pro = HLTV pro demos · mine = your matchmaking / FACEIT / uploaded demos */
+export type PlayerSource = "pro" | "mine" | "all";
+
+export const listPlayerStats = async (
+  minMatches = 1,
+  source: PlayerSource = "all",
+): Promise<PlayerSummaryStats[]> => {
   const { data } = await api.get<PlayerSummaryStats[]>("/players", {
-    params: { min_matches: minMatches },
+    params: { min_matches: minMatches, source },
   });
   return data;
 };

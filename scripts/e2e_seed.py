@@ -248,6 +248,17 @@ def build_timeline() -> dict:
 
 def seed_timeline(data_dir: Path) -> dict:
     (data_dir / "demos" / DEMO_NAME).write_bytes(b"")
+    # A roster sidecar marks it as a pro (HLTV) match — the Players page
+    # shows pro demos by default.
+    match_id = DEMO_NAME.split("_", 1)[0]
+    teams = {2: [], 3: []}
+    for _sid, name, tn in PLAYERS:
+        teams.setdefault(tn, []).append(name)
+    (data_dir / "demos" / f"{match_id}.roster.json").write_text(json.dumps({
+        "match_id": int(match_id), "event": "E2E Invitational",
+        "team1": {"name": "Team Alpha", "players": teams[2]},
+        "team2": {"name": "Team Bravo", "players": teams[3]},
+    }), encoding="utf-8")
     bundle = build_timeline()
     (data_dir / "data" / "timelines" / f"{DEMO_NAME}.json").write_text(
         json.dumps(bundle), encoding="utf-8")
