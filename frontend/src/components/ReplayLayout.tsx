@@ -2,7 +2,7 @@
  * ReplayLayout — wrapper for all replay sub-views.
  *
  * Loads the timeline, radar, and match info once (shared across tabs).
- * Provides a tab bar: Replay | Economy | Heatmap | Stats
+ * Provides a tab bar: Replay | Insights | Economy | Heatmap | Stats | Compare
  * Renders the active sub-view via nested Routes.
  */
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ import EconomyPanel from "./EconomyPanel";
 import HeatmapPanel from "./HeatmapPanel";
 import StatsPanel from "./StatsPanel";
 import InsightsPanel from "./InsightsPanel";
+import ComparePanel from "./ComparePanel";
 import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 
@@ -32,6 +33,7 @@ const TABS = [
   { to: "economy", label: "Economy", end: false },
   { to: "heatmap", label: "Heatmap", end: false },
   { to: "stats", label: "Stats", end: false },
+  { to: "compare", label: "Compare", end: false },
 ] as const;
 
 export default function ReplayLayout() {
@@ -306,6 +308,10 @@ export default function ReplayLayout() {
           <Route
             path="stats"
             element={<StatsPanel timeline={timeline} matchInfo={matchInfo} />}
+          />
+          <Route
+            path="compare"
+            element={<ComparePanel timeline={timeline} radar={radar} demoFile={demoFile} />}
           />
         </Routes>
       </div>

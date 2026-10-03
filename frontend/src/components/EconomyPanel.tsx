@@ -3,7 +3,8 @@
  * Shows equipment value graph, buy type classification, and loss bonus tracking.
  */
 import { useMemo, useState } from "react";
-import { MatchInfoResponse, MatchTimeline, RadarInfo, TimelinePosition } from "../api/client";
+import { MatchInfoResponse, MatchTimeline, RadarInfo } from "../api/client";
+import { RoundEconomy, computeRoundEconomies } from "../lib/economy";
 
 interface Props {
   timeline: MatchTimeline;
@@ -11,134 +12,12 @@ interface Props {
   matchInfo: MatchInfoResponse | null;
 }
 
-/** First round of each regulation half (MR12). Overtime rounds (25+) are
- *  not pistol rounds — teams start OT with a full $10k-style economy. */
-const isPistolRound =(roundNum: number): boolean => roundNum === 1 || roundNum === 13;
-
-// Buy type thresholds (team total equipment value). Pistol rounds get their
-// own category: everyone starts on $800 so the equip value would otherwise
-// always read as "Eco".
-const classifyBuy = (
-  teamEquipValue: number,
-  roundNum: number,
-): { label: string; color: string; bg: string } => {
-  if (isPistolRound(roundNum)) return { label: "Pistol", color: "text-cs2-accent", bg: "bg-cyan-500/15" };
-  if (teamEquipValue < 5000) return { label: "Eco", color: "text-cs2-red", bg: "bg-red-500/20" };
-  if (teamEquipValue < 15000) return { label: "Force", color: "text-yellow-400", bg: "bg-yellow-500/20" };
-  if (teamEquipValue < 22000) return { label: "Half", color: "text-orange-400", bg: "bg-orange-500/20" };
-  return { label: "Full", color: "text-cs2-green", bg: "bg-green-500/20" };
-};
-
-interface RoundEconomy {
-  round: number;
-  winner: string | null;
-  tEquip: number;
-  ctEquip: number;
-  tSpent: number;
-  ctSpent: number;
-  tBuy: { label: string; color: string; bg: string };
-  ctBuy: { label: string; color: string; bg: string };
-  tLossBonus: number;
-  ctLossBonus: number;
-}
-
-// Find the nearest position sample at or after a given tick
-const sampleAtTick = (
-  samples: TimelinePosition[],
-  tick: number,
-): TimelinePosition | null => {
-  if (!samples || samples.length === 0) return null;
-  // Binary search for nearest sample
-  let lo = 0;
-  let hi = samples.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (samples[mid].t < tick) lo = mid + 1;
-    else hi = mid;
-  }
-  // Return nearest
-  if (lo > 0 && Math.abs(samples[lo - 1].t - tick) < Math.abs(samples[lo].t - tick)) {
-    return samples[lo - 1];
-  }
-  return samples[lo];
-};
-
 export default function EconomyPanel({ timeline, matchInfo }: Props) {
-  // Compute per-round economy data
-  const roundEconomies = useMemo<RoundEconomy[]>(() => {
-    if (!timeline) return [];
-
-    const playerTeamAtRound = (steamid: string, tick: number): number => {
-      const samples = timeline.positions[steamid];
-      if (!samples || samples.length === 0) return 0;
-      const s = sampleAtTick(samples, tick);
-      return s?.tn ?? 0;
-    };
-
-    let tConsecutiveLosses = 0;
-    let ctConsecutiveLosses = 0;
-
-    return timeline.rounds.map((r) => {
-      // Sample each player's economy near the round start (after freeze time ~5s = 320 ticks)
-      const sampleTick = r.start_tick + 320;
-      let tEquip = 0;
-      let ctEquip = 0;
-      let tSpent = 0;
-      let ctSpent = 0;
-
-      for (const p of timeline.players) {
-        const team = playerTeamAtRound(p.steamid, sampleTick);
-        const samples = timeline.positions[p.steamid];
-        const s = sampleAtTick(samples ?? [], sampleTick);
-        if (!s) continue;
-
-        const eq = s.eq ?? 0;
-        const cs = s.cs ?? 0;
-
-        if (team === 2) {
-          tEquip += eq;
-          tSpent += cs;
-        } else if (team === 3) {
-          ctEquip += eq;
-          ctSpent += cs;
-        }
-      }
-
-      // Loss-bonus counters reset at halftime, i.e. BEFORE the second-half
-      // pistol round is evaluated (previously reset after round 13, which
-      // carried first-half streaks into it and dropped round 13's result).
-      if (r.num === 13) {
-        tConsecutiveLosses = 0;
-        ctConsecutiveLosses = 0;
-      }
-
-      // Loss bonus calculation (CS2: $1400 base + $500 per consecutive loss, max $3400)
-      const tLossBonus = Math.min(1400 + tConsecutiveLosses * 500, 3400);
-      const ctLossBonus = Math.min(1400 + ctConsecutiveLosses * 500, 3400);
-
-      // Update loss streaks based on round winner
-      if (r.winner === "T") {
-        ctConsecutiveLosses++;
-        tConsecutiveLosses = 0;
-      } else if (r.winner === "CT") {
-        tConsecutiveLosses++;
-        ctConsecutiveLosses = 0;
-      }
-
-      return {
-        round: r.num,
-        winner: r.winner,
-        tEquip,
-        ctEquip,
-        tSpent,
-        ctSpent,
-        tBuy: classifyBuy(tEquip, r.num),
-        ctBuy: classifyBuy(ctEquip, r.num),
-        tLossBonus,
-        ctLossBonus,
-      };
-    });
-  }, [timeline]);
+  // Per-round economy data (shared with the replay's key moments).
+  const roundEconomies = useMemo<RoundEconomy[]>(
+    () => (timeline ? computeRoundEconomies(timeline) : []),
+    [timeline],
+  );
 
   const maxEquip = useMemo(
     () => Math.max(1, ...roundEconomies.map((r) => Math.max(r.tEquip, r.ctEquip))),

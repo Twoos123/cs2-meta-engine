@@ -13,6 +13,7 @@
  * - Round score ribbon, jump-to-round, playback controls, AI recap
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   MatchInfoResponse,
   MatchTimeline,
@@ -22,6 +23,8 @@ import {
   warmPlayerPhotosStatus,
 } from "../api/client";
 import PlayerAvatar from "./PlayerAvatar";
+import KeyMoments from "./KeyMoments";
+import { copyText, detectKeyMoments, replayLinkForTick, tickFromSearch } from "../lib/keyMoments";
 
 const RADAR_PX = 1024;
 
@@ -210,8 +213,49 @@ const smoothPath = (pts: [number, number][]): string => {
 };
 
 export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo, onBack, onLiveStatus }: Props) {
-  const [currentTick, setCurrentTick] = useState(0);
+  // Shareable links: `?round=14&t=45` opens paused, 45s after round 14's
+  // freeze end (see lib/keyMoments). Read once for the initial tick, then
+  // re-applied whenever the params change while mounted.
+  const [searchParams] = useSearchParams();
+  const linkKey = `${searchParams.get("round") ?? ""}|${searchParams.get("t") ?? ""}`;
+  const [currentTick, setCurrentTick] = useState(() => tickFromSearch(timeline, searchParams) ?? 0);
   const [playing, setPlaying] = useState(false);
+  const appliedLinkKey = useRef(linkKey);
+  useEffect(() => {
+    if (appliedLinkKey.current === linkKey) return;
+    appliedLinkKey.current = linkKey;
+    const tick = tickFromSearch(timeline, searchParams);
+    if (tick != null) {
+      setPlaying(false);
+      setCurrentTick(tick);
+    }
+  }, [linkKey, timeline, searchParams]);
+
+  // Key moments (entries, multi-kills, clutches, bomb, eco wins) — computed
+  // once per timeline; shown in a collapsible list under the controls.
+  const keyMoments = useMemo(() => detectKeyMoments(timeline), [timeline]);
+  const [showMoments, setShowMoments] = useState(false);
+  // lg+: the list lives at the top of the sidebar so it never shrinks the
+  // fixed-height map; below lg it drops down under the playback controls.
+  const [isLg, setIsLg] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsLg(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const linkCopiedTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(linkCopiedTimer.current), []);
+  const copyCurrentLink = async () => {
+    const url = replayLinkForTick(timeline, demoFile, Math.round(currentTick));
+    if (url && (await copyText(url))) {
+      setLinkCopied(true);
+      window.clearTimeout(linkCopiedTimer.current);
+      linkCopiedTimer.current = window.setTimeout(() => setLinkCopied(false), 1500);
+    }
+  };
   // Server-side photo cache generation. Drives the `?v=N` cache-bust
   // on every PlayerAvatar in the scoreboard so reloading the replay
   // viewer after a Reset Photos doesn't keep showing browser-cached
@@ -1929,7 +1973,33 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                   >
                     Notes{notes.length > 0 ? ` · ${notes.length}` : ""}
                   </button>
+                  <button
+                    onClick={() => setShowMoments((s) => !s)}
+                    className={`hud-tab ${showMoments ? "hud-tab-active" : "hud-tab-idle"} min-h-[40px] lg:min-h-0`}
+                    title="Toggle key moments"
+                    aria-expanded={showMoments}
+                  >
+                    Moments{keyMoments.length > 0 ? ` · ${keyMoments.length}` : ""}
+                  </button>
+                  <button
+                    onClick={copyCurrentLink}
+                    className="hud-tab hud-tab-idle min-h-[40px] lg:min-h-0"
+                    title="Copy a link to this round and time"
+                  >
+                    {linkCopied ? "Copied" : "Copy link"}
+                  </button>
                 </div>
+
+                {/* Key moments (< lg) — collapsible so it never crowds the map */}
+                {showMoments && !isLg && (
+                  <KeyMoments
+                    timeline={timeline}
+                    demoFile={demoFile}
+                    moments={keyMoments}
+                    currentRound={score.round}
+                    onJump={(tick) => setCurrentTick(tick)}
+                  />
+                )}
 
                 {/* Inline note input */}
                 {showNotes && (
@@ -1998,6 +2068,25 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
           className="w-full shrink-0 flex flex-col gap-2 lg:w-[var(--replay-sidebar-w)] lg:overflow-y-auto"
           style={{ scrollbarWidth: "thin" }}
         >
+          {/* Key moments (lg+) */}
+          {showMoments && isLg && (
+            <div className="hud-panel p-2 flex flex-col gap-1.5 shrink-0">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs text-cs2-muted uppercase tracking-[0.15em]">Key moments</p>
+                <button onClick={() => setShowMoments(false)} aria-label="Close key moments"
+                  className="text-cs2-muted hover:text-white text-sm px-1">×</button>
+              </div>
+              <KeyMoments
+                timeline={timeline}
+                demoFile={demoFile}
+                moments={keyMoments}
+                currentRound={score.round}
+                onJump={(tick) => setCurrentTick(tick)}
+                listClassName="max-h-72"
+              />
+            </div>
+          )}
+
           {/* Scoreboard / player list — CS2-style with full loadout.
               md–lg: the two teams sit side by side. */}
           <div className="hud-panel p-2 md:grid md:grid-cols-2 md:gap-3 lg:block">
