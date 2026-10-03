@@ -68,13 +68,31 @@ def is_finished(w: int, l: int) -> bool:
     return w >= 16 and (w - 16) % 3 == 0 and w - l >= 2
 
 
+def _final_score(bundle: dict) -> Optional[tuple[int, int]]:
+    """(T, CT) from the bundle's scoreboard-derived `final_score`, if usable."""
+    fs = bundle.get("final_score")
+    if not isinstance(fs, dict):
+        return None
+    try:
+        t, ct = int(fs["T"]), int(fs["CT"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if t < 0 or ct < 0 or t + ct == 0:
+        return None
+    return t, ct
+
+
 def assess_completeness(bundle: dict) -> dict:
     """
     `{"complete": bool|None, "score": [hi, lo]|None, "rounds": int}` —
     `complete` is None when the timeline can't be scored.
+
+    Prefers the game's own scoreboard (`bundle["final_score"]`, v4+
+    timelines); falls back to replaying round winners against one player's
+    side for older caches.
     """
     rounds = len(bundle.get("rounds") or [])
-    scores = team_scores(bundle)
+    scores = _final_score(bundle) or team_scores(bundle)
     if scores is None:
         return {"complete": None, "score": None, "rounds": rounds}
     hi, lo = max(scores), min(scores)

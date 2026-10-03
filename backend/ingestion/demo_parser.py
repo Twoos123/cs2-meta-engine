@@ -41,10 +41,12 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # Bump when the timeline JSON shape or field set changes — see module docstring.
+# v4 drops restarted/replayed rounds (pre-live FACEIT rounds, backup restores)
+# and adds final_score / team_names from the game's own scoreboard.
 # v3 adds round.freeze_end_tick + round_freeze_end events for timeout-aware
 # cross-round alignment in the patterns view.
 # v2 added player_hurt events ("hurt"); v1 was the pre-hurt schema.
-TIMELINE_CACHE_VERSION = 3
+TIMELINE_CACHE_VERSION = 4
 
 # ---------------------------------------------------------------------------
 # Grenade type normalisation
@@ -84,6 +86,263 @@ IN_ATTACK2 = 1 << 11    # right click (underhand / lob)
 # tick-8 catches it while still held.
 BUTTON_LOOKBACK_TICKS = 8
 
+# Current CS2 builds stop networking the pawn's button mask (`buttons` comes
+# back as no column). The held grenade's throw strength survives and encodes
+# the same thing: 1.0 = left click, 0.0 = right click, 0.5 = both. Sampled
+# at release-1 on the old demos it agrees with the buttons-derived click on
+# 4,604 of 4,612 throws where buttons gave an answer (and also resolves the
+# ~8% where buttons read "none").
+THROW_STRENGTH_PROP = "Grenade.m_flThrowStrength"
+
+# parse_grenades() reuses projectile entity ids: once a grenade's entity is
+# freed, a later grenade can get the same id. A tick gap longer than this
+# (3 s at 64-tick) inside one entity id marks a new projectile lifetime.
+PROJECTILE_GAP_TICKS = 192
+
+# Player props sampled for throws synthesised from projectiles. Identical to
+# the `player=[...]` list of the grenade_thrown path so both produce the same
+# columns.
+_THROW_PLAYER_PROPS = [
+    "X", "Y", "Z", "pitch", "yaw", "team_num",
+    "velocity_X", "velocity_Y", "velocity_Z",
+    "is_walking", "ducking", "duck_amount",
+    "buttons",
+]
+
+# Ticks after a round_end at which round counters / team scores are sampled.
+# One second gives the engine time to bump total_rounds_played.
+ROUND_COUNTER_DELAY_TICKS = 64
+
+# Projectile class-name tokens (after normalisation) → grenade_type.
+_PROJECTILE_TYPE_ALIASES = {
+    **WEAPON_TO_TYPE,
+    "incendiary": "molotov",
+    "incendiarygrenade": "molotov",
+    "smoke": "smokegrenade",
+    "he": "hegrenade",
+    "flash": "flashbang",
+}
+
+
+def _normalise_projectile_types(series: pd.Series) -> pd.Series:
+    """
+    Map parse_grenades() class names (CSmokeGrenadeProjectile,
+    CHEGrenadeProjectile, CFlashbangProjectile, CMolotovProjectile,
+    CDecoyProjectile, …) to grenade_type tokens. Unknown names map to NaN.
+    Works on the unique values only — the raw frame has millions of rows.
+    """
+    import re
+
+    def _one(raw: str) -> Optional[str]:
+        s = str(raw).lower().replace("projectile", "").replace("_", "")
+        s = re.sub(r"^c(?=smoke|he|flash|molotov|decoy|incendiary)", "", s)
+        return _PROJECTILE_TYPE_ALIASES.get(s) or _PROJECTILE_TYPE_ALIASES.get(s + "grenade")
+
+    lookup = {u: _one(u) for u in pd.unique(series.astype(str))}
+    return series.astype(str).map(lookup)
+
+
+def _projectile_segments(raw) -> pd.DataFrame:
+    """
+    Clean parse_grenades() output into per-tick projectile samples with a
+    `seg` id per projectile lifetime.
+
+    Rows without a position are dropped (demoparser2 emits rows for entities
+    that don't exist yet), grenade_type is normalised, and a new segment
+    starts whenever the entity id, thrower or type changes or the entity's
+    tick stream has a gap > PROJECTILE_GAP_TICKS (entity id recycling).
+
+    Columns: grenade_type, grenade_entity_id, x, y, z, tick, steamid (raw),
+    name, seg. Sorted by (seg, tick). Empty frame when unusable.
+    """
+    cols = ["grenade_type", "grenade_entity_id", "x", "y", "z", "tick", "steamid", "name"]
+    if raw is None or not hasattr(raw, "columns") or len(raw) == 0:
+        return pd.DataFrame(columns=cols + ["seg"])
+    needed = {"grenade_type", "grenade_entity_id", "x", "y", "tick", "steamid"}
+    if not needed.issubset(raw.columns):
+        logger.warning("parse_grenades() returned unexpected columns: %s", list(raw.columns))
+        return pd.DataFrame(columns=cols + ["seg"])
+
+    g = raw.dropna(subset=["x", "y"])
+    g = g[[c for c in cols if c in g.columns]].copy()
+    for c in ("z", "name"):
+        if c not in g.columns:
+            g[c] = np.nan
+    g["grenade_type"] = _normalise_projectile_types(g["grenade_type"])
+    g = g.dropna(subset=["grenade_type"])
+    if g.empty:
+        return pd.DataFrame(columns=cols + ["seg"])
+
+    g = g.sort_values(["grenade_entity_id", "tick"], kind="stable").reset_index(drop=True)
+    ent = g["grenade_entity_id"].to_numpy()
+    tick = g["tick"].to_numpy(dtype="int64")
+    sid = g["steamid"].to_numpy()
+    gtype = g["grenade_type"].to_numpy()
+    new = np.ones(len(g), dtype=bool)
+    new[1:] = (
+        (ent[1:] != ent[:-1])
+        | ((tick[1:] - tick[:-1]) > PROJECTILE_GAP_TICKS)
+        | (sid[1:] != sid[:-1])
+        | (gtype[1:] != gtype[:-1])
+    )
+    g["seg"] = np.cumsum(new) - 1
+    return g
+
+
+def _landing_index(xy: np.ndarray, still_sq: float = 4.0, still_count: int = 3) -> int:
+    """
+    Index of the landing sample in a per-tick [x, y] path: the first point
+    after which the projectile moves < 2 units/tick for `still_count`
+    consecutive ticks. Returns the last index when it never settles.
+    """
+    if len(xy) < 2:
+        return len(xy) - 1
+    d = np.diff(xy, axis=0)
+    still = (d[:, 0] * d[:, 0] + d[:, 1] * d[:, 1]) < still_sq
+    run = 0
+    for i, s in enumerate(still, start=1):
+        if s:
+            run += 1
+            if run >= still_count:
+                return i - still_count
+        else:
+            run = 0
+    return len(xy) - 1
+
+
+def _steamid_str(v) -> Optional[str]:
+    """Steamid as a string; None for missing / zero ids."""
+    if v is None:
+        return None
+    try:
+        if pd.isna(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(v)
+    if s.endswith(".0"):
+        s = s[:-2]
+    return None if s in ("", "0", "nan", "None") else s
+
+
+def _round_end_rows(parser) -> list[dict]:
+    """Real round_end events (tick > 0 with a winner), sorted by tick."""
+    try:
+        ends = parser.parse_event("round_end")
+    except Exception as exc:
+        logger.error("round_end parse failed: %s", exc)
+        return []
+    if ends is None or len(ends) == 0:
+        return []
+    rows: list[dict] = []
+    for row in ends.to_dict(orient="records"):
+        t = row.get("tick")
+        w = row.get("winner")
+        if t is None or w is None:
+            continue
+        try:
+            if pd.isna(w):
+                continue
+        except (TypeError, ValueError):
+            pass
+        w = str(w)
+        # demoparser2 emits a pre-match dummy round_end at tick 0/1 with no
+        # winner; the winner check drops it, the tick check is belt-and-braces.
+        if int(t) <= 0 or not w:
+            continue
+        rows.append({"tick": int(t), "winner": w, "round": row.get("round")})
+    rows.sort(key=lambda r: r["tick"])
+    return rows
+
+
+def _sample_round_state(parser, end_ticks: list[int]) -> dict:
+    """
+    One parse_ticks call sampling, for every round_end tick E, the game's
+    `total_rounds_played` counter and per-team `team_rounds_total` at
+    E + ROUND_COUNTER_DELAY_TICKS (falling back to E when the demo ends
+    sooner).
+
+    Returns:
+        {"counters": [int|None per end tick],
+         "final_score": {"T": x, "CT": y} | None,
+         "team_names": {"T": name, "CT": name} | None}
+    """
+    out: dict = {"counters": [None] * len(end_ticks), "final_score": None, "team_names": None}
+    if not end_ticks:
+        return out
+    ticks = sorted({int(t) for t in end_ticks} | {int(t) + ROUND_COUNTER_DELAY_TICKS for t in end_ticks})
+    df = None
+    for props in (
+        ["total_rounds_played", "team_rounds_total", "team_num", "team_clan_name"],
+        ["total_rounds_played", "team_rounds_total", "team_num"],
+    ):
+        try:
+            df = parser.parse_ticks(props, ticks=ticks)
+            break
+        except Exception as exc:
+            logger.debug("round-state parse_ticks(%s) failed: %s", props, exc)
+    if df is None or len(df) == 0 or "tick" not in df.columns:
+        return out
+
+    by_tick = {int(t): grp for t, grp in df.groupby("tick", sort=False)}
+
+    def _sample(end_tick: int):
+        return by_tick.get(end_tick + ROUND_COUNTER_DELAY_TICKS, by_tick.get(end_tick))
+
+    if "total_rounds_played" in df.columns:
+        for i, e in enumerate(end_ticks):
+            grp = _sample(int(e))
+            if grp is None:
+                continue
+            vals = grp["total_rounds_played"].dropna()
+            if len(vals):
+                out["counters"][i] = int(vals.max())
+
+    last = _sample(int(end_ticks[-1]))
+    if last is not None and {"team_num", "team_rounds_total"}.issubset(last.columns):
+        score: dict[str, int] = {}
+        names: dict[str, str] = {}
+        for tn, grp in last.groupby("team_num"):
+            label = TEAM_NUM_TO_LABEL.get(int(tn)) if pd.notna(tn) else None
+            if label is None:
+                continue
+            vals = grp["team_rounds_total"].dropna()
+            if len(vals):
+                score[label] = int(vals.max())
+            if "team_clan_name" in grp.columns:
+                nm = grp["team_clan_name"].dropna().astype(str).str.strip()
+                nm = nm[nm != ""]
+                if len(nm):
+                    names[label] = str(nm.mode().iloc[0])
+        if set(score) == {"T", "CT"}:
+            out["final_score"] = score
+        if names:
+            out["team_names"] = names
+    return out
+
+
+def live_round_mask(counters: list[Optional[int]]) -> list[bool]:
+    """
+    Which rounds survive restarts / backup restores.
+
+    `counters[i]` is total_rounds_played shortly after round i ended. A round
+    is dropped when a later round shows the same or a lower counter — i.e.
+    the game was restarted (mp_restartgame after a pre-live round) or a
+    backup was restored and that round number replayed. For the common
+    cases this keeps the LAST round for each counter value. Rounds with an
+    unknown counter (None) are always kept and never cause drops.
+    """
+    keep = [True] * len(counters)
+    later_min: Optional[int] = None
+    for i in range(len(counters) - 1, -1, -1):
+        c = counters[i]
+        if c is None:
+            continue
+        if later_min is not None and c >= later_min:
+            keep[i] = False
+        later_min = c if later_min is None else min(later_min, c)
+    return keep
+
 
 class DemoParser:
     """
@@ -98,6 +357,9 @@ class DemoParser:
             raise RuntimeError(
                 "demoparser2 is not installed. Run: pip install demoparser2"
             ) from exc
+        # (parser, cleaned projectile segments) for the demo being parsed, so
+        # throw synthesis and trajectory extraction share one parse_grenades().
+        self._raw_grenades_cache: Optional[tuple] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -148,7 +410,11 @@ class DemoParser:
             return pd.DataFrame()
         resolved_map = actual_map if actual_map != "unknown" else (map_name or "unknown")
 
-        grenades_df = self._extract_grenades(parser, player_names=name_filter)
+        try:
+            grenades_df = self._extract_grenades(parser, player_names=name_filter)
+        finally:
+            # parse_grenades() output is millions of rows — drop the cache.
+            self._raw_grenades_cache = None
         if grenades_df.empty:
             logger.warning("No grenade events found in %s", demo_path)
             return pd.DataFrame()
@@ -157,6 +423,9 @@ class DemoParser:
         damage_df = self._extract_utility_damage(parser)
 
         df = self._merge(grenades_df, rounds_df, damage_df)
+        if df.empty:
+            logger.warning("No grenade throws inside live rounds in %s", demo_path)
+            return pd.DataFrame()
         df["map_name"] = resolved_map
 
         logger.info(
@@ -226,6 +495,7 @@ class DemoParser:
         throws = self._extract_grenade_throws(parser, player_names=player_names)
         if throws.empty:
             return pd.DataFrame()
+        source = throws.attrs.get("source", "grenade_thrown")
 
         # Pull the pre-release buttons state so we can tell left-click from
         # right-click throws. grenade_thrown fires at the release tick, when
@@ -240,7 +510,9 @@ class DemoParser:
         merged_parts: list[pd.DataFrame] = []
         for gtype, group in throws.groupby("grenade_type", sort=False):
             group = group.sort_values("tick").reset_index(drop=True)
-            land_group = lands[lands["grenade_type"] == gtype].sort_values("land_tick")
+            group["tick"] = group["tick"].astype("int64")
+            land_group = lands[lands["grenade_type"] == gtype].sort_values("land_tick").copy()
+            land_group["land_tick"] = land_group["land_tick"].astype("int64")
 
             if land_group.empty:
                 group["land_x"] = np.nan
@@ -278,7 +550,8 @@ class DemoParser:
         if "trajectory" in df.columns:
             traj_count = int(df["trajectory"].map(lambda v: isinstance(v, list)).sum())
         logger.info(
-            "  grenade_thrown: %d throws, %d matched to landings, %d with trajectories",
+            "  %s: %d throws, %d matched to landings, %d with trajectories",
+            source,
             len(df),
             df[["land_x", "land_y", "land_z"]].notna().all(axis=1).sum(),
             traj_count,
@@ -291,29 +564,203 @@ class DemoParser:
         *,
         player_names: Optional[set[str]] = None,
     ) -> pd.DataFrame:
-        """One row per grenade_thrown event: throw pos, angles, team, weapon."""
+        """
+        One row per thrown grenade: throw pos, angles, team, weapon.
+
+        Uses the `grenade_thrown` game event when the demo has it. Current
+        CS2 builds (≈ patch 14188+) no longer emit that event, so for those
+        demos the rows are synthesised from projectile trajectories instead
+        (see _synthesise_throws_from_projectiles). The returned frame's
+        `attrs["source"]` names the path that produced it.
+        """
+        try:
+            game_events = set(parser.list_game_events())
+        except Exception as exc:
+            logger.debug("list_game_events failed: %s", exc)
+            game_events = None
+
+        df = None
+        if game_events is None or "grenade_thrown" in game_events:
+            df = self._parse_grenade_thrown_events(parser)
+        if df is None or len(df) == 0:
+            df = self._synthesise_throws_from_projectiles(parser)
+            if df is None or len(df) == 0:
+                return pd.DataFrame()
+            source = "projectiles"
+        else:
+            source = "grenade_thrown"
+
+        df = self._finish_throw_rows(df, player_names=player_names)
+        df.attrs["source"] = source
+        return df
+
+    def _parse_grenade_thrown_events(self, parser) -> Optional[pd.DataFrame]:
+        """Raw grenade_thrown rows with the user_* player props, or None."""
         # We also pull movement + stance fields so downstream throw-technique
         # classification (jump / crouch / walk / run / stand) can run without
         # a second parser pass. `buttons` here captures the post-release state
         # (usually 0); the true click is recovered via a tick-lookup on
         # parse_ticks in _attach_pre_release_buttons.
         try:
-            df = parser.parse_event(
-                "grenade_thrown",
-                player=[
-                    "X", "Y", "Z", "pitch", "yaw", "team_num",
-                    "velocity_X", "velocity_Y", "velocity_Z",
-                    "is_walking", "ducking", "duck_amount",
-                    "buttons",
-                ],
-            )
+            df = parser.parse_event("grenade_thrown", player=_THROW_PLAYER_PROPS)
         except Exception as exc:
             logger.error("grenade_thrown parse failed: %s", exc)
-            return pd.DataFrame()
-
+            return None
         if df is None or len(df) == 0:
-            return pd.DataFrame()
+            return None
+        return df
 
+    def _raw_projectile_segments(self, parser) -> pd.DataFrame:
+        """parse_grenades() → _projectile_segments(), cached per parser."""
+        cached = self._raw_grenades_cache
+        if cached is not None and cached[0] is parser:
+            return cached[1]
+        try:
+            raw = parser.parse_grenades()
+        except Exception as exc:
+            logger.warning("parse_grenades() failed: %s", exc)
+            raw = None
+        segs = _projectile_segments(raw)
+        self._raw_grenades_cache = (parser, segs)
+        return segs
+
+    def _synthesise_throws_from_projectiles(self, parser) -> Optional[pd.DataFrame]:
+        """
+        Rebuild grenade_thrown-equivalent rows from projectile trajectories,
+        for demos whose CS2 build no longer emits the grenade_thrown event.
+
+        Each projectile lifetime's first sample is the release tick T — on
+        demos that still carry grenade_thrown the event fires on exactly that
+        tick for the same thrower. The event's player props equal the
+        thrower's state one tick earlier (T-1: feet origin — not the eye —
+        view angles, stance), so we sample parse_ticks at T-2..T in a single
+        batched call: T-1 for the props, T-2 for velocity, and T to check the
+        thrower is still alive (grenades dropped on death spawn a projectile
+        but are not throws, and fire no grenade_thrown).
+
+        Validated against every grenade_thrown demo in demos/ (5,003 throws):
+        identical tick, thrower, type, team, position, pitch/yaw, velocity,
+        stance and buttons. Sampling at T instead of T-1 would put the
+        position off by a median ~2.5 u. Projectiles the engine fired no
+        grenade_thrown for (≈1 per 2,000) come through as extra throws.
+
+        Returns a frame with the same raw columns as parse_event("grenade_thrown",
+        player=_THROW_PLAYER_PROPS) — `tick`, `weapon`, `user_*` — so the
+        shared post-processing applies unchanged.
+        """
+        segs = self._raw_projectile_segments(parser)
+        if segs.empty:
+            return None
+
+        first = segs.groupby("seg", sort=False).first().reset_index()
+        first["tick"] = first["tick"].astype("int64")
+        first["sid"] = first["steamid"].map(_steamid_str)
+        first = first.dropna(subset=["sid"])
+        if first.empty:
+            return None
+
+        # demoparser2 derives velocity_* from the position delta to the
+        # previous *sampled* tick, so with a sparse tick list it is garbage.
+        # Sample T-2 as well and difference the positions ourselves — that
+        # reproduces grenade_thrown's velocity exactly (64-tick).
+        release = first["tick"].astype("int64")
+        sample_ticks = sorted(
+            set((release - 2).tolist()) | set((release - 1).tolist()) | set(release.tolist())
+        )
+        sample_ticks = [int(t) for t in sample_ticks if t >= 0]
+        props = [p for p in _THROW_PLAYER_PROPS if not p.startswith("velocity_")]
+        try:
+            states = parser.parse_ticks(
+                props + ["is_alive", "active_weapon_name", THROW_STRENGTH_PROP],
+                ticks=sample_ticks,
+            )
+        except Exception as exc:
+            logger.error("parse_ticks for synthesised throws failed: %s", exc)
+            return None
+        if states is None or len(states) == 0:
+            return None
+        states = states.copy()
+        states["sid"] = states["steamid"].map(_steamid_str)
+        states["tick"] = states["tick"].astype("int64")
+
+        pre = states.rename(columns={c: f"user_{c}" for c in props})
+        pre = pre.rename(columns={
+            "name": "user_name",
+            "active_weapon_name": "_held_weapon",
+            THROW_STRENGTH_PROP: "user_throw_strength",
+        })
+        pre["state_tick"] = pre["tick"]
+        pre = pre.drop(columns=["tick", "steamid", "is_alive"], errors="ignore")
+
+        prev = states[["tick", "sid", "X", "Y", "Z"]].rename(
+            columns={"tick": "prev_tick", "X": "_px", "Y": "_py", "Z": "_pz"}
+        )
+
+        out = first[["tick", "sid", "grenade_type", "name"]].copy()
+        out["state_tick"] = out["tick"] - 1
+        out["prev_tick"] = out["tick"] - 2
+        out = out.merge(pre, on=["state_tick", "sid"], how="left")
+        out = out.merge(prev, on=["prev_tick", "sid"], how="left")
+        tick_rate = 64.0
+        out["user_velocity_X"] = (out["user_X"] - out["_px"]) * tick_rate
+        out["user_velocity_Y"] = (out["user_Y"] - out["_py"]) * tick_rate
+        out["user_velocity_Z"] = (out["user_Z"] - out["_pz"]) * tick_rate
+
+        # Grenades dropped by a dying player spawn a projectile on the death
+        # tick; the thrower is no longer alive at T. Keep rows with no sample.
+        alive = states[["tick", "sid", "is_alive"]].rename(columns={"is_alive": "_alive_at_release"})
+        out = out.merge(alive, on=["tick", "sid"], how="left")
+        dead = out["_alive_at_release"].eq(False)
+        dropped_on_death = int(dead.sum())
+        out = out[~dead]
+
+        out = out.dropna(subset=["user_X", "user_Y", "user_Z"])
+        if out.empty:
+            return None
+        out["user_team_num"] = out["user_team_num"].fillna(0).astype("int64")
+
+        out["user_steamid"] = out["sid"]
+        out["user_name"] = out["user_name"].where(
+            out["user_name"].notna() & (out["user_name"].astype(str) != ""), out["name"]
+        )
+        # The projectile class can't tell molotov from incendiary (both fold
+        # to grenade_type "molotov"); the weapon still in hand at T-1 can.
+        # Fall back to the side's default when that's missing.
+        weapon = out["grenade_type"].astype(object).copy()
+        is_molly = out["grenade_type"] == "molotov"
+        held = out.get("_held_weapon")
+        held = (
+            held.astype(str).str.lower() if held is not None
+            else pd.Series("", index=out.index)
+        )
+        is_inc = held.str.contains("incendiary") | (
+            ~held.str.contains("molotov") & (out["user_team_num"] == 3)
+        )
+        weapon[is_molly & is_inc] = "incgrenade"
+        out["weapon"] = weapon
+
+        out = out.drop(
+            columns=[
+                "sid", "state_tick", "prev_tick", "_px", "_py", "_pz", "_held_weapon",
+                "name", "_alive_at_release", "grenade_type",
+            ],
+            errors="ignore",
+        )
+        out = out.sort_values("tick").reset_index(drop=True)
+        logger.info(
+            "  no grenade_thrown event — synthesised %d throws from projectiles "
+            "(%d death drops skipped)",
+            len(out), dropped_on_death,
+        )
+        return out
+
+    def _finish_throw_rows(
+        self,
+        df: pd.DataFrame,
+        *,
+        player_names: Optional[set[str]] = None,
+    ) -> pd.DataFrame:
+        """Rename raw grenade_thrown-style columns, map weapon → grenade_type, filter."""
         df = df.rename(
             columns={
                 "user_X": "throw_x",
@@ -331,6 +778,7 @@ class DemoParser:
                 "user_ducking": "ducking",
                 "user_duck_amount": "duck_amount",
                 "user_buttons": "buttons_at_throw",
+                "user_throw_strength": "throw_strength",
             }
         )
 
@@ -354,7 +802,7 @@ class DemoParser:
             "pitch", "yaw",
             "throw_vel_x", "throw_vel_y", "throw_vel_z",
             "is_walking", "ducking", "duck_amount",
-            "buttons_at_throw",
+            "buttons_at_throw", "throw_strength",
         ]
         keep = [c for c in keep if c in df.columns]
         return df[keep].reset_index(drop=True)
@@ -388,7 +836,8 @@ class DemoParser:
             throws["buttons_pre_release"] = 0
             return throws
 
-        if wanted is None or len(wanted) == 0:
+        if wanted is None or len(wanted) == 0 or "buttons" not in wanted.columns:
+            # Newer demos don't network the button mask at all.
             throws["buttons_pre_release"] = 0
             return throws
 
@@ -496,6 +945,16 @@ class DemoParser:
             np.where(right, "right", np.where(left, "left", "none")),
         )
 
+        # Demos without a button mask: decode the grenade's throw strength
+        # (only present on synthesised rows) wherever buttons said nothing.
+        if "throw_strength" in df.columns:
+            s = pd.to_numeric(df["throw_strength"], errors="coerce")
+            from_strength = np.where(
+                s >= 0.75, "left", np.where(s <= 0.25, "right", "both")
+            )
+            use = (df["click_type"] == "none") & s.notna()
+            df.loc[use, "click_type"] = from_strength[use.to_numpy()]
+
         logger.info(
             "  technique breakdown: %s",
             df["throw_technique"].value_counts().to_dict(),
@@ -513,11 +972,12 @@ class DemoParser:
 
         parse_grenades() returns, per tick per projectile:
             grenade_type, grenade_entity_id, x, y, z, tick, steamid, name
-        Most rows are NaN — demoparser2 emits a row for every entity on every
-        tick regardless of whether that entity exists yet — so we drop those
-        first, then group by entity_id and take the coordinate list. Per-entity
-        paths are decimated to at most 50 points (always keeping first/last)
-        to keep the final JSON payload small.
+        _projectile_segments() drops the empty rows, normalises the class
+        names (CSmokeGrenadeProjectile → smokegrenade, …) and splits recycled
+        entity ids into separate lifetimes. Each lifetime's path is cut at the
+        landing (a smoke's projectile sits still for ~18 s afterwards) and
+        decimated to at most 50 points (always keeping first/last) to keep
+        the final JSON payload small.
 
         Columns in the returned frame:
             entity_id, grenade_type, steamid, first_tick, trajectory
@@ -526,48 +986,19 @@ class DemoParser:
         callers should treat that as "no trajectories" rather than a fault.
         """
         empty_cols = ["entity_id", "grenade_type", "steamid", "first_tick", "trajectory"]
-        try:
-            raw = parser.parse_grenades()
-        except Exception as exc:
-            logger.warning("parse_grenades() failed: %s", exc)
+        segs = self._raw_projectile_segments(parser)
+        if segs.empty:
             return pd.DataFrame(columns=empty_cols)
-
-        if raw is None or len(raw) == 0 or not hasattr(raw, "columns"):
-            return pd.DataFrame(columns=empty_cols)
-
-        needed = {"grenade_type", "grenade_entity_id", "x", "y", "tick", "steamid"}
-        if not needed.issubset(raw.columns):
-            logger.warning(
-                "parse_grenades() returned unexpected columns: %s", list(raw.columns)
-            )
-            return pd.DataFrame(columns=empty_cols)
-
-        raw = raw.dropna(subset=["x", "y"])
-        if raw.empty:
-            return pd.DataFrame(columns=empty_cols)
-
-        # Normalise the grenade_type string so it lines up with the keys used
-        # by grenade_thrown. parse_grenades() has historically returned values
-        # like "smoke_grenade", "smokegrenade", or "smoke" depending on the
-        # CS2 build, so we squash separators and try each variant.
-        raw = raw.copy()
-        gtype_raw = raw["grenade_type"].astype(str).str.lower()
-        gtype_squashed = gtype_raw.str.replace("_", "", regex=False)
-        gtype_mapped = gtype_squashed.map(WEAPON_TO_TYPE)
-        fallback = gtype_raw.str.replace("_", "", regex=False) + "grenade"
-        gtype_mapped = gtype_mapped.fillna(fallback.map(WEAPON_TO_TYPE))
-        raw["grenade_type"] = gtype_mapped
-        raw = raw.dropna(subset=["grenade_type"])
-        if raw.empty:
-            return pd.DataFrame(columns=empty_cols)
-
-        raw = raw.sort_values(["grenade_entity_id", "tick"])
 
         rows: list[dict] = []
-        for entity_id, group in raw.groupby("grenade_entity_id", sort=False):
+        for _seg, group in segs.groupby("seg", sort=False):
             if len(group) < 2:
                 continue
+            sid = _steamid_str(group["steamid"].iloc[0])
+            if sid is None:
+                continue
             pts = group[["x", "y"]].to_numpy(dtype=float)
+            pts = pts[: max(_landing_index(pts), 1) + 1]
             if len(pts) > 50:
                 stride = max(1, len(pts) // 50)
                 idx = list(range(0, len(pts), stride))
@@ -577,9 +1008,9 @@ class DemoParser:
             trajectory = [[round(float(x), 1), round(float(y), 1)] for x, y in pts]
             rows.append(
                 {
-                    "entity_id": int(entity_id),
+                    "entity_id": int(group["grenade_entity_id"].iloc[0]),
                     "grenade_type": str(group["grenade_type"].iloc[0]),
-                    "steamid": str(group["steamid"].iloc[0]),
+                    "steamid": sid,
                     "first_tick": int(group["tick"].iloc[0]),
                     "trajectory": trajectory,
                 }
@@ -612,14 +1043,19 @@ class DemoParser:
             return out
 
         left = out[["tick", "thrower_steamid", "grenade_type"]].copy()
+        left["tick"] = left["tick"].astype("int64")
         left["_throw_idx"] = np.arange(len(left))
         left["_sid"] = left["thrower_steamid"].astype(str)
-        left = left.sort_values(["_sid", "grenade_type", "tick"]).reset_index(drop=True)
+        left["grenade_type"] = left["grenade_type"].astype(str)
+        # merge_asof needs both sides sorted on the `on` key globally.
+        left = left.sort_values("tick", kind="stable").reset_index(drop=True)
 
         right = traj_df.rename(columns={"steamid": "_sid"}).copy()
         right["_sid"] = right["_sid"].astype(str)
-        right = right[["first_tick", "_sid", "grenade_type", "trajectory"]]
-        right = right.sort_values(["_sid", "grenade_type", "first_tick"]).reset_index(drop=True)
+        right = right[["first_tick", "_sid", "grenade_type", "trajectory"]].copy()
+        right["first_tick"] = right["first_tick"].astype("int64")
+        right["grenade_type"] = right["grenade_type"].astype(str)
+        right = right.sort_values("first_tick", kind="stable").reset_index(drop=True)
 
         try:
             merged = pd.merge_asof(
@@ -636,7 +1072,8 @@ class DemoParser:
             return out
 
         merged = merged.sort_values("_throw_idx")
-        out.loc[:, "trajectory"] = merged["trajectory"].tolist()
+        trajs = [v if isinstance(v, list) else None for v in merged["trajectory"].tolist()]
+        out["trajectory"] = pd.Series(trajs, index=out.index, dtype=object)
         return out
 
     def _extract_grenade_landings(self, parser) -> pd.DataFrame:
@@ -679,29 +1116,38 @@ class DemoParser:
         Extract round_end events to know which team won each round.
         demoparser2 on CS2 emits winner as a string ("CT" / "T" / NaN) and
         includes a dummy pre-match row at tick=0 which we drop.
+
+        Rounds wiped by a restart or backup restore (see live_round_mask)
+        stay in the frame with live=False so _merge can drop the throws made
+        in them; live rounds are numbered 1..N in tick order, matching the
+        replay timeline's round numbers.
         """
-        try:
-            df = parser.parse_event("round_end")
-        except Exception as exc:
-            logger.error("round_end parse failed: %s", exc)
+        end_rows = _round_end_rows(parser)
+        if not end_rows:
             return pd.DataFrame()
 
-        if df is None or df.empty:
-            return pd.DataFrame()
+        state = _sample_round_state(parser, [r["tick"] for r in end_rows])
+        live = live_round_mask(state["counters"])
+        numbers: list[int] = []
+        n = 0
+        for is_live in live:
+            if is_live:
+                n += 1
+            numbers.append(n if is_live else 0)
+        if not all(live):
+            logger.info(
+                "  dropping %d restarted/replayed round(s) of %d",
+                len(live) - sum(live), len(live),
+            )
 
-        df = df.dropna(subset=["winner"])
-        df = df[df["round"] > 0]
-        if df.empty:
-            return pd.DataFrame()
-
-        out = pd.DataFrame(
+        return pd.DataFrame(
             {
-                "tick": df["tick"].astype("int64"),
-                "round_number": df["round"].astype("int64"),
-                "round_winner": df["winner"].astype(str),
+                "tick": [r["tick"] for r in end_rows],
+                "round_number": numbers,
+                "round_winner": [r["winner"] for r in end_rows],
+                "live": live,
             }
-        ).reset_index(drop=True)
-        return out
+        ).astype({"tick": "int64", "round_number": "int64", "live": bool})
 
     def _extract_utility_damage(self, parser) -> pd.DataFrame:
         """
@@ -749,31 +1195,40 @@ class DemoParser:
         so we build a tick→round index from round_end ticks and assign
         to both frames.
         """
-        def assign_rounds(ticks: pd.Series) -> pd.Series:
+        def round_index(ticks: pd.Series) -> np.ndarray:
             # Each round_end tick is the END of round N. A tick at or before
             # the first round_end belongs to round 1, and so on. searchsorted
             # with side='left' maps tick → index of the first end_tick >= tick.
             end_ticks = rounds["tick"].to_numpy()
-            round_numbers = rounds["round_number"].to_numpy()
             idx = np.searchsorted(end_ticks, ticks.to_numpy(), side="left")
-            idx = np.clip(idx, 0, len(round_numbers) - 1)
-            return pd.Series(round_numbers[idx], index=ticks.index)
+            return np.clip(idx, 0, len(end_ticks) - 1)
+
+        def assign_rounds(frame: pd.DataFrame) -> pd.DataFrame:
+            """Attach round_number and drop rows inside restarted/replayed rounds."""
+            idx = round_index(frame["tick"])
+            frame = frame.copy()
+            frame["round_number"] = rounds["round_number"].to_numpy()[idx]
+            if "live" in rounds.columns:
+                frame = frame[rounds["live"].to_numpy()[idx]]
+            return frame
 
         if rounds.empty:
             grenades["round_number"] = 0
             grenades["round_winner"] = None
         else:
             rounds = rounds.sort_values("tick").reset_index(drop=True)
-            grenades["round_number"] = assign_rounds(grenades["tick"])
+            grenades = assign_rounds(grenades)
+            live_rounds = rounds
+            if "live" in rounds.columns:
+                live_rounds = rounds[rounds["live"]]
             grenades = grenades.merge(
-                rounds[["round_number", "round_winner"]],
+                live_rounds[["round_number", "round_winner"]],
                 on="round_number",
                 how="left",
             )
 
         if not damage.empty and not rounds.empty:
-            damage = damage.copy()
-            damage["round_number"] = assign_rounds(damage["tick"])
+            damage = assign_rounds(damage)
             # Credit damage to the specific thrower and weapon that caused it.
             # Smokes/flashes never appear as a `grenade_type` here, so their
             # utility_damage will stay 0 after the left-join + fillna.
@@ -1331,6 +1786,24 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         )
         prev_end = er["tick"]
 
+    # Drop rounds that a restart or backup restore wiped out. FACEIT demos
+    # often record a ~20 s pre-live round before mp_restartgame; HLTV demos
+    # can repeat round numbers after a technical-pause backup restore. The
+    # game's own total_rounds_played counter (sampled 1 s after each
+    # round_end) says which rounds stood — see live_round_mask. The raw
+    # round_end events above stay in `events`: they did happen, and the
+    # replay viewer's bomb-timer reset keys off them.
+    round_state = _sample_round_state(parser, [r["end_tick"] for r in rounds])
+    live = live_round_mask(round_state["counters"])
+    if not all(live):
+        logger.info(
+            "%s: dropping %d restarted/replayed round(s) of %d",
+            demo_path.name, len(live) - sum(live), len(live),
+        )
+        rounds = [r for r, keep in zip(rounds, live) if keep]
+        for i, r in enumerate(rounds, start=1):
+            r["num"] = i
+
     events.sort(key=lambda e: e["tick"])
 
     # ---- grenade trails ------------------------------------------------
@@ -1448,4 +1921,8 @@ def extract_match_timeline(demo_path: Path, decimation: int = 8) -> dict:
         "grenades": grenades,
         "events": events,
         "rounds": rounds,
+        # Authoritative scoreboard (team_rounds_total) at the last round_end,
+        # keyed by the side each team finished on; None when unavailable.
+        "final_score": round_state["final_score"],
+        "team_names": round_state["team_names"],
     }
