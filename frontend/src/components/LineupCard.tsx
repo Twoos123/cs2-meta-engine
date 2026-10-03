@@ -7,7 +7,7 @@
  * obscures the other button (old behavior: a toast that covered both
  * buttons).
  */
-import { useState } from "react";
+import { useContext, useState } from "react";
 import {
   LineupRanking,
   ReplayStringResponse,
@@ -17,6 +17,7 @@ import {
   getReplayString,
   practiceLineup,
 } from "../api/client";
+import { PracticeListsContext, defaultListName } from "./practiceListsContext";
 
 const GRENADE_ACCENT: Record<string, string> = {
   smokegrenade: "#cbd5e1",
@@ -73,6 +74,10 @@ export default function LineupCard({
   const [aiDesc, setAiDesc] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  // Practice lists live on the dashboard; cards rendered elsewhere get no star.
+  const practice = useContext(PracticeListsContext);
+  const [starBusy, setStarBusy] = useState(false);
+  const [starFlash, setStarFlash] = useState<string | null>(null);
 
   const flashState = (
     setter: (s: ButtonState) => void,
@@ -162,6 +167,30 @@ export default function LineupCard({
     }
   };
 
+  const saved = practice?.isSaved(cluster) ?? false;
+  const starTitle = !practice
+    ? ""
+    : saved
+      ? `Remove from "${practice.activeList?.name}"`
+      : practice.activeList
+        ? `Add to practice list "${practice.activeList.name}"`
+        : `Create "${defaultListName(cluster.map_name)}" and add this lineup`;
+
+  const handleStar = async () => {
+    if (!practice || starBusy) return;
+    setStarBusy(true);
+    setErrorMsg(null);
+    try {
+      const result = await practice.toggleLineup(cluster);
+      setStarFlash(result === "added" ? "Saved" : "Removed");
+      setTimeout(() => setStarFlash(null), 1400);
+    } catch (e) {
+      setErrorMsg(apiErrorMessage(e, "Couldn't update practice list"));
+    } finally {
+      setStarBusy(false);
+    }
+  };
+
   // Utility damage is only meaningful for HE / molotov — smokes and
   // flashes always read 0.0 HP, which looks like a bad stat.
   const showDamage =
@@ -241,12 +270,38 @@ export default function LineupCard({
             </span>
           </p>
         </div>
-        <span
-          className="text-[10px] font-mono px-2 py-0.5 rounded-md border capitalize shrink-0"
-          style={{ borderColor: accent, color: accent }}
-        >
-          {cluster.grenade_type.replace("grenade", "")}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          {starFlash && (
+            <span className="text-[10px] font-mono text-cs2-accent" aria-live="polite">
+              {starFlash}
+            </span>
+          )}
+          {practice && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStar();
+              }}
+              disabled={starBusy}
+              aria-pressed={saved}
+              aria-label={starTitle}
+              title={starTitle}
+              className={`w-8 h-8 max-sm:w-10 max-sm:h-10 -my-1.5 rounded-full flex items-center justify-center text-base leading-none transition ${
+                saved
+                  ? "text-cs2-accent drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+                  : "text-cs2-muted hover:text-cs2-accent"
+              } ${starBusy ? "opacity-50" : ""}`}
+            >
+              {saved ? "★" : "☆"}
+            </button>
+          )}
+          <span
+            className="text-[10px] font-mono px-2 py-0.5 rounded-md border capitalize"
+            style={{ borderColor: accent, color: accent }}
+          >
+            {cluster.grenade_type.replace("grenade", "")}
+          </span>
+        </div>
       </div>
 
       {/* Technique / click badges */}

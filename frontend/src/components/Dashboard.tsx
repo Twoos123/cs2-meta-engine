@@ -22,6 +22,8 @@ import SettingsPanel from "./SettingsPanel";
 import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 import Select from "./Select";
+import PracticeListPanel from "./PracticeListPanel";
+import { PracticeListsContext, usePracticeListsState } from "./practiceListsContext";
 import { useReveal } from "../hooks/useReveal";
 
 const GRENADE_TYPES = [
@@ -64,6 +66,9 @@ export default function Dashboard() {
   const [ingestedMaps, setIngestedMaps] = useState<Set<string>>(new Set());
   const [downloadedMaps, setDownloadedMaps] = useState<DownloadedMap[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPractice, setShowPractice] = useState(false);
+  const practice = usePracticeListsState(selectedMap);
+  const practiceCount = practice.activeList?.items.length ?? 0;
 
   useEffect(() => {
     getMaps()
@@ -342,6 +347,7 @@ export default function Dashboard() {
     : "—";
 
   return (
+    <PracticeListsContext.Provider value={practice}>
     <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d] text-cs2-text">
       <AppBackdrop tone="cyan" />
       <AppHeader
@@ -433,6 +439,18 @@ export default function Dashboard() {
             title="Show detected execute combos for this map"
           >
             Executes{executes.length > 0 ? ` · ${executes.length}` : ""}
+          </button>
+          <button
+            onClick={() => setShowPractice(true)}
+            aria-haspopup="dialog"
+            className={`hud-tab max-sm:px-3 ${practiceCount > 0 ? "hud-tab-active" : "hud-tab-idle"}`}
+            title={
+              practice.activeList
+                ? `Open practice list "${practice.activeList.name}" — export it as a CS2 .cfg`
+                : "Save lineups to a practice list and export a CS2 .cfg"
+            }
+          >
+            ★ Practice{practiceCount > 0 ? ` · ${practiceCount}` : ""}
           </button>
           {availablePlayers.length > 0 && (
             <Select
@@ -737,7 +755,11 @@ export default function Dashboard() {
       {/* ── Settings modal ── */}
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
 
+      {/* ── Practice lists drawer ── */}
+      <PracticeListPanel open={showPractice} onClose={() => setShowPractice(false)} />
+
     </div>
+    </PracticeListsContext.Provider>
   );
 }
 
