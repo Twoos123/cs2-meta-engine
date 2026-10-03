@@ -20,6 +20,9 @@ const COMPARE = "2393236_dust2.dem";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function shot(page, name, { full = false } = {}) {
+  // Refuse near-blank captures (a loading screen has a few words of text).
+  const variety = await page.evaluate(() => document.body.innerText.length);
+  if (variety < 80) throw new Error(`${name}: page has almost no content yet`);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: full });
   console.log("saved", name);
 }
@@ -31,16 +34,35 @@ async function scrollToText(page, text) {
   await sleep(600);
 }
 
-/** Wait until a replay page has finished loading its timeline. */
-async function replayReady(page) {
+// Content that only exists once each replay tab has its timeline. Waiting
+// for "no loading text" isn't enough: it is also true for the instant
+// before the loading screen first renders.
+const READY = {
+  replay: /Toggle key moments|Moments/i,
+  insights: /^patterns$/i,
+  economy: /equipment value/i,
+  heatmap: /Position Density/i,
+  stats: /Player statistics/i,
+  compare: /throw vs the pros/i,
+};
+
+/** Wait until a replay tab has finished loading its timeline. */
+async function replayReady(page, tab = "replay") {
+  await page.getByText(READY[tab]).first().waitFor({ state: "visible", timeout: 120000 })
+    .catch(() => page.getByRole("button", { name: READY[tab] }).first()
+      .waitFor({ state: "visible", timeout: 30000 }));
   await page.waitForFunction(
     () => !/Loading (demo|replay)|Parsing demo|Re-parsing/.test(document.body.innerText),
-    null, { timeout: 90000 },
+    null, { timeout: 30000 },
   );
   await sleep(2500);
 }
 
+// ONLY=replay,economy node scripts/capture-screenshots.mjs  → just those groups
+const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(",")) : null;
+
 async function capture(name, fn) {
+  if (ONLY && !ONLY.has(name)) return;
   try {
     await fn();
   } catch (err) {
@@ -83,7 +105,7 @@ await capture("replay", async () => {
 });
 await capture("insights", async () => {
   await go(`/replay/${REPLAY}/insights`, 0);
-  await replayReady(page);
+  await replayReady(page, "insights");
   await shot(page, "insights");
   for (const [label, file] of [["patterns", "insights-patterns"], ["heatmap", "insights-heatmap"]]) {
     await page.getByRole("button", { name: label, exact: true }).first().click();
@@ -94,13 +116,13 @@ await capture("insights", async () => {
 for (const [tab, file] of [["economy", "economy"], ["heatmap", "heatmap"], ["stats", "stats"]]) {
   await capture(file, async () => {
     await go(`/replay/${REPLAY}/${tab}`, 0);
-    await replayReady(page);
+    await replayReady(page, tab);
     await shot(page, file);
   });
 }
 await capture("compare", async () => {
   await go(`/replay/${COMPARE}/compare`, 0);
-  await replayReady(page);
+  await replayReady(page, "compare");
   await sleep(8000); // first open parses the demo's throws
   await shot(page, "compare");
 });
