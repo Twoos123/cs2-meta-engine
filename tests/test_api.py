@@ -112,3 +112,37 @@ def test_hltv_rating_scale():
     star = dict(avg, kills=900, deaths=550, multi_2k=250, multi_3k=40)
     assert _hltv_rating(star) > 1.2
     assert _hltv_rating({"rounds_played": 0}) == 0.0
+
+
+@pytest.mark.parametrize(
+    "uploaded,expected",
+    [
+        ("faze_vs_navi.dem", "faze-vs-navi_mirage.dem"),
+        ("2393224_mirage.dem", "2393224_mirage.dem"),   # already canonical
+        ("scrim.dem", "scrim_mirage.dem"),
+    ],
+)
+def test_upload_named_by_header_map(tmp_root, monkeypatch, uploaded, expected):
+    import backend.ingestion.hltv_scraper as hs
+    from backend.main import _name_upload_by_map
+
+    monkeypatch.setattr(hs, "_probe_dem_map", lambda p: "de_mirage")
+    d = tmp_root / "uploads"
+    d.mkdir(exist_ok=True)
+    src = d / uploaded
+    src.write_bytes(b"demo")
+    out = _name_upload_by_map(src)
+    assert out.name == expected
+    assert out.read_bytes() == b"demo"
+    out.unlink()
+
+
+def test_upload_unreadable_header_keeps_name(tmp_root, monkeypatch):
+    import backend.ingestion.hltv_scraper as hs
+    from backend.main import _name_upload_by_map
+
+    monkeypatch.setattr(hs, "_probe_dem_map", lambda p: None)
+    src = tmp_root / "demos" / "weird_name.dem"
+    src.write_bytes(b"x")
+    assert _name_upload_by_map(src) == src
+    src.unlink()

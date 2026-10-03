@@ -961,7 +961,7 @@ def _bump_photo_generation() -> int:
     return cur
 
 
-def _fetch_player_photo(hltv_id: int, scraper) -> str:
+def _fetch_player_photo(hltv_id: int, scraper, force: bool = False) -> str:
     """Fetch (or confirm missing) the bodyshot image for `hltv_id`,
     writing it to `_PHOTO_CACHE_DIR`. Returns one of:
         "ok"       — image bytes written to cache
@@ -972,15 +972,21 @@ def _fetch_player_photo(hltv_id: int, scraper) -> str:
     Called in a loop from the /api/player-photos/warm background task,
     and also from the single-image GET endpoint for lazy fetches.
     Shared helper so warm and lazy paths stay in lockstep.
+
+    `force=True` re-fetches even when a photo is cached (staleness
+    refresh); the cached file is only replaced by a successful download.
     """
     _PHOTO_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_path = _PHOTO_CACHE_DIR / f"{hltv_id}.png"
     missing_marker = _PHOTO_CACHE_DIR / f"{hltv_id}.404"
+    checked_marker = _PHOTO_CACHE_DIR / f"{hltv_id}.checked"
+    have_cached = cache_path.exists() and cache_path.stat().st_size > 0
 
-    if cache_path.exists() and cache_path.stat().st_size > 0:
-        return "ok"
-    if missing_marker.exists():
-        return "missing"
+    if not force:
+        if have_cached:
+            return "ok"
+        if missing_marker.exists() and not _is_older_than(missing_marker, _PHOTO_MAX_AGE_SECS):
+            return "missing"
 
     # Prefer the live profile-page <img src> (current photo); fall back
     # to the classic static endpoint if scraping turns up nothing.
@@ -988,29 +994,96 @@ def _fetch_player_photo(hltv_id: int, scraper) -> str:
     urls: list[str] = []
     if scraped_url:
         urls.append(scraped_url)
-    urls.append(
-        f"https://static.hltv.org/images/playerprofile/bodyshot/{hltv_id}.png"
-    )
+    if not have_cached:
+        # The static endpoint is often years out of date — fine as a
+        # first image, but a refresh must never swap a current photo for it.
+        urls.append(
+            f"https://static.hltv.org/images/playerprofile/bodyshot/{hltv_id}.png"
+        )
+    elif not scraped_url:
+        # Couldn't read the live profile (blocked / changed) — keep the
+        # cached photo and retry after the back-off.
+        checked_marker.touch()
+        return "error"
 
+    # Only a clean 404 from every source proves "no photo". A Cloudflare
+    # challenge (403), rate limit or network error is transient — never
+    # let it overwrite a good photo or poison the cache with a .404.
+    transient = False
     for url in urls:
         try:
             resp = scraper._session.get(url, timeout=15)
         except Exception as exc:
             logger.debug("photo %d: %s fetch error — %s", hltv_id, url, exc)
+            transient = True
             continue
         if resp.status_code == 404:
             # Specifically 404 — try the next URL before giving up.
             continue
         if resp.status_code != 200:
+            transient = True
             continue
         ct = resp.headers.get("content-type", "").lower()
         if not ct.startswith("image/"):
+            transient = True
             continue
-        cache_path.write_bytes(resp.content)
+        tmp = cache_path.with_suffix(".part")
+        tmp.write_bytes(resp.content)
+        tmp.replace(cache_path)  # atomic swap — readers never see half a file
+        missing_marker.unlink(missing_ok=True)
+        checked_marker.unlink(missing_ok=True)
         return "ok"
 
+    # Remember the failed attempt so stale photos aren't retried on every view.
+    checked_marker.touch()
+    if transient:
+        return "error"
+    if have_cached:
+        return "ok"  # every source says 404 now — keep serving the old photo
     missing_marker.write_bytes(b"")
     return "missing"
+
+
+# A cached photo older than this is re-fetched in the background while the
+# old one keeps being served (HLTV swaps bodyshots each season / transfer).
+# Failed refreshes back off for a day.
+_PHOTO_MAX_AGE_SECS = 14 * 86400
+_PHOTO_RETRY_SECS = 86400
+_photo_refreshing: set[int] = set()
+
+
+def _is_older_than(path: Path, secs: float) -> bool:
+    try:
+        return time.time() - path.stat().st_mtime > secs
+    except OSError:
+        return True
+
+
+def _photo_needs_refresh(hltv_id: int) -> bool:
+    cache_path = _PHOTO_CACHE_DIR / f"{hltv_id}.png"
+    checked = _PHOTO_CACHE_DIR / f"{hltv_id}.checked"
+    if checked.exists() and not _is_older_than(checked, _PHOTO_RETRY_SECS):
+        return False
+    return _is_older_than(cache_path, _PHOTO_MAX_AGE_SECS)
+
+
+def _schedule_photo_refresh(hltv_id: int) -> None:
+    """Stale-while-revalidate: refresh one photo off the request path."""
+    if hltv_id in _photo_refreshing:
+        return
+    _photo_refreshing.add(hltv_id)
+
+    def _run() -> None:
+        from backend.ingestion.hltv_scraper import HLTVScraper
+        try:
+            result = _fetch_player_photo(hltv_id, HLTVScraper(), force=True)
+            logger.info("photo %d: background refresh → %s", hltv_id, result)
+        except Exception as exc:
+            logger.warning("photo %d: background refresh failed — %s", hltv_id, exc)
+        finally:
+            _photo_refreshing.discard(hltv_id)
+
+    asyncio.get_running_loop().run_in_executor(None, _run)
 
 
 def _scrape_player_image_url(hltv_id: int, scraper) -> Optional[str]:
@@ -1113,14 +1186,19 @@ async def get_player_photo(hltv_id: int):
     cache_path = _PHOTO_CACHE_DIR / f"{hltv_id}.png"
     missing_marker = _PHOTO_CACHE_DIR / f"{hltv_id}.404"
 
-    if missing_marker.exists():
-        raise HTTPException(status_code=404, detail="No HLTV photo for this player")
     if cache_path.exists() and cache_path.stat().st_size > 0:
+        stale = _photo_needs_refresh(hltv_id)
+        if stale:
+            _schedule_photo_refresh(hltv_id)
         return FileResponse(
             cache_path,
             media_type=_sniff_image_mime(cache_path.read_bytes()[:16]),
-            headers={"Cache-Control": "public, max-age=604800"},
+            # A stale photo is being replaced right now — don't let the
+            # browser pin it; fresh ones can be cached for a day.
+            headers={"Cache-Control": "no-cache" if stale else "public, max-age=86400"},
         )
+    if missing_marker.exists() and not _is_older_than(missing_marker, _PHOTO_MAX_AGE_SECS):
+        raise HTTPException(status_code=404, detail="No HLTV photo for this player")
 
     from backend.ingestion.hltv_scraper import HLTVScraper
     result = _fetch_player_photo(hltv_id, HLTVScraper())
@@ -1128,7 +1206,7 @@ async def get_player_photo(hltv_id: int):
         return FileResponse(
             cache_path,
             media_type=_sniff_image_mime(cache_path.read_bytes()[:16]),
-            headers={"Cache-Control": "public, max-age=604800"},
+            headers={"Cache-Control": "public, max-age=86400"},
         )
     raise HTTPException(
         status_code=404 if result == "missing" else 502,
@@ -1187,7 +1265,12 @@ async def _warm_player_photos_task():
             try:
                 # `_fetch_player_photo` is sync + networky; run in the
                 # default thread pool so we don't block the event loop.
-                result = await asyncio.to_thread(_fetch_player_photo, hltv_id, scraper)
+                # Stale photos are force-refreshed; a failed refresh keeps
+                # the old file, so warming never blanks an avatar.
+                result = await asyncio.to_thread(
+                    _fetch_player_photo, hltv_id, scraper,
+                    _photo_needs_refresh(hltv_id),
+                )
             except Exception as exc:
                 logger.warning("photo-warm %d: %s", hltv_id, exc)
                 result = "error"
@@ -1262,28 +1345,31 @@ async def warm_player_photos_status():
     dependencies=_ADMIN,
 )
 async def clear_player_photos():
-    """Delete every cached image and `.404` marker under the photo cache
-    directory so the next render re-fetches from HLTV. Called from the
-    Players page Refresh button so users can force-update stale photos.
+    """Mark every cached photo stale (and drop `.404` / retry markers) so
+    the next render or warm run re-fetches from HLTV. Photos are NOT
+    deleted: each one is only replaced once a fresh download succeeds, so
+    resetting while HLTV is unreachable never blanks the avatars.
     Also bumps the cache generation counter so reloading clients see a
-    new `?v=` token and the browser HTTP cache evicts in lockstep."""
+    new `?v=` token and the browser HTTP cache evicts in lockstep.
+    `deleted` counts the photos marked for refresh (kept for API compat)."""
     if not _PHOTO_CACHE_DIR.exists():
         gen = _bump_photo_generation()
         return {"deleted": 0, "generation": gen}
-    deleted = 0
+    marked = 0
     for p in _PHOTO_CACHE_DIR.iterdir():
-        # Skip the .generation sidecar — we manage that separately.
-        if p.name == ".generation":
+        if not p.is_file():
             continue
-        if p.is_file():
-            try:
+        try:
+            if p.suffix == ".png":
+                os.utime(p, (0, 0))  # epoch mtime ⇒ stale on next request
+                marked += 1
+            elif p.suffix in (".404", ".checked", ".part"):
                 p.unlink()
-                deleted += 1
-            except Exception as exc:
-                logger.warning("photo-cache: failed to delete %s — %s", p.name, exc)
+        except OSError as exc:
+            logger.warning("photo-cache: failed to reset %s — %s", p.name, exc)
     gen = _bump_photo_generation()
-    logger.info("photo-cache cleared: %d files removed (gen → %d)", deleted, gen)
-    return {"deleted": deleted, "generation": gen}
+    logger.info("photo-cache reset: %d photos marked stale (gen → %d)", marked, gen)
+    return {"deleted": marked, "generation": gen}
 
 
 @app.post(
@@ -1446,6 +1532,34 @@ async def list_match_replay_demos():
     return out
 
 
+def _name_upload_by_map(dest: Path) -> Path:
+    """
+    Rename an uploaded demo to `<stem>_<map>.dem` using the map from its
+    header. The picker, anti-strat and /api/demos read the map from the text
+    after the first `_`, so "faze_vs_navi.dem" would otherwise be filed under
+    a map called "vs_navi". Underscores in the user's stem become dashes.
+    Leaves the file alone if the header can't be read.
+    """
+    from backend.ingestion.hltv_scraper import _probe_dem_map
+
+    header_map = _probe_dem_map(dest)
+    if not header_map:
+        return dest
+    token = header_map.lower().removeprefix("de_")
+    base = dest.stem.replace("_", "-")
+    if base.lower().endswith(f"-{token}"):
+        base = base[: -len(token) - 1]
+    target = dest.with_name(f"{base}_{token}.dem")
+    n = 2
+    while target.exists() and target != dest:
+        target = dest.with_name(f"{base}-{n}_{token}.dem")
+        n += 1
+    if target != dest:
+        dest.replace(target)
+        logger.info("upload renamed %s → %s (header map %s)", dest.name, target.name, header_map)
+    return target
+
+
 @app.post(
     "/api/match-replay/upload",
     dependencies=_ADMIN,
@@ -1493,6 +1607,8 @@ async def upload_demo(file: UploadFile):
     except Exception as exc:
         dest.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Upload failed: {exc}")
+
+    dest = await asyncio.to_thread(_name_upload_by_map, dest)
 
     # Stat the saved file for the response
     stat = dest.stat()
@@ -2155,7 +2271,8 @@ async def faceit_list_matches(req: FaceitMatchListRequest):
     try:
         scraper = FaceitScraper()
     except FaceitScraperError as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        # Missing FACEIT_API_KEY — a configuration gap, not a server crash.
+        raise HTTPException(status_code=503, detail=str(exc))
 
     loop = asyncio.get_event_loop()
     try:

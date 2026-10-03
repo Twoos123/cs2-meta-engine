@@ -823,9 +823,10 @@ export const refreshRosters = async (): Promise<RefreshRostersResponse> => {
   return data;
 };
 
-// Wipe the on-disk player-photo cache. Next render re-fetches every
-// image via the scrape-first strategy, so users see whatever photos
-// HLTV is displaying on its site *right now*.
+// Mark every cached player photo stale. The next warm run / render
+// re-fetches each one from HLTV; old photos keep showing until a fresh
+// download succeeds, so this never blanks avatars when HLTV is blocked.
+// (Photos also refresh on their own once they're 14 days old.)
 export const clearPlayerPhotos = async (): Promise<{ deleted: number }> => {
   const { data } = await api.post<{ deleted: number }>("/player-photos/clear");
   return data;
