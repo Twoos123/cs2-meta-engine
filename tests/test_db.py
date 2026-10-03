@@ -76,3 +76,33 @@ def test_pg_roundtrip(monkeypatch):
             conn.execute("INSERT INTO db_test_t (name) VALUES (?)", ("a",))
     with db.connect() as conn:
         conn.execute("DROP TABLE db_test_t")
+
+
+@pytest.mark.skipif(not PG_URL.startswith("postgres"), reason="set TEST_DATABASE_URL to run")
+def test_sqlite_to_pg_migration(monkeypatch, tmp_path):
+    import sqlite3
+
+    from backend import db, migrate_sqlite
+    from backend.config import settings
+
+    src = tmp_path / "src.db"
+    with sqlite3.connect(src) as c:
+        c.execute("CREATE TABLE mig_kv (k TEXT PRIMARY KEY, v TEXT, ts REAL)")
+        c.executemany("INSERT INTO mig_kv VALUES (?, ?, ?)", [("a", "1", 1.5), ("b", "2", 2.5)])
+        c.execute("CREATE TABLE mig_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)")
+        c.executemany("INSERT INTO mig_items (name) VALUES (?)", [("x",), ("y",)])
+    monkeypatch.setattr(settings, "database_url", PG_URL)
+    with db.connect() as conn:
+        conn.execute("DROP TABLE IF EXISTS mig_kv")
+        conn.execute("DROP TABLE IF EXISTS mig_items")
+        conn.execute("CREATE TABLE mig_kv (k TEXT PRIMARY KEY, v TEXT, ts DOUBLE PRECISION)")
+        conn.execute("INSERT INTO mig_kv VALUES ('a', 'kept', 9.0)")   # pre-existing row wins
+    copied = migrate_sqlite.migrate(src)
+    assert copied["mig_items"] == 2
+    with db.connect() as conn:
+        kv = {r["k"]: r["v"] for r in conn.execute("SELECT k, v FROM mig_kv")}
+        assert kv == {"a": "kept", "b": "2"}
+        new_id = conn.execute("INSERT INTO mig_items (name) VALUES ('z') RETURNING id").fetchone()[0]
+        assert new_id == 3                                               # sequence advanced
+        conn.execute("DROP TABLE mig_kv")
+        conn.execute("DROP TABLE mig_items")

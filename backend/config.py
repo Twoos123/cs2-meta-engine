@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     # Database — set DATABASE_URL for Supabase/PostgreSQL; leave empty for SQLite
     database_url: str = ""
 
+    # Job execution (backend/jobs.py): "all" = API + in-process worker
+    # (local dev), "api" = enqueue only (scaled API replicas),
+    # "worker" = `python -m backend.worker` executes jobs + background loops.
+    process_role: str = "all"
+
     # CS2 replay integration
     cs2_game_dir: str = ""           # e.g. C:/Program Files (x86)/Steam/.../game/csgo
     cs2_demo_link_name: str = "cs2tool_demos"

@@ -46,10 +46,13 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status == 200 else 1)"]
 
-# exactly one worker: HLTV/FACEIT ingest and photo-warming run as in-process
-# asyncio tasks whose status lives in module globals the UI polls — a second
-# worker would answer those polls with empty state
+# one uvicorn worker per container — scale with Deployment replicas. Ingest
+# runs as jobs in the database (backend/jobs.py), executed by the separate
+# `python -m backend.worker` Deployment when PROCESS_ROLE=api. A bounded
+# graceful shutdown stops long-lived SSE streams (live radar) from stalling
+# rollouts.
 CMD ["uvicorn", "backend.main:app", \
      "--host", "0.0.0.0", "--port", "8000", \
      "--workers", "1", \
+     "--timeout-graceful-shutdown", "20", \
      "--proxy-headers", "--forwarded-allow-ips", "*"]

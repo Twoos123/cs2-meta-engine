@@ -2,7 +2,7 @@
 Tiny SQLite-backed KV for paid LLM outputs (match recaps, lineup
 descriptions). The in-process dicts in main.py stay as a hot layer; this
 survives pod restarts so a redeploy never re-bills the same prompt.
-SQLite-only by design — it shares the lineup DB file/volume.
+Uses the app database (SQLite locally, Postgres when DATABASE_URL is set).
 """
 from __future__ import annotations
 
@@ -12,15 +12,18 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from backend.config import settings
+from backend import db
 
 logger = logging.getLogger(__name__)
 
 
 class AICache:
     def __init__(self, db_path: Optional[Path] = None) -> None:
-        self.db_path = db_path or settings.db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        # An explicit path pins a private SQLite file (tests); otherwise use
+        # the shared app database.
+        self.db_path = db_path
+        if db_path is not None:
+            db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS ai_cache ("
@@ -28,8 +31,10 @@ class AICache:
                 " created INTEGER NOT NULL, PRIMARY KEY (kind, key))"
             )
 
-    def _conn(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.db_path)
+    def _conn(self):
+        if self.db_path is not None:
+            return sqlite3.connect(self.db_path)
+        return db.connect()
 
     def get(self, kind: str, key: str) -> Optional[str]:
         try:
@@ -39,7 +44,7 @@ class AICache:
                     (kind, key),
                 ).fetchone()
                 return row[0] if row else None
-        except sqlite3.Error as exc:
+        except Exception as exc:  # sqlite3 / psycopg2 errors
             logger.warning("ai_cache read failed: %s", exc)
             return None
 
@@ -53,7 +58,7 @@ class AICache:
                     " value = excluded.value, created = excluded.created",
                     (kind, key, value, int(time.time())),
                 )
-        except sqlite3.Error as exc:
+        except Exception as exc:  # sqlite3 / psycopg2 errors
             logger.warning("ai_cache write failed: %s", exc)
 
 

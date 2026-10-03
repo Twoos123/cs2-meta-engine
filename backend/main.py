@@ -41,6 +41,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
+from backend import jobs
 from backend.config import settings
 from backend.models.schemas import (
     TopLineupsResponse,
@@ -77,6 +78,13 @@ async def _lifespan(_app: FastAPI):
     # Housekeeping runs off the event loop so startup isn't blocked by
     # reading every cached timeline.
     asyncio.create_task(asyncio.to_thread(_startup_housekeeping))
+    # PROCESS_ROLE=all runs the job worker inside the API process (local dev,
+    # single container). In the cluster the API runs with role=api and a
+    # separate `python -m backend.worker` Deployment executes jobs.
+    worker_stop = asyncio.Event()
+    worker_task = None
+    if settings.process_role == "all":
+        worker_task = asyncio.create_task(jobs.worker_loop(worker_stop))
     # Feature routers may define `async def on_startup()` / `on_shutdown()`
     # (e.g. the folder watcher). Router-level startup events are ignored
     # once an app has a lifespan, so they're called from here.
@@ -85,6 +93,12 @@ async def _lifespan(_app: FastAPI):
         if hook:
             await hook()
     yield
+    worker_stop.set()
+    if worker_task is not None:
+        try:
+            await asyncio.wait_for(worker_task, timeout=3)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            worker_task.cancel()
     for mod in _FEATURE_MODULES:
         hook = getattr(mod, "on_shutdown", None)
         if hook:
@@ -527,10 +541,11 @@ async def clear_data():
     Wipes every row from the `lineup_clusters` table. Demo files on disk
     are left alone — re-run the pipeline or ingest HLTV to repopulate.
     """
-    if _ingest_state["running"]:
+    busy = jobs.active("ingest")
+    if busy:
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot clear while ingest is running: {_ingest_state['phase']}",
+            detail=f"Cannot clear while an ingest is queued or running (job {busy['id']})",
         )
     deleted = _pipeline.clear_all()
     return {"deleted": deleted, "status": "cleared"}
@@ -1707,23 +1722,12 @@ async def ingest_from_hltv(req: HLTVIngestRequest):
     Runs as a detached asyncio task so it survives across HTTP responses but
     cannot be started twice concurrently.
     """
-    if _ingest_state["running"]:
-        raise HTTPException(
-            status_code=409,
-            detail=f"An ingest is already in progress: {_ingest_state['phase']} — {_ingest_state['message']}",
-        )
-
-    _ingest_state["run_id"] += 1
-    run_id = _ingest_state["run_id"]
-    asyncio.create_task(
-        _run_hltv_ingest(
-            team_name=req.team_name,
-            event_name=req.event_name,
-            map_name=req.map_name,
-            limit=req.limit,
-            run_id=run_id,
-        )
-    )
+    run_id = _enqueue_ingest("hltv_ingest", {
+        "team_name": req.team_name,
+        "event_name": req.event_name,
+        "map_name": req.map_name,
+        "limit": req.limit,
+    })
     return {
         "status": "queued",
         "run_id": run_id,
@@ -1740,22 +1744,11 @@ async def run_pipeline(req: RunPipelineRequest):
     Triggers the parse → cluster → rank pipeline on all .dem files already
     in the demo directory. Useful after adding demos manually.
     """
-    if _ingest_state["running"]:
-        raise HTTPException(
-            status_code=409,
-            detail=f"An ingest is already in progress: {_ingest_state['phase']} — {_ingest_state['message']}",
-        )
-
-    _ingest_state["run_id"] += 1
-    run_id = _ingest_state["run_id"]
-    asyncio.create_task(
-        _run_pipeline_task(
-            map_name=req.map_name,
-            grenade_types=req.grenade_types,
-            clear_existing=req.clear_existing,
-            run_id=run_id,
-        )
-    )
+    run_id = _enqueue_ingest("pipeline", {
+        "map_name": req.map_name,
+        "grenade_types": req.grenade_types,
+        "clear_existing": req.clear_existing,
+    })
     return {
         "status": "queued",
         "run_id": run_id,
@@ -1769,9 +1762,13 @@ async def ingest_status():
     demo_dir = settings.demo_dir
     total_demos = len(list(demo_dir.glob("*.dem"))) if demo_dir.exists() else 0
     stats = _pipeline.get_stats()
+    # Read from the jobs table so every API replica reports the same thing.
+    job = jobs.latest("ingest")
+    prog = (job or {}).get("progress") or {}
+    running = bool(job and job["status"] in ("queued", "running"))
     status = (
-        f"{_ingest_state['phase']}: {_ingest_state['message']}"
-        if _ingest_state["running"]
+        f"{prog.get('phase') or job['status']}: {prog.get('message') or ''}"
+        if running
         else "ready"
     )
     try:
@@ -1782,12 +1779,12 @@ async def ingest_status():
         total_demos=total_demos,
         total_grenades=stats.get("total_lineups", 0),
         status=status,
-        run_id=_ingest_state["run_id"],
-        last_completed_run_id=_ingest_state["last_completed_run_id"],
-        manual_url=_ingest_state.get("manual_url"),
-        demos_parsed_this_run=_ingest_state.get("demos_parsed_this_run", 0),
-        demos_total_this_run=_ingest_state.get("demos_total_this_run", 0),
-        player_rows_updated_this_run=_ingest_state.get("player_rows_updated_this_run", 0),
+        run_id=job["id"] if job else 0,
+        last_completed_run_id=jobs.last_finished_id("ingest"),
+        manual_url=prog.get("manual_url"),
+        demos_parsed_this_run=prog.get("demos_parsed_this_run") or 0,
+        demos_total_this_run=prog.get("demos_total_this_run") or 0,
+        player_rows_updated_this_run=prog.get("player_rows_updated_this_run") or 0,
         total_player_rows=total_player_rows,
     )
 
@@ -1834,18 +1831,7 @@ async def faceit_list_matches(req: FaceitMatchListRequest):
     summary="Download a FACEIT match demo and run the pipeline",
 )
 async def faceit_download(req: FaceitIngestRequest):
-    if _ingest_state["running"]:
-        raise HTTPException(
-            status_code=409,
-            detail=f"An ingest is already in progress: {_ingest_state['phase']} — {_ingest_state['message']}",
-        )
-
-    _ingest_state["run_id"] += 1
-    _ingest_state["manual_url"] = None
-    run_id = _ingest_state["run_id"]
-    asyncio.create_task(
-        _run_faceit_ingest(match_id=req.match_id, run_id=run_id)
-    )
+    run_id = _enqueue_ingest("faceit_ingest", {"match_id": req.match_id})
     return {
         "status": "queued",
         "run_id": run_id,
@@ -1864,6 +1850,24 @@ def _set_phase(phase: str, message: str = "") -> None:
     # old `[ingest]` bracketed prefix was redundant and ate horizontal
     # space for every phase transition.
     logger.info("phase=%s — %s", phase, message)
+    _persist_progress()
+
+
+_PROGRESS_KEYS = (
+    "phase", "message", "manual_url", "demos_parsed_this_run",
+    "demos_total_this_run", "player_rows_updated_this_run",
+)
+
+
+def _persist_progress() -> None:
+    """Mirror this process's live ingest state into the current job row."""
+    job_id = _ingest_state.get("run_id")
+    if not job_id:
+        return
+    try:
+        jobs.update_progress(job_id, {k: _ingest_state.get(k) for k in _PROGRESS_KEYS})
+    except Exception as exc:
+        logger.warning("could not persist progress for job %s: %s", job_id, exc)
 
 
 def _reset_ingest_progress(total: int = 0) -> None:
@@ -2035,6 +2039,7 @@ async def _run_hltv_ingest(
         finally:
             _ingest_state["running"] = False
             _ingest_state["last_completed_run_id"] = run_id
+            _persist_progress()
 
 
 async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
@@ -2122,6 +2127,7 @@ async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
         finally:
             _ingest_state["running"] = False
             _ingest_state["last_completed_run_id"] = run_id
+            _persist_progress()
 
 
 async def _run_pipeline_task(
@@ -2153,6 +2159,36 @@ async def _run_pipeline_task(
         finally:
             _ingest_state["running"] = False
             _ingest_state["last_completed_run_id"] = run_id
+            _persist_progress()
+
+
+# ---------------------------------------------------------------------------
+# Job queue wiring — ingest work runs as jobs (see backend/jobs.py)
+# ---------------------------------------------------------------------------
+
+def _ingest_job(run):
+    """Adapt a `_run_*(…, run_id=…)` coroutine to a job handler."""
+    async def handler(job_id: int, payload: dict) -> None:
+        _ingest_state["run_id"] = job_id
+        _ingest_state["manual_url"] = None
+        _ingest_state["phase"], _ingest_state["message"] = "starting", ""
+        await run(**payload, run_id=job_id)
+        if _ingest_state.get("phase") == "error":
+            raise RuntimeError(_ingest_state.get("message") or "ingest failed")
+    return handler
+
+
+jobs.register("hltv_ingest", _ingest_job(_run_hltv_ingest), group="ingest")
+jobs.register("faceit_ingest", _ingest_job(_run_faceit_ingest), group="ingest")
+jobs.register("pipeline", _ingest_job(_run_pipeline_task), group="ingest")
+jobs.init_db()
+
+
+def _enqueue_ingest(kind: str, payload: dict) -> int:
+    try:
+        return jobs.enqueue(kind, payload)
+    except jobs.Busy as busy:
+        raise HTTPException(status_code=409, detail=f"An ingest is already in progress: {busy}")
 
 
 # Player profile read endpoints live in backend/api/players.py.
