@@ -26,8 +26,19 @@ def tmp_root():
         ADMIN_TOKEN="",
         ANTHROPIC_API_KEY="",
         OPENROUTER_API_KEY="",
-        DATABASE_URL="",
+        FACEIT_API_KEY="",
+        # TEST_DATABASE_URL=postgresql://... runs the whole suite on Postgres
+        # (CI does this against a service container); default is SQLite.
+        DATABASE_URL=os.environ.get("TEST_DATABASE_URL", ""),
     )
+    # Test modules may import backend.config during collection — before this
+    # fixture — which builds `settings` from the repo's real .env. Re-read it
+    # now (cwd is the temp dir, so no .env) and update the shared instance.
+    from backend import config
+
+    fresh = config.Settings()
+    for field in type(fresh).model_fields:
+        setattr(config.settings, field, getattr(fresh, field))
     yield tmp
     os.chdir(old_cwd)
     shutil.rmtree(tmp, ignore_errors=True)

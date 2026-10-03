@@ -21,6 +21,10 @@ from backend.db import translate
             "INSERT OR IGNORE INTO t (a) VALUES (?) RETURNING id",
             "INSERT INTO t (a) VALUES (%s) ON CONFLICT DO NOTHING RETURNING id",
         ),
+        (
+            "CREATE TABLE IF NOT EXISTS t (created_at TEXT DEFAULT (datetime('now')))",
+            "CREATE TABLE IF NOT EXISTS t (created_at TEXT DEFAULT (CURRENT_TIMESTAMP::text))",
+        ),
         # REAL only rewritten in DDL — a value 'REAL' in DML stays put
         ("SELECT 'REAL' FROM t", "SELECT 'REAL' FROM t"),
     ],
