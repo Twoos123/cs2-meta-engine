@@ -264,6 +264,7 @@ class DemoListEntry(BaseModel):
     complete: Optional[bool] = None      # False = demo ends before the match did
     score: Optional[List[int]] = None    # final [higher, lower] round score
     rounds: Optional[int] = None
+    player_steamids: List[str] = Field(default_factory=list)  # empty until parsed
 
 
 class DemoMetaResponse(BaseModel):
@@ -273,6 +274,7 @@ class DemoMetaResponse(BaseModel):
     complete: Optional[bool] = None
     score: Optional[List[int]] = None
     rounds: Optional[int] = None
+    player_steamids: List[str] = Field(default_factory=list)
 
 
 class TimelinePlayer(BaseModel):

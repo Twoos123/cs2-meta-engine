@@ -3,7 +3,9 @@
  */
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
-const api = axios.create({ baseURL: "/api" });
+/** Shared axios instance — feature modules in src/api/ import this so they
+ *  get the admin-token and memo-invalidation interceptors. */
+export const api = axios.create({ baseURL: "/api" });
 
 // ---------------------------------------------------------------------------
 // Admin token — destructive endpoints (delete demo, clear data, upload,
@@ -419,6 +421,8 @@ export interface MatchDemoEntry {
   /** Final round score [higher, lower] as recorded in the demo. */
   score: [number, number] | null;
   rounds: number | null;
+  /** SteamID64s of everyone in the demo (empty until first parse). */
+  player_steamids: string[];
 }
 
 /** Per-demo cache + completeness info, cheap to fetch (no parse). */
@@ -428,6 +432,7 @@ export interface DemoMeta {
   complete: boolean | null;
   score: [number, number] | null;
   rounds: number | null;
+  player_steamids: string[];
 }
 
 export const getDemoMeta = async (demoFile: string): Promise<DemoMeta> => {

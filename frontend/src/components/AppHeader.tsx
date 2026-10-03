@@ -44,6 +44,7 @@ const NAV_ITEMS: { label: string; route: string; match: string[] }[] = [
   { label: "Anti-Strat", route: "/anti-strat", match: ["/anti-strat"] },
   { label: "Players",    route: "/players",    match: ["/players"] },
   { label: "Matches",    route: "/matches",    match: ["/matches"] },
+  { label: "Live",       route: "/live",       match: ["/live"] },
   { label: "Ingest",     route: "/ingest",     match: ["/ingest"] },
 ];
 

@@ -38,7 +38,7 @@ class _FakeScraper:
 
 @pytest.fixture()
 def photos(tmp_root):
-    import backend.main as m
+    import backend.api.photos as m
 
     d = m._PHOTO_CACHE_DIR
     d.mkdir(parents=True, exist_ok=True)

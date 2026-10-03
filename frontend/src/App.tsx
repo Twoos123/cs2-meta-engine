@@ -12,6 +12,7 @@ const IngestPage = lazy(() => import("./components/IngestPage"));
 const MatchesPage = lazy(() => import("./components/MatchesPage"));
 const PlayerListPage = lazy(() => import("./components/PlayerListPage"));
 const PlayerDetailPage = lazy(() => import("./components/PlayerDetailPage"));
+const LivePage = lazy(() => import("./components/LivePage"));
 const NotFoundPage = lazy(() => import("./components/NotFoundPage"));
 
 function PageFallback() {
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/anti-strat" element={<AntiStratPage />} />
         <Route path="/players" element={<PlayerListPage />} />
         <Route path="/players/:steamid" element={<PlayerDetailPage />} />
+        <Route path="/live" element={<LivePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>

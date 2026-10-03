@@ -90,7 +90,8 @@ def test_timeline_meta_flags_partial_demo(client, tmp_root):
 
     meta = client.get(f"/api/match-replay/{name}/meta").json()
     assert meta == {"demo_file": name, "timeline_cached": True,
-                    "complete": False, "score": [7, 5], "rounds": 12}
+                    "complete": False, "score": [7, 5], "rounds": 12,
+                    "player_steamids": ["1"]}
 
     listed = {d["demo_file"]: d for d in client.get("/api/match-replay/demos").json()}
     assert listed[name]["complete"] is False
@@ -101,7 +102,7 @@ def test_meta_missing_demo_404(client):
 
 
 def test_hltv_rating_scale():
-    from backend.main import _hltv_rating
+    from backend.api.players import _hltv_rating
 
     # Exactly-average pro line over 1000 rounds: 679 kills (0.679 KPR),
     # 317 rounds survived, and 81 one-kill + 299 two-kill rounds, which gives
