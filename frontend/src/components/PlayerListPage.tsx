@@ -2,12 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MatchInfoResponse,
-  PlayerProfileSummary,
   clearPlayerPhotos,
   getMatchInfo,
   getMatchReplayDemos,
   getPlayerHltvIds,
-  listPlayers,
   refreshPlayerStats,
   refreshRosters,
   warmPlayerPhotos,
@@ -17,9 +15,25 @@ import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 import Select from "./Select";
 import PlayerAvatar from "./PlayerAvatar";
+import { RatingInfo } from "./PlayerStatTile";
+import {
+  PlayerSummaryStats,
+  fmtAdr,
+  fmtClutches,
+  fmtPct,
+  listPlayerStats,
+} from "../api/players";
 import { useReveal } from "../hooks/useReveal";
 
-type SortKey = "rating" | "kd" | "kills" | "hs" | "openwr" | "matches";
+type SortKey = "rating" | "adr" | "kast" | "clutches" | "kd" | "kills" | "hs" | "openwr" | "matches";
+
+/** Descending sort on a nullable stat — players without the data go last. */
+function byNullableDesc(a: number | null | undefined, b: number | null | undefined): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return b - a;
+}
 
 /** Default "min matches" filter, and the fallback threshold: if fewer than
  *  MIN_QUALIFYING_PLAYERS clear the default on first load, drop it to 1. */
@@ -86,7 +100,7 @@ async function loadTeamsIndex(): Promise<TeamsIndex> {
 // localStorage cache — versioned so a schema change below can invalidate
 // every stored entry in one move. Bump `CACHE_VERSION` when the shape of
 // any cached value changes.
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2; // v2: ADR / KAST / clutch fields
 const CACHE_KEYS = {
   players: `cs2meta:players:v${CACHE_VERSION}`,
   hltvIds: `cs2meta:hltv-ids:v${CACHE_VERSION}`,
@@ -135,8 +149,8 @@ export default function PlayerListPage() {
   // paints instantly on reload even before any network request
   // completes. `load()` runs in the background below to refresh with
   // current-server data.
-  const [players, setPlayers] = useState<PlayerProfileSummary[]>(
-    () => readCache<PlayerProfileSummary[]>(CACHE_KEYS.players) ?? [],
+  const [players, setPlayers] = useState<PlayerSummaryStats[]>(
+    () => readCache<PlayerSummaryStats[]>(CACHE_KEYS.players) ?? [],
   );
   const [teamsIndex, setTeamsIndex] = useState<TeamsIndex | null>(() => {
     const cached = readCache<SerializableTeamsIndex>(CACHE_KEYS.teams);
@@ -150,7 +164,7 @@ export default function PlayerListPage() {
   // `loading` only true when there's nothing cached to paint — once we
   // have any cached rows, the background refresh is invisible.
   const [loading, setLoading] = useState(
-    () => readCache<PlayerProfileSummary[]>(CACHE_KEYS.players) == null,
+    () => readCache<PlayerSummaryStats[]>(CACHE_KEYS.players) == null,
   );
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -177,7 +191,7 @@ export default function PlayerListPage() {
     setError(null);
     try {
       const [rows, idx, idsResp] = await Promise.all([
-        listPlayers(1),
+        listPlayerStats(1),
         loadTeamsIndex(),
         getPlayerHltvIds().catch(() => ({ players: {}, count: 0 })),
       ]);
@@ -412,6 +426,11 @@ export default function PlayerListPage() {
         case "hs":      return b.hs_pct - a.hs_pct;
         case "openwr":  return b.opening_wr - a.opening_wr;
         case "matches": return b.matches - a.matches;
+        case "adr":     return byNullableDesc(a.adr, b.adr);
+        case "kast":    return byNullableDesc(a.kast_pct, b.kast_pct);
+        case "clutches":
+          return (b.clutches_won ?? -1) - (a.clutches_won ?? -1)
+            || (b.clutches_attempted ?? -1) - (a.clutches_attempted ?? -1);
         case "rating":
         default:        return b.rating - a.rating;
       }
@@ -610,6 +629,9 @@ export default function PlayerListPage() {
                 minWidth={130}
                 options={[
                   { value: "rating",  label: "Rating" },
+                  { value: "adr",     label: "ADR" },
+                  { value: "kast",    label: "KAST" },
+                  { value: "clutches", label: "Clutches" },
                   { value: "kd",      label: "K/D" },
                   { value: "kills",   label: "Kills" },
                   { value: "hs",      label: "HS%" },
@@ -662,7 +684,12 @@ export default function PlayerListPage() {
                     <th className="px-3 py-3 text-left font-semibold sticky left-0 z-10 bg-[#0b0f19] md:static md:bg-transparent">Player</th>
                     <th className="px-3 py-3 text-left font-semibold">Team</th>
                     <th className="px-3 py-3 text-center font-semibold">Role</th>
-                    <th className="px-3 py-3 text-right font-semibold">Rating</th>
+                    <th className="px-3 py-3 text-right font-semibold">
+                      <span className="inline-flex items-center gap-1">Rating <RatingInfo /></span>
+                    </th>
+                    <th className="px-3 py-3 text-right font-semibold" title="Average damage per round">ADR</th>
+                    <th className="px-3 py-3 text-right font-semibold" title="% of rounds with a Kill, Assist, Survival or Trade">KAST</th>
+                    <th className="px-3 py-3 text-right font-semibold" title="Clutches (1vX) won / attempted">Clutch</th>
                     <th className="px-3 py-3 text-right font-semibold">K/D</th>
                     <th className="px-3 py-3 text-right font-semibold">K</th>
                     <th className="px-3 py-3 text-right font-semibold">D</th>
@@ -706,8 +733,19 @@ export default function PlayerListPage() {
                             {p.role}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-right font-mono font-bold text-white">
+                        <td
+                          className="px-3 py-2 text-right font-mono font-bold text-white"
+                          title={p.rating_version === "1.0" ? "Rating 1.0 — no damage data for these demos" : "Rating 2.0 (approx.)"}
+                        >
                           {p.rating.toFixed(2)}
+                          {p.rating_version === "1.0" && (
+                            <sup className="ml-0.5 text-[8px] font-normal text-cs2-muted">1.0</sup>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtAdr(p.adr)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-300">{fmtPct(p.kast_pct)}</td>
+                        <td className="px-3 py-2 text-right font-mono text-gray-300">
+                          {fmtClutches(p.clutches_won, p.clutches_attempted)}
                         </td>
                         <td className={`px-3 py-2 text-right font-mono ${p.kd_ratio >= 1 ? "text-cs2-green" : "text-cs2-red"}`}>
                           {p.kd_ratio.toFixed(2)}

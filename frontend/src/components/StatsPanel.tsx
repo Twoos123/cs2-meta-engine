@@ -1,14 +1,31 @@
 /**
  * StatsPanel — per-player stats dashboard.
- * Computes K/D, HS%, opening duels, clutches, multi-kills, utility usage
- * all client-side from the timeline data.
+ * Computes K/D, HS%, opening duels, multi-kills, utility usage client-side
+ * from the timeline data. ADR, KAST, trades, clutches and Rating come from
+ * the server (`/api/players/match/{demo}`), which shares its definitions
+ * with the player profiles; those columns show "—" while unavailable or
+ * when an older demo lacks the data.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { MatchInfoResponse, MatchTimeline } from "../api/client";
+import {
+  DASH,
+  MatchPlayerStatsResponse,
+  PlayerSummaryStats,
+  apiErrorMessage,
+  fmtAdr,
+  fmtClutches,
+  fmtPct,
+  getMatchPlayerStats,
+} from "../api/players";
+import { RatingInfo } from "./PlayerStatTile";
 
 interface Props {
   timeline: MatchTimeline;
   matchInfo: MatchInfoResponse | null;
+  /** Defaults to the `:demoFile` route param of the replay layout. */
+  demoFile?: string;
 }
 
 interface PlayerStats {
@@ -24,8 +41,6 @@ interface PlayerStats {
   blindKills: number;
   openingKills: number;
   openingDeaths: number;
-  clutchWins: number;
-  clutchAttempts: number;
   multiKills: { "2k": number; "3k": number; "4k": number; "5k": number };
   smokesThrown: number;
   flashesThrown: number;
@@ -39,8 +54,47 @@ interface PlayerStats {
  *  Needs an opaque background so scrolled numbers don't show through. */
 const STICKY_COL = "sticky left-0 z-10 bg-[#0b0f1a] lg:static lg:bg-transparent";
 
-export default function StatsPanel({ timeline, matchInfo }: Props) {
+const GRID_COLS = "2fr repeat(15, 1fr)";
+
+export default function StatsPanel({ timeline, matchInfo, demoFile: demoFileProp }: Props) {
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
+  const params = useParams();
+  const demoFile = demoFileProp ?? (params.demoFile ? decodeURIComponent(params.demoFile) : "");
+
+  // Server-side match stats: undefined = loading, null = unavailable.
+  const [server, setServer] = useState<MatchPlayerStatsResponse | null | undefined>(undefined);
+  const [serverError, setServerError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!demoFile) {
+      setServer(null);
+      return;
+    }
+    let cancelled = false;
+    setServer(undefined);
+    setServerError(null);
+    getMatchPlayerStats(demoFile)
+      .then((d) => { if (!cancelled) setServer(d); })
+      .catch((e) => {
+        if (cancelled) return;
+        setServer(null);
+        setServerError(apiErrorMessage(e, "Advanced stats unavailable"));
+      });
+    return () => { cancelled = true; };
+  }, [demoFile]);
+
+  const serverBySid = useMemo(() => {
+    const m = new Map<string, PlayerSummaryStats>();
+    for (const p of server?.players ?? []) m.set(p.steamid, p);
+    return m;
+  }, [server]);
+  const loadingServer = server === undefined;
+  /** Placeholder for server-backed cells: an ellipsis while loading, a dash if missing. */
+  const pending = loadingServer ? "…" : DASH;
+  const ratingVersion = server?.players.some((p) => p.rating_version === "2.0")
+    ? "2.0"
+    : server
+      ? "1.0"
+      : undefined;
 
   const teamNames = useMemo(() => {
     if (matchInfo?.team1 && matchInfo?.team2) {
@@ -67,7 +121,6 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
         kills: 0, deaths: 0, hsKills: 0,
         wallbangKills: 0, noscopeKills: 0, smokeKills: 0, blindKills: 0,
         openingKills: 0, openingDeaths: 0,
-        clutchWins: 0, clutchAttempts: 0,
         multiKills: { "2k": 0, "3k": 0, "4k": 0, "5k": 0 },
         smokesThrown: 0, flashesThrown: 0, hesThrown: 0, molovsThrown: 0,
         roundsAlive: 0, totalRounds: timeline.rounds.length,
@@ -209,16 +262,18 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
             scroll box is an inline-size container so the expanded detail can
             be sized to the visible width (100cqw) instead of the table's. */}
         <div className="overflow-x-auto [container-type:inline-size]" style={{ scrollbarWidth: "thin" }}>
-        <div className="text-[11px] min-w-[600px]">
+        <div className="text-[11px] min-w-[820px]">
           {/* Header row */}
           <div
             className="grid text-cs2-muted uppercase tracking-[0.08em] border-b border-cs2-border/30"
-            style={{ gridTemplateColumns: "2fr repeat(11, 1fr)" }}
+            style={{ gridTemplateColumns: GRID_COLS }}
           >
             <div className={`px-3 py-2 font-medium text-left ${STICKY_COL}`}>Player</div>
             <div className="px-2 py-2 font-medium text-center">K</div>
             <div className="px-2 py-2 font-medium text-center">D</div>
             <div className="px-2 py-2 font-medium text-center">+/-</div>
+            <div className="px-2 py-2 font-medium text-center" title="Average damage per round">ADR</div>
+            <div className="px-2 py-2 font-medium text-center" title="% of rounds with a Kill, Assist, Survival or Trade">KAST</div>
             <div className="px-2 py-2 font-medium text-center">HS%</div>
             <div className="px-2 py-2 font-medium text-center">FK</div>
             <div className="px-2 py-2 font-medium text-center">FD</div>
@@ -226,7 +281,11 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
             <div className="px-2 py-2 font-medium text-center">3K</div>
             <div className="px-2 py-2 font-medium text-center">4K</div>
             <div className="px-2 py-2 font-medium text-center">5K</div>
+            <div className="px-2 py-2 font-medium text-center" title="Clutches (1vX) won / attempted">1vX</div>
             <div className="px-2 py-2 font-medium text-center" title="Survival rate">SRV%</div>
+            <div className="px-2 py-2 font-medium text-center">
+              <span className="inline-flex items-center gap-1">Rtg <RatingInfo version={ratingVersion} /></span>
+            </div>
           </div>
           {/* Player rows */}
           {players.map((p) => {
@@ -234,6 +293,7 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
             const hsPct = p.kills > 0 ? Math.round((p.hsKills / p.kills) * 100) : 0;
             const survPct = p.totalRounds > 0 ? Math.round((p.roundsAlive / p.totalRounds) * 100) : 0;
             const isExpanded = expandedPlayer === p.steamid;
+            const sv = serverBySid.get(p.steamid);
 
             return (
               <div key={p.steamid}>
@@ -244,13 +304,20 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
                   onClick={() => setExpandedPlayer(isExpanded ? null : p.steamid)}
                 >
                   {/* Main row */}
-                  <div className="grid" style={{ gridTemplateColumns: "2fr repeat(11, 1fr)" }}>
+                  <div className="grid" style={{ gridTemplateColumns: GRID_COLS }}>
                     <div className={`px-3 py-2 font-semibold text-white truncate ${STICKY_COL}`}>{p.name}</div>
                     <div className="px-2 py-2 text-center font-mono font-bold text-white">{p.kills}</div>
                     <div className="px-2 py-2 text-center font-mono text-gray-400">{p.deaths}</div>
                     <div className={`px-2 py-2 text-center font-mono font-bold ${diff > 0 ? "text-cs2-green" : diff < 0 ? "text-cs2-red" : "text-gray-400"}`}>
                       {diff > 0 ? `+${diff}` : diff}
                     </div>
+                    <div
+                      className="px-2 py-2 text-center font-mono text-gray-300"
+                      title={sv && sv.adr == null ? "No damage data in this demo's cached timeline" : undefined}
+                    >
+                      {sv ? fmtAdr(sv.adr) : pending}
+                    </div>
+                    <div className="px-2 py-2 text-center font-mono text-gray-300">{sv ? fmtPct(sv.kast_pct) : pending}</div>
                     <div className="px-2 py-2 text-center font-mono text-gray-300">{hsPct}%</div>
                     <div className="px-2 py-2 text-center font-mono text-cs2-green">{p.openingKills}</div>
                     <div className="px-2 py-2 text-center font-mono text-cs2-red">{p.openingDeaths}</div>
@@ -258,12 +325,23 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
                     <div className="px-2 py-2 text-center font-mono text-gray-300">{p.multiKills["3k"] || "-"}</div>
                     <div className="px-2 py-2 text-center font-mono text-yellow-400">{p.multiKills["4k"] || "-"}</div>
                     <div className="px-2 py-2 text-center font-mono text-cs2-accent">{p.multiKills["5k"] || "-"}</div>
+                    <div className="px-2 py-2 text-center font-mono text-gray-300">
+                      {sv ? (sv.clutches_attempted ? fmtClutches(sv.clutches_won, sv.clutches_attempted) : "-") : pending}
+                    </div>
                     <div className="px-2 py-2 text-center font-mono text-gray-300">{survPct}%</div>
+                    <div
+                      className={`px-2 py-2 text-center font-mono font-bold ${
+                        sv ? (sv.rating >= 1 ? "text-cs2-green" : "text-cs2-red") : "text-gray-400"
+                      }`}
+                      title={sv ? `Rating ${sv.rating_version ?? "1.0"}` : undefined}
+                    >
+                      {sv ? sv.rating.toFixed(2) : pending}
+                    </div>
                   </div>
 
                   {/* Expanded detail */}
                       {isExpanded && (
-                        <div className="px-4 pb-3 pt-1 grid grid-cols-2 md:grid-cols-4 gap-3 sticky left-0 w-[100cqw] lg:static lg:w-auto">
+                        <div className="px-4 pb-3 pt-1 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sticky left-0 w-[100cqw] lg:static lg:w-auto">
                           <div className="hud-panel p-2 space-y-1">
                             <p className="text-[9px] text-cs2-muted uppercase tracking-wide">Kill Breakdown</p>
                             <div className="space-y-0.5 text-[11px]">
@@ -344,6 +422,33 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
                               </div>
                             </div>
                           </div>
+                          <div className="hud-panel p-2 space-y-1">
+                            <p className="text-[9px] text-cs2-muted uppercase tracking-wide">Trades &amp; Clutches</p>
+                            {sv ? (
+                              <div className="space-y-0.5 text-[11px]">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400" title="Kills avenging a teammate within 5s">Trade kills</span>
+                                  <span className="text-white font-mono">{sv.trade_kills ?? DASH}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400" title="Deaths a teammate avenged within 5s">Deaths traded</span>
+                                  <span className="text-white font-mono">{sv.traded_deaths ?? DASH}</span>
+                                </div>
+                                {(sv.clutches ?? []).map((c) => (
+                                  <div key={c.x} className="flex justify-between">
+                                    <span className="text-gray-400">1v{c.x}</span>
+                                    <span className={`font-mono ${c.won ? "text-cs2-green" : "text-white"}`}>
+                                      {c.attempted ? `${c.won}/${c.attempted}` : "-"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-cs2-muted">
+                                {loadingServer ? "Loading…" : serverError ?? "Unavailable for this demo"}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -358,9 +463,19 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
 
   return (
     <div className="h-full overflow-y-auto p-3 lg:p-4 space-y-4" style={{ scrollbarWidth: "thin" }}>
-      <h2 className="text-xs text-cs2-muted uppercase tracking-[0.15em]">
-        Player Statistics · {timeline.rounds.length} rounds
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="text-xs text-cs2-muted uppercase tracking-[0.15em]">
+          Player Statistics · {timeline.rounds.length} rounds
+        </h2>
+        {server && !server.has_adr && (
+          <span className="text-[10px] text-cs2-muted">
+            No damage data in this demo's cache, so ADR is unavailable and the rating uses 1.0.
+          </span>
+        )}
+        {server === null && serverError && (
+          <span className="text-[10px] text-cs2-muted">ADR / KAST / rating unavailable: {serverError}</span>
+        )}
+      </div>
       {renderTeamTable(2)}
       {renderTeamTable(3)}
     </div>

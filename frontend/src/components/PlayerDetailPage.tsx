@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  PlayerProfileDetail,
   getMatchInfo,
-  getPlayerDetail,
   getPlayerHltvIds,
   warmPlayerPhotosStatus,
 } from "../api/client";
-import PlayerStatTile from "./PlayerStatTile";
+import {
+  DASH,
+  PlayerClutchSplit,
+  PlayerProfileStats,
+  fmtAdr,
+  fmtPct,
+  getPlayerProfileStats,
+} from "../api/players";
+import PlayerStatTile, { RatingInfo } from "./PlayerStatTile";
 import PlayerRoleRadar from "./PlayerRoleRadar";
 import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
@@ -47,7 +53,7 @@ export default function PlayerDetailPage() {
   const navigate = useNavigate();
   const isPhone = useIsPhone();
   const { steamid } = useParams<{ steamid: string }>();
-  const [detail, setDetail] = useState<PlayerProfileDetail | null>(null);
+  const [detail, setDetail] = useState<PlayerProfileStats | null>(null);
   const [hltvId, setHltvId] = useState<number | null>(null);
   // Team logo + name for this player, inferred from roster sidecars of
   // the demos they appear in. Used as a faded background on the header
@@ -72,7 +78,7 @@ export default function PlayerDetailPage() {
 
     if (!steamid) return;
     setLoading(true);
-    getPlayerDetail(steamid)
+    getPlayerProfileStats(steamid)
       .then(async (d) => {
         setDetail(d);
         // Look up the HLTV id for this player's displayed name. Done
@@ -227,8 +233,13 @@ export default function PlayerDetailPage() {
             </div>
             <div className="flex items-center gap-3 relative z-10 ml-auto sm:ml-0">
               <div className="text-right">
-                <p className="text-[10px] text-cs2-muted uppercase tracking-[0.18em]">Rating</p>
+                <p className="text-[10px] text-cs2-muted uppercase tracking-[0.18em] inline-flex items-center gap-1">
+                  Rating {s.rating_version ?? "1.0"} <RatingInfo version={s.rating_version} />
+                </p>
                 <p className="text-3xl font-bold font-mono text-cs2-accent">{s.rating.toFixed(2)}</p>
+                {s.rating_version === "2.0" && s.rating_1 != null && (
+                  <p className="text-[10px] text-cs2-muted font-mono">1.0: {s.rating_1.toFixed(2)}</p>
+                )}
               </div>
             </div>
           </div>
@@ -296,11 +307,62 @@ export default function PlayerDetailPage() {
                         <p className="text-cs2-muted text-[9px] uppercase">Survival</p>
                         <p className="font-mono text-white">{Math.round(surv * 100)}%</p>
                       </div>
+                      <div>
+                        <p className="text-cs2-muted text-[9px] uppercase">ADR</p>
+                        <p className="font-mono text-white">{fmtAdr(ss.adr)}</p>
+                      </div>
+                      <div>
+                        <p className="text-cs2-muted text-[9px] uppercase">KAST</p>
+                        <p className="font-mono text-white">{fmtPct(ss.kast_pct)}</p>
+                      </div>
+                      <div>
+                        <p className="text-cs2-muted text-[9px] uppercase">Rating</p>
+                        <p className="font-mono text-white">{ss.rating != null ? ss.rating.toFixed(2) : DASH}</p>
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+
+          {/* ADR / KAST / APR / trades + clutch breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3">
+              <PlayerStatTile
+                label="ADR"
+                value={fmtAdr(s.adr)}
+                sub={s.adr == null ? "No damage data" : "Damage / round"}
+                title="Average damage per round"
+              />
+              <PlayerStatTile
+                label="KAST"
+                value={fmtPct(s.kast_pct)}
+                sub="Kill · Assist · Survive · Trade"
+                title="% of rounds with a Kill, Assist, Survival or being Traded"
+              />
+              <PlayerStatTile
+                label="APR"
+                value={s.apr != null ? s.apr.toFixed(2) : DASH}
+                sub={s.assists != null ? `${s.assists} assists` : undefined}
+                title="Assists per round"
+              />
+              <PlayerStatTile
+                label="Trade kills"
+                value={fmtPct(s.trade_kill_pct)}
+                sub={
+                  s.trade_kills != null
+                    ? `${s.trade_kills} trades · ${fmtPct(s.traded_death_pct)} deaths traded`
+                    : undefined
+                }
+                title="Share of kills that avenged a teammate within 5s, and share of deaths a teammate avenged within 5s"
+              />
+            </div>
+            <ClutchBreakdown
+              clutches={s.clutches}
+              won={s.clutches_won}
+              attempted={s.clutches_attempted}
+            />
           </div>
 
           {/* Per-map */}
@@ -322,6 +384,9 @@ export default function PlayerDetailPage() {
                   <th className="px-3 py-2 text-right font-medium">D</th>
                   <th className="px-3 py-2 text-right font-medium">Open WR</th>
                   <th className="px-3 py-2 text-right font-medium">Survival</th>
+                  <th className="px-3 py-2 text-right font-medium">ADR</th>
+                  <th className="px-3 py-2 text-right font-medium">KAST</th>
+                  <th className="px-3 py-2 text-right font-medium">Rating</th>
                 </tr>
               </thead>
               <tbody>
@@ -343,6 +408,9 @@ export default function PlayerDetailPage() {
                       <td className="px-3 py-1.5 text-right font-mono text-gray-400">{m.deaths}</td>
                       <td className="px-3 py-1.5 text-right font-mono text-gray-300">{Math.round(openWr * 100)}%</td>
                       <td className="px-3 py-1.5 text-right font-mono text-gray-300">{Math.round(surv * 100)}%</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-gray-300">{fmtAdr(m.adr)}</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-gray-300">{fmtPct(m.kast_pct)}</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-white">{m.rating != null ? m.rating.toFixed(2) : DASH}</td>
                     </tr>
                   );
                 })}
@@ -359,7 +427,7 @@ export default function PlayerDetailPage() {
               </h3>
             </div>
             <div className="overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
-            <table className="w-full min-w-[480px] md:min-w-0 text-[11px] whitespace-nowrap md:whitespace-normal">
+            <table className="w-full min-w-[560px] md:min-w-0 text-[11px] whitespace-nowrap md:whitespace-normal">
               <thead>
                 <tr className="text-cs2-muted uppercase tracking-[0.08em] border-b border-cs2-border/30">
                   <th className="px-3 py-2 text-left font-medium">Demo</th>
@@ -367,6 +435,8 @@ export default function PlayerDetailPage() {
                   <th className="px-3 py-2 text-right font-medium">Rounds</th>
                   <th className="px-3 py-2 text-right font-medium">K</th>
                   <th className="px-3 py-2 text-right font-medium">D</th>
+                  <th className="px-3 py-2 text-right font-medium">ADR</th>
+                  <th className="px-3 py-2 text-right font-medium">Rating</th>
                   <th className="px-3 py-2 text-right font-medium w-16">Replay</th>
                 </tr>
               </thead>
@@ -382,6 +452,8 @@ export default function PlayerDetailPage() {
                     <td className="px-3 py-1.5 text-right font-mono text-cs2-muted">{d.rounds_played}</td>
                     <td className="px-3 py-1.5 text-right font-mono text-gray-300">{d.kills}</td>
                     <td className="px-3 py-1.5 text-right font-mono text-gray-400">{d.deaths}</td>
+                    <td className="px-3 py-1.5 text-right font-mono text-gray-300">{fmtAdr(d.adr)}</td>
+                    <td className="px-3 py-1.5 text-right font-mono text-white">{d.rating != null ? d.rating.toFixed(2) : DASH}</td>
                     <td className="px-3 py-1.5 text-right">
                       <span className="text-cs2-accent text-[11px]">▶</span>
                     </td>
@@ -392,6 +464,66 @@ export default function PlayerDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** 1v1…1v5 won / attempted with a win-rate bar per row. */
+function ClutchBreakdown({
+  clutches,
+  won,
+  attempted,
+}: {
+  clutches?: PlayerClutchSplit[];
+  won?: number;
+  attempted?: number;
+}) {
+  const rows: PlayerClutchSplit[] = [1, 2, 3, 4, 5].map(
+    (x) => clutches?.find((c) => c.x === x) ?? { x, attempted: 0, won: 0 },
+  );
+  const hasData = clutches != null && clutches.length > 0;
+  return (
+    <div className="hud-panel p-3 lg:col-span-2 space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <h3 className="text-[10px] text-cs2-muted uppercase tracking-[0.12em] font-semibold">
+          Clutches (1vX)
+        </h3>
+        <span className="text-[11px] font-mono text-cs2-muted">
+          {hasData ? (
+            <>
+              <span className="text-white font-bold">{won ?? 0}</span> won / {attempted ?? 0} attempted
+            </>
+          ) : (
+            "No clutch data yet"
+          )}
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {rows.map((c) => {
+          const rate = c.attempted ? c.won / c.attempted : 0;
+          return (
+            <div key={c.x} className="grid grid-cols-[2.5rem_1fr_6rem] items-center gap-2 text-[11px]">
+              <span className="font-mono font-semibold text-gray-300">1v{c.x}</span>
+              <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-cs2-accent"
+                  style={{ width: `${Math.round(rate * 100)}%` }}
+                />
+              </div>
+              <span className="text-right font-mono text-gray-300">
+                {c.attempted ? (
+                  <>
+                    <span className="text-white">{c.won}</span>/{c.attempted}
+                    <span className="text-cs2-muted"> · {Math.round(rate * 100)}%</span>
+                  </>
+                ) : (
+                  <span className="text-cs2-muted">{DASH}</span>
+                )}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

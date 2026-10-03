@@ -46,24 +46,36 @@ class CatalogEventEntry(BaseModel):
     match_count: int
     first_date_unix: Optional[int] = None
     last_date_unix: Optional[int] = None
-    max_stars: int = 0
+    max_stars: int = 0                   # S-tier → 3, A → 2, B → 1 (HLTV-style)
     big: bool = False
+    tier: Optional[str] = None           # "S" | "A" | "B" | "C" | "Qualifier" | …
+    source: str = "liquipedia"           # "liquipedia" | "hltv" (legacy rows)
+    liquipedia_url: Optional[str] = None
 
 
 class CatalogMatchEntry(BaseModel):
-    match_id: int
+    match_key: str                       # "lp:<hash>" or "hltv:<id>" — stable
+    match_id: Optional[int] = None       # HLTV match id when known
+    source: str = "liquipedia"
     team1: str
     team2: str
     event: str
+    stage: Optional[str] = None
     date_unix: Optional[int] = None
+    status: str = "completed"            # "upcoming" | "completed"
+    best_of: Optional[int] = None
+    tier: Optional[str] = None
     stars: int = 0
     score1: Optional[int] = None
     score2: Optional[int] = None
     maps: List[str] = Field(default_factory=list)
-    demo_available: int = -1             # -1 unknown / 0 no / 1 yes
+    demo_available: int = -1             # legacy HLTV flag; -1 unknown
     team1_logo: Optional[str] = None
     team2_logo: Optional[str] = None
+    hltv_url: Optional[str] = None
+    liquipedia_url: Optional[str] = None
     local_maps: List[str] = Field(default_factory=list)
+    local_demos: List[str] = Field(default_factory=list)   # .dem files on disk
 
 
 class CatalogStatusResponse(BaseModel):
@@ -74,6 +86,9 @@ class CatalogStatusResponse(BaseModel):
     demo_disk_used_gb: float
     demo_retention_gb: float
     autopull_enabled: bool
+    source: str = "liquipedia"
+    attribution: str = "Data from Liquipedia (CC-BY-SA 3.0)"
+    attribution_url: str = "https://liquipedia.net/counterstrike/Liquipedia:Matches"
 
 
 class DemoIngestionResult(BaseModel):
@@ -426,7 +441,36 @@ class FaceitIngestRequest(BaseModel):
 # Player profiles (cross-demo aggregation)
 # ---------------------------------------------------------------------------
 
-class PlayerProfileSummary(BaseModel):
+class PlayerClutchSplit(BaseModel):
+    """1vX record: situations entered and rounds won (see player_stats.py)."""
+    x: int                           # 1..5 enemies alive when the clutch began
+    attempted: int
+    won: int
+
+
+class PlayerAdvancedStats(BaseModel):
+    """ADR / KAST / trade / clutch block shared by summaries and splits.
+    Nullable fields are null when the underlying demos predate the data
+    (no `dmg` counter → no ADR; legacy rows → no KAST)."""
+    assists: int = 0
+    apr: Optional[float] = None              # assists per round
+    adr: Optional[float] = None              # average damage per round
+    kast_pct: Optional[float] = None         # 0-1
+    trade_kills: int = 0
+    traded_deaths: int = 0
+    trade_kill_pct: Optional[float] = None   # 0-1 share of kills that were trades
+    traded_death_pct: Optional[float] = None # 0-1 share of deaths that got traded
+    clutches_attempted: int = 0
+    clutches_won: int = 0
+    clutches: List[PlayerClutchSplit] = Field(default_factory=list)
+    # `rating` is HLTV 2.0-style (community approximation) when ADR + KAST
+    # exist, else the 1.0 formula; `rating_1` is always the 1.0 value.
+    rating: float = 0.0
+    rating_1: float = 0.0
+    rating_version: str = "1.0"              # "2.0" | "1.0"
+
+
+class PlayerProfileSummary(PlayerAdvancedStats):
     """One row in the /api/players list — totals across every parsed demo."""
     steamid: str
     name: str
@@ -452,11 +496,10 @@ class PlayerProfileSummary(BaseModel):
     hs_pct: float                    # 0-1
     opening_wr: float                # 0-1
     survival_rate: float             # 0-1
-    rating: float                    # simple proxy (see player_stats.py)
     role: str                        # "AWP" | "Entry" | "Support" | "Lurker" | "Rifler"
 
 
-class PlayerSideSplit(BaseModel):
+class PlayerSideSplit(PlayerAdvancedStats):
     side: str                        # "T" | "CT"
     rounds_played: int
     kills: int
@@ -466,7 +509,7 @@ class PlayerSideSplit(BaseModel):
     rounds_alive: int
 
 
-class PlayerMapSplit(BaseModel):
+class PlayerMapSplit(PlayerAdvancedStats):
     map_name: str
     matches: int
     rounds_played: int
@@ -477,12 +520,20 @@ class PlayerMapSplit(BaseModel):
     opening_deaths: int
 
 
-class PlayerDemoEntry(BaseModel):
+class PlayerDemoEntry(PlayerAdvancedStats):
     demo_file: str
     map_name: str
     kills: int
     deaths: int
     rounds_played: int
+
+
+class PlayerMatchStatsResponse(BaseModel):
+    """Per-player stats for one demo (both sides combined) — replay Stats tab."""
+    demo_file: str
+    map_name: str
+    has_adr: bool                    # False for demos parsed before the dmg counter
+    players: List[PlayerProfileSummary]
 
 
 class PlayerProfileDetail(BaseModel):

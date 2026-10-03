@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from bisect import bisect_right
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -61,12 +62,111 @@ CREATE INDEX IF NOT EXISTS idx_player_stats_map ON player_stats(map_name);
 CREATE INDEX IF NOT EXISTS idx_player_stats_demo ON player_stats(demo_file);
 """
 
+# ---------------------------------------------------------------------------
+# Advanced per-row counters (ADR / KAST / trades / clutches)
+# ---------------------------------------------------------------------------
+# Added after the original schema, so they're migrated in with
+# `ALTER TABLE ... ADD COLUMN` (see PlayerStatsStore._migrate). All INTEGER,
+# default 0 — rows written before this change read as "no data" via the
+# has_* flags, never as "zero damage".
+#
+#   assists        assists in this (demo, side)
+#   damage         total damage dealt (sum of per-round counter diffs)
+#   kast_rounds    rounds with a Kill, Assist, Survival or Traded death
+#   trade_kills    kills that avenged a teammate (see TRADE_WINDOW_SECONDS)
+#   traded_deaths  deaths that a teammate avenged within the window
+#   clutch_att_N   1vN situations entered (N = 1..5)
+#   clutch_won_N   ...of which the player's team won the round
+#   has_adr        1 when the timeline had the cumulative `dmg` counter
+#   has_assists    1 when assists came from the `ast` counter or death events
+#   has_kast       1 when the row was built by the KAST/trade/clutch logic
+#                  (0 = legacy row from before these columns existed)
+CLUTCH_SIZES = (1, 2, 3, 4, 5)
+_V2_COLUMNS: List[str] = [
+    "assists", "damage", "kast_rounds", "trade_kills", "traded_deaths",
+    *(f"clutch_att_{n}" for n in CLUTCH_SIZES),
+    *(f"clutch_won_{n}" for n in CLUTCH_SIZES),
+    "has_adr", "has_assists", "has_kast",
+]
+
+# Trade window: a kill counts as a trade when it happens within this many
+# seconds of the teammate's death it avenges (HLTV / Leetify use ~5s).
+TRADE_WINDOW_SECONDS = 5
+
+# SQL SELECT fragment shared by every read query: sums of the advanced
+# counters, plus the round/kill/death totals restricted to rows that
+# actually carry the data so rates aren't diluted by legacy rows.
+_V2_SUMS_SQL = ",\n".join(
+    [f"SUM({c}) AS {c}" for c in _V2_COLUMNS if not c.startswith("has_")]
+    + [
+        "SUM(CASE WHEN has_adr = 1 THEN rounds_played ELSE 0 END) AS adr_rounds",
+        "SUM(CASE WHEN has_assists = 1 THEN rounds_played ELSE 0 END) AS assist_rounds",
+        "SUM(CASE WHEN has_kast = 1 THEN rounds_played ELSE 0 END) AS kast_total_rounds",
+        "SUM(CASE WHEN has_kast = 1 THEN kills ELSE 0 END) AS kast_kills",
+        "SUM(CASE WHEN has_kast = 1 THEN deaths ELSE 0 END) AS kast_deaths",
+    ]
+)
+
+
+# Plain sums of the original counters, shared by every read query.
+_BASE_SUMS_SQL = ",\n".join(
+    f"SUM({c}) AS {c}"
+    for c in (
+        "rounds_played", "kills", "deaths", "hs_kills",
+        "opening_kills", "opening_deaths",
+        "multi_2k", "multi_3k", "multi_4k", "multi_5k",
+        "smokes_thrown", "flashes_thrown", "hes_thrown", "molos_thrown",
+        "rounds_alive", "awp_kills",
+    )
+)
 
 _TRUE_VALUES = {"True", "true", "1", True, 1}
 
 
 def _is_true(v: Any) -> bool:
     return v in _TRUE_VALUES
+
+
+def _counter_at(ticks: List[int], samples: List[dict], key: str, tick: int) -> Optional[int]:
+    """Value of cumulative counter `key` in the last sample at or before
+    `tick` (walking back past samples that lack the key). None if no
+    sample at or before `tick` carries it."""
+    i = bisect_right(ticks, tick) - 1
+    while i >= 0:
+        v = samples[i].get(key)
+        if v is not None:
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return None
+        i -= 1
+    return None
+
+
+def _per_round_counter_diffs(
+    samples: List[dict], rounds: List[dict], key: str,
+) -> Optional[Dict[int, int]]:
+    """
+    Per-round increments of a cumulative per-player counter (``dmg``,
+    ``ast``): value at the last sample at or before each round's end tick,
+    minus the same for the previous round (or the round-1 start tick).
+    A negative diff means the game reset the counter (e.g. a restart after
+    warmup), in which case the round's end value is taken as-is.
+    Returns None when the timeline predates the counter.
+    """
+    if not samples or not any(s.get(key) is not None for s in samples):
+        return None
+    ticks = [int(s["t"]) for s in samples]
+    prev = _counter_at(ticks, samples, key, int(rounds[0]["start_tick"])) or 0
+    out: Dict[int, int] = {}
+    for r in rounds:
+        cur = _counter_at(ticks, samples, key, int(r["end_tick"]))
+        if cur is None:
+            cur = prev
+        diff = cur - prev
+        out[int(r["num"])] = cur if diff < 0 else diff
+        prev = cur
+    return out
 
 
 def _tick_to_round_num(rounds: List[dict], tick: int) -> int:
@@ -150,6 +250,8 @@ def aggregate_timeline(bundle: dict, demo_file: str) -> List[dict]:
                 "awp_kills": 0,
                 "wallbang_kills": 0, "noscope_kills": 0,
                 "smoke_kills": 0, "blind_kills": 0,
+                **{c: 0 for c in _V2_COLUMNS},
+                "has_kast": 1,
             }
             stats[key] = row
         return row
@@ -275,7 +377,195 @@ def aggregate_timeline(bundle: dict, demo_file: str) -> List[dict]:
         elif t in ("molotov", "incgrenade"):
             row["molos_thrown"] += 1
 
+    _aggregate_advanced(
+        rounds=rounds,
+        events=events,
+        positions=positions,
+        round_side=round_side,
+        name_by_sid=name_by_sid,
+        tick_rate=int(bundle.get("tick_rate") or 64),
+        row_for=_row,
+    )
+
     return list(stats.values())
+
+
+def _aggregate_advanced(
+    *,
+    rounds: List[dict],
+    events: List[dict],
+    positions: Dict[str, List[dict]],
+    round_side: Dict[Tuple[int, str], str],
+    name_by_sid: Dict[str, str],
+    tick_rate: int,
+    row_for,
+) -> None:
+    """
+    ADR, KAST, trades and clutches. Mutates the per-(player, side) rows
+    returned by ``row_for(steamid, name, side)``.
+
+    Definitions
+    -----------
+    * Trade window — ``TRADE_WINDOW_SECONDS`` (5s) × tick_rate ticks.
+    * Trade kill — the player kills an enemy who, within the previous
+      window, killed one of the player's teammates.
+    * Traded death — the player dies and their killer is killed by one of
+      the player's teammates within the window after the death.
+    * KAST — a round counts when the player got a Kill, an Assist,
+      Survived (no death event that round) or was Traded.
+    * Assists — per-round diffs of the cumulative ``ast`` counter; falls
+      back to an ``assister`` key on death events when the counter is
+      missing (older caches have neither, so assists stay unknown).
+    * Damage / ADR — per-round diffs of the cumulative ``dmg`` counter,
+      sampled at the last position at or before each round's end tick.
+      Missing counter → ``has_adr`` = 0 and ADR is reported as null.
+    * Clutch (1vX) — the moment a player becomes the last one alive on
+      their team while X ≥ 1 enemies are still alive. At most one clutch
+      per team per round; won = their team won the round. Only deaths
+      after freeze time ends are counted, so warmup kills can't fake one.
+
+    All attribution follows ``round_side`` (the side the player played that
+    round); deaths are bucketed by round using the [start_tick, end_tick]
+    window, the same as kills/deaths in ``aggregate_timeline``.
+    """
+    window = TRADE_WINDOW_SECONDS * max(int(tick_rate or 64), 1)
+
+    # ── Death events grouped by round, in tick order ──
+    deaths_by_round: Dict[int, List[dict]] = {int(r["num"]): [] for r in rounds}
+    for evt in events:
+        if evt.get("type") != "death":
+            continue
+        tick = int(evt["tick"])
+        rn = _tick_to_round_num(rounds, tick)
+        if rn == 0:
+            continue
+        data = evt.get("data", {}) or {}
+        victim = data.get("victim") or ""
+        if not victim:
+            continue
+        deaths_by_round[rn].append({
+            "tick": tick,
+            "attacker": data.get("attacker") or "",
+            "victim": victim,
+            "assister": data.get("assister") or "",
+        })
+    for lst in deaths_by_round.values():
+        lst.sort(key=lambda d: d["tick"])
+
+    # ── Per-round damage / assist increments from cumulative counters ──
+    dmg_diffs: Dict[str, Optional[Dict[int, int]]] = {}
+    ast_diffs: Dict[str, Optional[Dict[int, int]]] = {}
+    for sid in name_by_sid:
+        samples = positions.get(sid, []) or []
+        dmg_diffs[sid] = _per_round_counter_diffs(samples, rounds, "dmg")
+        ast_diffs[sid] = _per_round_counter_diffs(samples, rounds, "ast")
+    has_assister_events = any(
+        d["assister"] for lst in deaths_by_round.values() for d in lst
+    )
+
+    for r in rounds:
+        rn = int(r["num"])
+        winner = r.get("winner")
+        deaths = deaths_by_round.get(rn, [])
+
+        def side_of(sid: str) -> Optional[str]:
+            return round_side.get((rn, sid)) if sid else None
+
+        def is_enemy_kill(d: dict) -> bool:
+            a, v = d["attacker"], d["victim"]
+            if not a or a == v:
+                return False
+            a_side, v_side = side_of(a), side_of(v)
+            return a_side is not None and a_side != v_side
+
+        killed: set = set()      # got at least one enemy kill
+        died: set = set()
+        traded: set = set()      # had a death avenged
+        event_assists: Dict[str, int] = {}
+
+        for i, d in enumerate(deaths):
+            died.add(d["victim"])
+            if d["assister"]:
+                event_assists[d["assister"]] = event_assists.get(d["assister"], 0) + 1
+            if not is_enemy_kill(d):
+                continue
+            killer, victim = d["attacker"], d["victim"]
+            killed.add(killer)
+            k_side = side_of(killer)
+
+            # Trade kill: `victim` killed one of `killer`'s teammates in the
+            # preceding window. Each such avenged teammate is a traded death.
+            is_trade = False
+            for prev in deaths[:i]:
+                if d["tick"] - prev["tick"] > window:
+                    continue
+                if (
+                    prev["attacker"] == victim
+                    and prev["victim"] != killer
+                    and side_of(prev["victim"]) == k_side
+                ):
+                    is_trade = True
+                    if prev["victim"] not in traded:
+                        traded.add(prev["victim"])
+                        row_for(
+                            prev["victim"],
+                            name_by_sid.get(prev["victim"], prev["victim"]),
+                            k_side,
+                        )["traded_deaths"] += 1
+            if is_trade:
+                row_for(killer, name_by_sid.get(killer, killer), k_side)["trade_kills"] += 1
+
+        # ── Clutches ──
+        live_from = int(r.get("freeze_end_tick") or r["start_tick"])
+        alive: Dict[str, set] = {"T": set(), "CT": set()}
+        for sid in name_by_sid:
+            s = side_of(sid)
+            if s in alive:
+                alive[s].add(sid)
+        clutched: set = set()
+        for d in deaths:
+            if d["tick"] < live_from:
+                continue
+            v_side = side_of(d["victim"])
+            if v_side not in alive:
+                continue
+            alive[v_side].discard(d["victim"])
+            for side, other in (("T", "CT"), ("CT", "T")):
+                if side in clutched or len(alive[side]) != 1 or not alive[other]:
+                    continue
+                clutched.add(side)
+                (sid,) = tuple(alive[side])
+                x = min(len(alive[other]), 5)
+                row = row_for(sid, name_by_sid.get(sid, sid), side)
+                row[f"clutch_att_{x}"] += 1
+                if winner == side:
+                    row[f"clutch_won_{x}"] += 1
+
+        # ── Per-player round accounting: damage, assists, KAST ──
+        for sid, name in name_by_sid.items():
+            side = side_of(sid)
+            if not side:
+                continue
+            row = row_for(sid, name, side)
+
+            dd = dmg_diffs.get(sid)
+            if dd is not None:
+                row["has_adr"] = 1
+                row["damage"] += dd.get(rn, 0)
+
+            ad = ast_diffs.get(sid)
+            if ad is not None:
+                round_assists = ad.get(rn, 0)
+                row["has_assists"] = 1
+            elif has_assister_events:
+                round_assists = event_assists.get(sid, 0)
+                row["has_assists"] = 1
+            else:
+                round_assists = 0
+            row["assists"] += round_assists
+
+            if sid in killed or round_assists > 0 or sid not in died or sid in traded:
+                row["kast_rounds"] += 1
 
 
 class PlayerStatsStore:
@@ -291,13 +581,37 @@ class PlayerStatsStore:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
+        # The app DB goes through the shared connector (Postgres-ready);
+        # an explicit db_path (tests, tooling) keeps a direct connection.
+        if Path(self.db_path) == Path(settings.db_path):
+            from backend.db import connect
+
+            return connect()
+        conn = sqlite3.connect(self.db_path, timeout=30)
         conn.row_factory = sqlite3.Row
         return conn
 
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.executescript(_SQLITE_SCHEMA)
+            conn.commit()
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Add the ADR/KAST/trade/clutch columns to pre-existing tables.
+        Existing columns are read from the cursor description (portable,
+        no PRAGMA); each ADD COLUMN is still guarded in case another
+        process raced us to it."""
+        with self._connect() as conn:
+            cur = conn.execute("SELECT * FROM player_stats LIMIT 0")
+            existing = {d[0] for d in cur.description}
+            for col in _V2_COLUMNS:
+                if col in existing:
+                    continue
+                try:
+                    conn.execute(f"ALTER TABLE player_stats ADD COLUMN {col} INTEGER DEFAULT 0")
+                except Exception as exc:  # already added concurrently
+                    logger.debug("[player_stats] add column %s skipped: %s", col, exc)
             conn.commit()
 
     def upsert_rows(self, rows: Iterable[dict]) -> int:
@@ -312,6 +626,7 @@ class PlayerStatsStore:
             "smokes_thrown", "flashes_thrown", "hes_thrown", "molos_thrown",
             "rounds_alive", "awp_kills", "wallbang_kills",
             "noscope_kills", "smoke_kills", "blind_kills",
+            *_V2_COLUMNS,
         ]
         placeholders = ",".join(["?"] * len(cols))
         update_cols = ",".join(f"{c}=excluded.{c}" for c in cols if c not in ("steamid", "demo_file", "side"))
@@ -377,30 +692,16 @@ class PlayerStatsStore:
         Return one row per player with aggregated totals across all demos
         and both sides. Used by the /api/players list page.
         """
-        sql = """
+        sql = f"""
         SELECT
             steamid,
             MAX(name) AS name,
             COUNT(DISTINCT demo_file) AS matches,
-            SUM(rounds_played) AS rounds_played,
-            SUM(kills) AS kills,
-            SUM(deaths) AS deaths,
-            SUM(hs_kills) AS hs_kills,
-            SUM(opening_kills) AS opening_kills,
-            SUM(opening_deaths) AS opening_deaths,
-            SUM(multi_2k) AS multi_2k,
-            SUM(multi_3k) AS multi_3k,
-            SUM(multi_4k) AS multi_4k,
-            SUM(multi_5k) AS multi_5k,
-            SUM(smokes_thrown) AS smokes_thrown,
-            SUM(flashes_thrown) AS flashes_thrown,
-            SUM(hes_thrown) AS hes_thrown,
-            SUM(molos_thrown) AS molos_thrown,
-            SUM(rounds_alive) AS rounds_alive,
-            SUM(awp_kills) AS awp_kills
+            {_BASE_SUMS_SQL},
+            {_V2_SUMS_SQL}
         FROM player_stats
         GROUP BY steamid
-        HAVING rounds_played > 0
+        HAVING SUM(rounds_played) > 0
         """
         with self._connect() as conn:
             rows = conn.execute(sql).fetchall()
@@ -421,29 +722,15 @@ class PlayerStatsStore:
             name = base["name"]
 
             totals = conn.execute(
-                """
+                f"""
                 SELECT
                     COUNT(DISTINCT demo_file) AS matches,
-                    SUM(rounds_played) AS rounds_played,
-                    SUM(kills) AS kills,
-                    SUM(deaths) AS deaths,
-                    SUM(hs_kills) AS hs_kills,
-                    SUM(opening_kills) AS opening_kills,
-                    SUM(opening_deaths) AS opening_deaths,
-                    SUM(multi_2k) AS multi_2k,
-                    SUM(multi_3k) AS multi_3k,
-                    SUM(multi_4k) AS multi_4k,
-                    SUM(multi_5k) AS multi_5k,
-                    SUM(smokes_thrown) AS smokes_thrown,
-                    SUM(flashes_thrown) AS flashes_thrown,
-                    SUM(hes_thrown) AS hes_thrown,
-                    SUM(molos_thrown) AS molos_thrown,
-                    SUM(rounds_alive) AS rounds_alive,
-                    SUM(awp_kills) AS awp_kills,
+                    {_BASE_SUMS_SQL},
                     SUM(wallbang_kills) AS wallbang_kills,
                     SUM(noscope_kills) AS noscope_kills,
                     SUM(smoke_kills) AS smoke_kills,
-                    SUM(blind_kills) AS blind_kills
+                    SUM(blind_kills) AS blind_kills,
+                    {_V2_SUMS_SQL}
                 FROM player_stats
                 WHERE steamid = ?
                 """,
@@ -451,15 +738,11 @@ class PlayerStatsStore:
             ).fetchone()
 
             per_side = conn.execute(
-                """
+                f"""
                 SELECT
                     side,
-                    SUM(rounds_played) AS rounds_played,
-                    SUM(kills) AS kills,
-                    SUM(deaths) AS deaths,
-                    SUM(opening_kills) AS opening_kills,
-                    SUM(opening_deaths) AS opening_deaths,
-                    SUM(rounds_alive) AS rounds_alive
+                    {_BASE_SUMS_SQL},
+                    {_V2_SUMS_SQL}
                 FROM player_stats
                 WHERE steamid = ?
                 GROUP BY side
@@ -468,16 +751,12 @@ class PlayerStatsStore:
             ).fetchall()
 
             per_map = conn.execute(
-                """
+                f"""
                 SELECT
                     map_name,
                     COUNT(DISTINCT demo_file) AS matches,
-                    SUM(rounds_played) AS rounds_played,
-                    SUM(kills) AS kills,
-                    SUM(deaths) AS deaths,
-                    SUM(rounds_alive) AS rounds_alive,
-                    SUM(opening_kills) AS opening_kills,
-                    SUM(opening_deaths) AS opening_deaths
+                    {_BASE_SUMS_SQL},
+                    {_V2_SUMS_SQL}
                 FROM player_stats
                 WHERE steamid = ?
                 GROUP BY map_name
@@ -487,13 +766,12 @@ class PlayerStatsStore:
             ).fetchall()
 
             demos = conn.execute(
-                """
+                f"""
                 SELECT
                     demo_file,
                     MAX(map_name) AS map_name,
-                    SUM(kills) AS kills,
-                    SUM(deaths) AS deaths,
-                    SUM(rounds_played) AS rounds_played
+                    {_BASE_SUMS_SQL},
+                    {_V2_SUMS_SQL}
                 FROM player_stats
                 WHERE steamid = ?
                 GROUP BY demo_file
@@ -511,3 +789,27 @@ class PlayerStatsStore:
             "per_map": [dict(r) for r in per_map],
             "demos": [dict(r) for r in demos],
         }
+
+    def get_match(self, demo_file: str) -> List[dict]:
+        """
+        Per-player totals for one demo, both sides combined. ``legacy`` is
+        1 when any of the player's rows predates the KAST/trade/clutch
+        columns (the caller can then re-ingest from the cached timeline).
+        """
+        sql = f"""
+        SELECT
+            steamid,
+            MAX(name) AS name,
+            MAX(map_name) AS map_name,
+            MIN(has_kast) AS min_has_kast,
+            {_BASE_SUMS_SQL},
+            {_V2_SUMS_SQL}
+        FROM player_stats
+        WHERE demo_file = ?
+        GROUP BY steamid
+        """
+        with self._connect() as conn:
+            rows = [dict(r) for r in conn.execute(sql, (demo_file,)).fetchall()]
+        for r in rows:
+            r["legacy"] = 0 if r.pop("min_has_kast") else 1
+        return rows

@@ -5,12 +5,22 @@ Moved out of main.py; mounted with `app.include_router`.
 """
 from __future__ import annotations
 
-from typing import List
+import asyncio
+import json
+import logging
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from backend.analysis.player_stats import CLUTCH_SIZES
 from backend.api.deps import player_stats as _player_stats
-from backend.models.schemas import PlayerProfileDetail, PlayerProfileSummary
+from backend.models.schemas import (
+    PlayerMatchStatsResponse,
+    PlayerProfileDetail,
+    PlayerProfileSummary,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -66,6 +76,104 @@ def _hltv_rating(row: dict) -> float:
     return (kill_rating + 0.7 * survival_rating + rmk_rating) / 2.7
 
 
+def _hltv_rating_2(kpr: float, dpr: float, apr: float, kast_pct: float, adr: float) -> float:
+    """
+    HLTV Rating 2.0 — the widely used community approximation (HLTV never
+    published the real formula):
+
+        Impact = 2.13*KPR + 0.42*APR - 0.41
+        Rating = 0.0073*KAST + 0.3591*KPR - 0.5329*DPR
+                 + 0.2372*Impact + 0.0032*ADR + 0.1587
+
+    `kast_pct` is a percentage (72.0, not 0.72). An average pro line
+    (~0.68 KPR, ~0.65 DPR, ~0.13 APR, ~72% KAST, ~76 ADR) lands near 1.0.
+    """
+    impact = 2.13 * kpr + 0.42 * apr - 0.41
+    return (
+        0.0073 * kast_pct
+        + 0.3591 * kpr
+        - 0.5329 * dpr
+        + 0.2372 * impact
+        + 0.0032 * adr
+        + 0.1587
+    )
+
+
+def _advanced(row: dict) -> dict:
+    """
+    ADR / KAST / APR / trades / clutches + rating for any aggregated row
+    (player totals, a side, a map, a demo). Rates use only the rounds that
+    actually carry each kind of data (`adr_rounds`, `kast_total_rounds`,
+    `assist_rounds`), so a few legacy demos don't drag a player's ADR or
+    KAST toward zero. Rating 2.0 is used when both ADR and KAST exist;
+    otherwise `rating` falls back to the 1.0 formula.
+    """
+    rounds = row.get("rounds_played") or 0
+    kills = row.get("kills") or 0
+    deaths = row.get("deaths") or 0
+    adr_rounds = row.get("adr_rounds") or 0
+    kast_rounds_total = row.get("kast_total_rounds") or 0
+    assist_rounds = row.get("assist_rounds") or 0
+    assists = row.get("assists") or 0
+    trade_kills = row.get("trade_kills") or 0
+    traded_deaths = row.get("traded_deaths") or 0
+    kast_kills = row.get("kast_kills") or 0
+    kast_deaths = row.get("kast_deaths") or 0
+
+    adr: Optional[float] = _safe_div(row.get("damage") or 0, adr_rounds) if adr_rounds else None
+    kast: Optional[float] = (
+        _safe_div(row.get("kast_rounds") or 0, kast_rounds_total) if kast_rounds_total else None
+    )
+    apr: Optional[float] = _safe_div(assists, assist_rounds) if assist_rounds else None
+
+    clutches = []
+    att_total = won_total = 0
+    for n in CLUTCH_SIZES:
+        att = row.get(f"clutch_att_{n}") or 0
+        won = row.get(f"clutch_won_{n}") or 0
+        att_total += att
+        won_total += won
+        clutches.append({"x": n, "attempted": att, "won": won})
+
+    rating_1 = _hltv_rating(row)
+    if rounds and adr is not None and kast is not None:
+        rating = _hltv_rating_2(
+            kpr=kills / rounds,
+            dpr=deaths / rounds,
+            apr=apr or 0.0,
+            kast_pct=kast * 100.0,
+            adr=adr,
+        )
+        version = "2.0"
+    else:
+        rating, version = rating_1, "1.0"
+
+    def _r(v: Optional[float], nd: int) -> Optional[float]:
+        return round(v, nd) if v is not None else None
+
+    return {
+        "assists": assists,
+        "apr": _r(apr, 3),
+        "adr": _r(adr, 1),
+        "kast_pct": _r(kast, 3),
+        "trade_kills": trade_kills,
+        "traded_deaths": traded_deaths,
+        "trade_kill_pct": _r(_safe_div(trade_kills, kast_kills), 3) if kast_rounds_total else None,
+        "traded_death_pct": _r(_safe_div(traded_deaths, kast_deaths), 3) if kast_rounds_total else None,
+        "clutches_attempted": att_total,
+        "clutches_won": won_total,
+        "clutches": clutches,
+        "rating": round(rating, 3),
+        "rating_1": round(rating_1, 3),
+        "rating_version": version,
+    }
+
+
+def _with_advanced(row: dict) -> dict:
+    """Row plus its derived advanced block (for side/map/demo splits)."""
+    return {**row, **_advanced(row)}
+
+
 def _to_summary(row: dict) -> dict:
     kills = row.get("kills") or 0
     deaths = row.get("deaths") or 0
@@ -79,8 +187,6 @@ def _to_summary(row: dict) -> dict:
     hs_pct = _safe_div(hs, kills)
     open_wr = _safe_div(open_k, open_k + open_d)
     surv = _safe_div(alive, rounds)
-
-    rating = _hltv_rating(row)
 
     return {
         "steamid": row["steamid"],
@@ -106,8 +212,8 @@ def _to_summary(row: dict) -> dict:
         "hs_pct": round(hs_pct, 3),
         "opening_wr": round(open_wr, 3),
         "survival_rate": round(surv, 3),
-        "rating": round(rating, 3),
         "role": _infer_role(row),
+        **_advanced(row),
     }
 
 
@@ -122,6 +228,53 @@ async def list_players(min_matches: int = Query(1, ge=1)):
     summaries = [s for s in summaries if s["matches"] >= min_matches]
     summaries.sort(key=lambda s: s["rating"], reverse=True)
     return summaries
+
+
+def _reingest_from_cache(name: str) -> bool:
+    """Re-aggregate one demo from its cached timeline. False if no cache."""
+    from backend.main import _TIMELINE_CACHE_DIR
+
+    path = _TIMELINE_CACHE_DIR / f"{name}.json"
+    if not path.exists():
+        return False
+    with path.open("r", encoding="utf-8") as f:
+        bundle = json.load(f)
+    _player_stats.ingest_timeline(bundle, name)
+    return True
+
+
+@router.get(
+    "/api/players/match/{demo_file}",
+    response_model=PlayerMatchStatsResponse,
+    summary="Per-player stats for one demo (both sides combined)",
+)
+async def get_match_player_stats(demo_file: str):
+    from backend.main import _safe_demo_name
+
+    name = _safe_demo_name(demo_file)
+    rows = _player_stats.get_match(name)
+    # No rows yet, or rows written before the ADR/KAST columns existed:
+    # rebuild them from the cached timeline (one-off, ~1s per demo).
+    if not rows or any(r.get("legacy") for r in rows):
+        try:
+            if await asyncio.to_thread(_reingest_from_cache, name):
+                rows = _player_stats.get_match(name)
+        except Exception as exc:
+            logger.warning("player_stats re-ingest failed for %s: %s", name, exc)
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"No player stats for {name}")
+
+    players = []
+    for r in rows:
+        r["matches"] = 1
+        players.append(_to_summary(r))
+    players.sort(key=lambda s: s["rating"], reverse=True)
+    return {
+        "demo_file": name,
+        "map_name": rows[0].get("map_name") or "unknown",
+        "has_adr": any(p["adr"] is not None for p in players),
+        "players": players,
+    }
 
 
 @router.get(
@@ -144,7 +297,7 @@ async def get_player_detail(steamid: str):
         "steamid": detail["steamid"],
         "name": detail["name"],
         "summary": summary,
-        "per_side": detail["per_side"],
-        "per_map": detail["per_map"],
-        "demos": detail["demos"],
+        "per_side": [_with_advanced(r) for r in detail["per_side"]],
+        "per_map": [_with_advanced(r) for r in detail["per_map"]],
+        "demos": [_with_advanced(r) for r in detail["demos"]],
     }
