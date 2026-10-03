@@ -210,7 +210,7 @@ export default function ReplayLayout() {
               <>
                 <div className="flex items-center gap-2 lg:gap-3 min-w-0 max-w-full">
                   {matchInfo.team1.logo && (
-                    <img src={matchInfo.team1.logo} alt="" className="hidden md:block w-7 h-7 lg:w-8 lg:h-8 object-contain shrink-0" />
+                    <img src={matchInfo.team1.logo} alt="" className="hidden md:block w-7 h-7 lg:w-8 lg:h-8 object-contain shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                   )}
                   <span className="min-w-0 text-sm lg:text-base font-bold uppercase tracking-[0.06em] truncate"
                     style={{ color: liveStatus ? (liveStatus.team1CurrentSide === 2 ? "#DCBF6E" : "#5B9BD5") : "#fff" }}>
@@ -228,7 +228,7 @@ export default function ReplayLayout() {
                     {matchInfo.team2.name}
                   </span>
                   {matchInfo.team2.logo && (
-                    <img src={matchInfo.team2.logo} alt="" className="hidden md:block w-7 h-7 lg:w-8 lg:h-8 object-contain shrink-0" />
+                    <img src={matchInfo.team2.logo} alt="" className="hidden md:block w-7 h-7 lg:w-8 lg:h-8 object-contain shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                   )}
                 </div>
                 <div className="hidden lg:flex items-center gap-3 text-[10px] uppercase tracking-[0.15em] text-cs2-muted/80 mt-0.5 font-mono max-w-full overflow-hidden">
