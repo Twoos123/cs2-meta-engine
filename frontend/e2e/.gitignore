@@ -1,0 +1,4 @@
+# Playwright output and the e2e build (see playwright.config.ts / vite.e2e.config.ts)
+.results/
+.report/
+.dist/
