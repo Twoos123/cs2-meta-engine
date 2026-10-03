@@ -1,9 +1,101 @@
 /**
  * Typed API client for the CS2 Meta-Analysis Engine FastAPI backend.
  */
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 
 const api = axios.create({ baseURL: "/api" });
+
+// ---------------------------------------------------------------------------
+// Admin token — destructive endpoints (delete demo, clear data, upload,
+// CS2 path settings) require X-Admin-Token when the server sets ADMIN_TOKEN.
+// The token is remembered per browser; a 401 prompts once and retries.
+// ---------------------------------------------------------------------------
+
+const ADMIN_TOKEN_KEY = "cs2.adminToken";
+const ADMIN_REQUIRED_DETAIL = "admin token required";
+
+function readAdminToken(): string | null {
+  try {
+    return localStorage.getItem(ADMIN_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeAdminToken(token: string | null): void {
+  try {
+    if (token) localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    else localStorage.removeItem(ADMIN_TOKEN_KEY);
+  } catch {
+    // storage blocked — token lives only for this request
+  }
+}
+
+type RetryableConfig = InternalAxiosRequestConfig & { _adminRetry?: boolean };
+
+api.interceptors.request.use((cfg) => {
+  const token = readAdminToken();
+  if (token) cfg.headers.set("X-Admin-Token", token);
+  return cfg;
+});
+
+api.interceptors.response.use(
+  (res) => {
+    // Any successful write can change maps/stats/demos — drop memoized reads.
+    if (res.config.method && res.config.method !== "get") memo.clear();
+    return res;
+  },
+  async (error) => {
+    const cfg = error?.config as RetryableConfig | undefined;
+    const detail = error?.response?.data?.detail;
+    if (error?.response?.status === 401 && detail === ADMIN_REQUIRED_DETAIL && cfg) {
+      if (cfg._adminRetry) {
+        writeAdminToken(null); // the token just entered was wrong
+      } else {
+        const token = window.prompt(
+          "This action needs the server's admin token (ADMIN_TOKEN):",
+        )?.trim();
+        if (token) {
+          writeAdminToken(token);
+          cfg._adminRetry = true;
+          cfg.headers.set("X-Admin-Token", token);
+          return api.request(cfg);
+        }
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
+/** Human-readable message for a failed API call — prefers FastAPI's
+ *  `detail`, falls back to the HTTP status, then to `fallback`. */
+export function apiErrorMessage(err: unknown, fallback = "Request failed"): string {
+  if (axios.isAxiosError(err)) {
+    const detail = (err.response?.data as { detail?: unknown } | undefined)?.detail;
+    if (typeof detail === "string" && detail) return detail;
+    if (Array.isArray(detail) && typeof detail[0]?.msg === "string") return detail[0].msg;
+    if (err.response?.status) return `${fallback} (HTTP ${err.response.status})`;
+    if (err.message) return err.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
+// Short-lived memo for small, frequently re-requested reads (maps, stats,
+// demo counts) — several components mount at once and each asks for them.
+const memo = new Map<string, { at: number; promise: Promise<unknown> }>();
+const MEMO_TTL_MS = 5000;
+
+function memoGet<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.at < MEMO_TTL_MS) return hit.promise as Promise<T>;
+  const promise = fetcher().catch((e) => {
+    memo.delete(key);
+    throw e;
+  });
+  memo.set(key, { at: Date.now(), promise });
+  return promise;
+}
 
 // ---------------------------------------------------------------------------
 // Types (mirror backend Pydantic schemas)
@@ -109,10 +201,11 @@ export const getAllTypesForMap = async (
   return data;
 };
 
-export const getMaps = async (): Promise<string[]> => {
-  const { data } = await api.get<{ maps: string[] }>("/maps");
-  return data.maps;
-};
+export const getMaps = (): Promise<string[]> =>
+  memoGet("maps", async () => {
+    const { data } = await api.get<{ maps: string[] }>("/maps");
+    return data.maps;
+  });
 
 export interface Callout {
   name: string;
@@ -153,18 +246,20 @@ export interface DownloadedDemosResponse {
   untagged: number;
 }
 
-export const getDownloadedDemos = async (): Promise<DownloadedDemosResponse> => {
-  const { data } = await api.get<DownloadedDemosResponse>("/demos");
-  return data;
-};
+export const getDownloadedDemos = (): Promise<DownloadedDemosResponse> =>
+  memoGet("demos", async () => {
+    const { data } = await api.get<DownloadedDemosResponse>("/demos");
+    return data;
+  });
 
-export const getStats = async (): Promise<{
+export const getStats = (): Promise<{
   total_lineups: number;
   total_maps: number;
-}> => {
-  const { data } = await api.get("/stats");
-  return data;
-};
+}> =>
+  memoGet("stats", async () => {
+    const { data } = await api.get("/stats");
+    return data;
+  });
 
 export const getConsoleString = async (
   clusterId: number,
@@ -316,7 +411,31 @@ export interface MatchDemoEntry {
   match_id: number | null;
   size_bytes: number;
   mtime: number;
+  /** Timeline already parsed + cached — opening it is a fast disk read. */
+  timeline_cached: boolean;
+  /** False when the demo ends before the match did (e.g. HLTV split demo).
+   *  Null until the demo's timeline has been parsed once. */
+  complete: boolean | null;
+  /** Final round score [higher, lower] as recorded in the demo. */
+  score: [number, number] | null;
+  rounds: number | null;
 }
+
+/** Per-demo cache + completeness info, cheap to fetch (no parse). */
+export interface DemoMeta {
+  demo_file: string;
+  timeline_cached: boolean;
+  complete: boolean | null;
+  score: [number, number] | null;
+  rounds: number | null;
+}
+
+export const getDemoMeta = async (demoFile: string): Promise<DemoMeta> => {
+  const { data } = await api.get<DemoMeta>(
+    `/match-replay/${encodeURIComponent(demoFile)}/meta`,
+  );
+  return data;
+};
 
 export interface TimelinePlayer {
   steamid: string;

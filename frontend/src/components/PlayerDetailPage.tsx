@@ -26,8 +26,26 @@ const SIDE_COLORS: Record<string, string> = {
   CT: "#5B9BD5",
 };
 
+/** True while the viewport is phone-width (below Tailwind's `sm`). Used for
+ *  the few sizes that are passed as numbers rather than classes. */
+function useIsPhone(): boolean {
+  const query = "(max-width: 639px)";
+  const [match, setMatch] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatch(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return match;
+}
+
 export default function PlayerDetailPage() {
   const navigate = useNavigate();
+  const isPhone = useIsPhone();
   const { steamid } = useParams<{ steamid: string }>();
   const [detail, setDetail] = useState<PlayerProfileDetail | null>(null);
   const [hltvId, setHltvId] = useState<number | null>(null);
@@ -155,7 +173,7 @@ export default function PlayerDetailPage() {
           {/* Header — team logo sits as an oversized, faded watermark
               in the background so the card reads as "this player on this
               org" without stealing attention from the name and stats. */}
-          <div className="hud-panel p-6 flex flex-wrap items-center gap-6 relative overflow-hidden">
+          <div className="hud-panel p-4 sm:p-6 flex flex-wrap items-center gap-4 sm:gap-6 relative overflow-hidden">
             {teamLogo && (
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -182,15 +200,17 @@ export default function PlayerDetailPage() {
             <PlayerAvatar
               name={detail.name}
               hltvId={hltvId}
-              size={128}
+              size={isPhone ? 88 : 128}
               shape="rounded"
               accent={roleColor}
               className="relative z-10"
               cacheBust={photoCacheVersion || undefined}
             />
-            <div className="flex-1 min-w-0 relative z-10">
-              <div className="flex items-center gap-3">
-                <h2 className="text-4xl font-bold tracking-tight text-white truncate">{detail.name}</h2>
+            {/* On phones the name block drops to its own full-width row
+                under the avatar + rating; from sm up it sits between them. */}
+            <div className="flex-1 min-w-0 relative z-10 basis-full sm:basis-0 order-last sm:order-none">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white truncate max-w-full">{detail.name}</h2>
                 <span
                   className="px-2 py-0.5 rounded-md text-[11px] font-bold border"
                   style={{ background: `${roleColor}20`, color: roleColor, borderColor: `${roleColor}40` }}
@@ -201,11 +221,11 @@ export default function PlayerDetailPage() {
                     team logo watermarked in the header background already
                     conveys which org this player belongs to. */}
               </div>
-              <p className="text-[11px] text-cs2-muted mt-1.5 font-mono">
+              <p className="text-[11px] text-cs2-muted mt-1.5 font-mono break-words">
                 {s.matches} matches · {s.rounds_played} rounds · steamid {detail.steamid}
               </p>
             </div>
-            <div className="flex items-center gap-3 relative z-10">
+            <div className="flex items-center gap-3 relative z-10 ml-auto sm:ml-0">
               <div className="text-right">
                 <p className="text-[10px] text-cs2-muted uppercase tracking-[0.18em]">Rating</p>
                 <p className="text-3xl font-bold font-mono text-cs2-accent">{s.rating.toFixed(2)}</p>
@@ -214,8 +234,8 @@ export default function PlayerDetailPage() {
           </div>
 
           {/* Stat tiles + radar + side split */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3 md:col-span-2 lg:col-span-1">
               <PlayerStatTile
                 label="K/D"
                 value={s.kd_ratio.toFixed(2)}
@@ -290,7 +310,8 @@ export default function PlayerDetailPage() {
                 Per-map performance
               </h3>
             </div>
-            <table className="w-full text-[11px]">
+            <div className="overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+            <table className="w-full text-[11px] whitespace-nowrap md:whitespace-normal">
               <thead>
                 <tr className="text-cs2-muted uppercase tracking-[0.08em] border-b border-cs2-border/30">
                   <th className="px-3 py-2 text-left font-medium">Map</th>
@@ -327,6 +348,7 @@ export default function PlayerDetailPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Recent matches */}
@@ -336,7 +358,8 @@ export default function PlayerDetailPage() {
                 Recent matches
               </h3>
             </div>
-            <table className="w-full text-[11px]">
+            <div className="overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+            <table className="w-full min-w-[480px] md:min-w-0 text-[11px] whitespace-nowrap md:whitespace-normal">
               <thead>
                 <tr className="text-cs2-muted uppercase tracking-[0.08em] border-b border-cs2-border/30">
                   <th className="px-3 py-2 text-left font-medium">Demo</th>
@@ -366,6 +389,7 @@ export default function PlayerDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </div>

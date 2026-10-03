@@ -20,7 +20,7 @@ export default function IngestStatusBanner() {
 
   return (
     <div
-      className="hud-panel p-5 relative overflow-hidden"
+      className="hud-panel p-4 sm:p-5 relative overflow-hidden"
       style={{ borderColor: "rgba(34, 211, 238, 0.35)" }}
     >
       {/* Cyan top edge to read as "active" at a glance. */}
@@ -31,13 +31,13 @@ export default function IngestStatusBanner() {
             "linear-gradient(90deg, transparent 0%, rgba(34,211,238,0.7) 50%, transparent 100%)",
         }}
       />
-      <div className="flex items-start gap-4">
-        <div className="shrink-0 w-9 h-9 rounded-full border border-cs2-accent/40 flex items-center justify-center">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-cs2-accent/40 flex items-center justify-center">
           <div className="w-4 h-4 border-2 border-cs2-accent border-t-transparent rounded-full animate-spin" />
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cs2-accent font-semibold">
               Pipeline running
             </span>
@@ -73,7 +73,7 @@ export default function IngestStatusBanner() {
           )}
 
           {/* Aggregate totals — these tick up as parsing progresses. */}
-          <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1 text-[10px] font-mono">
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 sm:gap-y-1 text-[10px] font-mono">
             <Stat label="Player rows (run)" value={status.player_rows_updated_this_run} />
             <Stat label="Demos on disk" value={status.total_demos} />
             <Stat label="Grenade lineups" value={status.total_grenades} />

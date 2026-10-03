@@ -106,7 +106,7 @@ export default function FaceitIngestPanel({ onComplete }: Props) {
   };
 
   return (
-    <div className="hud-panel p-5 space-y-4">
+    <div className="hud-panel p-4 sm:p-5 space-y-4">
       <div>
         <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em]">
           / faceit
@@ -116,9 +116,9 @@ export default function FaceitIngestPanel({ onComplete }: Props) {
         </h2>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <input
-          className="hud-input flex-1"
+          className="hud-input flex-1 min-w-0"
           placeholder="https://www.faceit.com/en/players/<nickname>"
           value={url}
           onChange={(e) => setUrl(e.target.value)}

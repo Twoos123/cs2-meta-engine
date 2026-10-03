@@ -11,8 +11,18 @@ interface Props {
   matchInfo: MatchInfoResponse | null;
 }
 
-// Buy type thresholds (team total equipment value)
-const classifyBuy = (teamEquipValue: number): { label: string; color: string; bg: string } => {
+/** First round of each regulation half (MR12). Overtime rounds (25+) are
+ *  not pistol rounds — teams start OT with a full $10k-style economy. */
+const isPistolRound =(roundNum: number): boolean => roundNum === 1 || roundNum === 13;
+
+// Buy type thresholds (team total equipment value). Pistol rounds get their
+// own category: everyone starts on $800 so the equip value would otherwise
+// always read as "Eco".
+const classifyBuy = (
+  teamEquipValue: number,
+  roundNum: number,
+): { label: string; color: string; bg: string } => {
+  if (isPistolRound(roundNum)) return { label: "Pistol", color: "text-cs2-accent", bg: "bg-cyan-500/15" };
   if (teamEquipValue < 5000) return { label: "Eco", color: "text-cs2-red", bg: "bg-red-500/20" };
   if (teamEquipValue < 15000) return { label: "Force", color: "text-yellow-400", bg: "bg-yellow-500/20" };
   if (teamEquipValue < 22000) return { label: "Half", color: "text-orange-400", bg: "bg-orange-500/20" };
@@ -94,6 +104,14 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
         }
       }
 
+      // Loss-bonus counters reset at halftime, i.e. BEFORE the second-half
+      // pistol round is evaluated (previously reset after round 13, which
+      // carried first-half streaks into it and dropped round 13's result).
+      if (r.num === 13) {
+        tConsecutiveLosses = 0;
+        ctConsecutiveLosses = 0;
+      }
+
       // Loss bonus calculation (CS2: $1400 base + $500 per consecutive loss, max $3400)
       const tLossBonus = Math.min(1400 + tConsecutiveLosses * 500, 3400);
       const ctLossBonus = Math.min(1400 + ctConsecutiveLosses * 500, 3400);
@@ -107,12 +125,6 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
         ctConsecutiveLosses = 0;
       }
 
-      // Reset at half (round 13)
-      if (r.num === 13) {
-        tConsecutiveLosses = 0;
-        ctConsecutiveLosses = 0;
-      }
-
       return {
         round: r.num,
         winner: r.winner,
@@ -120,8 +132,8 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
         ctEquip,
         tSpent,
         ctSpent,
-        tBuy: classifyBuy(tEquip),
-        ctBuy: classifyBuy(ctEquip),
+        tBuy: classifyBuy(tEquip, r.num),
+        ctBuy: classifyBuy(ctEquip, r.num),
         tLossBonus,
         ctLossBonus,
       };
@@ -159,16 +171,16 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4" style={{ scrollbarWidth: "thin" }}>
+    <div className="h-full overflow-y-auto p-3 lg:p-4 space-y-4" style={{ scrollbarWidth: "thin" }}>
       {/* Economy graph */}
-      <div className="hud-panel p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="hud-panel p-3 lg:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mb-3">
           <h3 className="text-xs text-cs2-muted uppercase tracking-[0.15em]">
             Team Equipment Value by Round
           </h3>
           {/* Hover info — replaces floating tooltip */}
           {hoveredRound ? (
-            <div className="flex items-center gap-3 text-[11px]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
               <span className="text-white font-bold">R{hoveredRound.round}</span>
               <span style={{ color: "#DCBF6E" }}>T: ${hoveredRound.tEquip.toLocaleString()} ({hoveredRound.tBuy.label})</span>
               <span style={{ color: "#5B9BD5" }}>CT: ${hoveredRound.ctEquip.toLocaleString()} ({hoveredRound.ctBuy.label})</span>
@@ -177,7 +189,10 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
               )}
             </div>
           ) : (
-            <span className="text-[10px] text-cs2-muted/50">Hover a round for details</span>
+            <span className="text-[10px] text-cs2-muted/50">
+              <span className="hidden lg:inline">Hover</span>
+              <span className="lg:hidden">Tap</span> a round for details
+            </span>
           )}
         </div>
         <div className="relative" style={{ height: 200 }}>
@@ -195,6 +210,7 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
                   style={{ height: 180 }}
                   onMouseEnter={() => setHoveredRound(r)}
                   onMouseLeave={() => setHoveredRound(null)}
+                  onClick={() => setHoveredRound(r) /* touch: tap pins details */}
                 >
                   <div className="w-full flex items-end gap-[1px]">
                     <div className="flex-1 rounded-t-sm transition-opacity" style={{ height: tH, background: "#DCBF6E", opacity: isHovered ? 1 : 0.75 }} />
@@ -213,7 +229,7 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
             />
           )}
         </div>
-        <div className="flex items-center gap-4 mt-2 text-[10px]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[10px]">
           <span className="flex items-center gap-1">
             <span className="w-3 h-2 rounded-sm" style={{ background: "#DCBF6E" }} />
             {teamNames.t} (T)
@@ -226,11 +242,12 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
       </div>
 
       {/* Round-by-round table */}
-      <div className="hud-panel overflow-hidden">
-        <table className="w-full text-[11px]">
+      {/* Horizontal scroll on narrow screens; the round column stays pinned. */}
+      <div className="hud-panel overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+        <table className="w-full min-w-[640px] text-[11px] whitespace-nowrap">
           <thead>
             <tr className="text-cs2-muted uppercase tracking-[0.1em] border-b border-cs2-border/50">
-              <th className="px-3 py-2 text-left font-medium">Rnd</th>
+              <th className="px-3 py-2 text-left font-medium sticky left-0 z-10 bg-[#0b0f1a] lg:static lg:bg-transparent">Rnd</th>
               <th className="px-3 py-2 text-center font-medium">Winner</th>
               <th className="px-3 py-2 text-center font-medium" style={{ color: "#DCBF6E" }}>T Buy</th>
               <th className="px-3 py-2 text-right font-medium" style={{ color: "#DCBF6E" }}>T Equip</th>
@@ -249,7 +266,7 @@ export default function EconomyPanel({ timeline, matchInfo }: Props) {
                   r.round === 13 ? "border-t-2 border-t-cs2-accent/30" : ""
                 }`}
               >
-                <td className="px-3 py-1.5 font-mono font-bold text-white">{r.round}</td>
+                <td className="px-3 py-1.5 font-mono font-bold text-white sticky left-0 z-10 bg-[#0b0f1a] lg:static lg:bg-transparent">{r.round}</td>
                 <td className="px-3 py-1.5 text-center">
                   {r.winner && (
                     <span

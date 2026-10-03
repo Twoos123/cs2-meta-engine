@@ -11,6 +11,7 @@ import { useState } from "react";
 import {
   LineupRanking,
   ReplayStringResponse,
+  apiErrorMessage,
   describeLineup,
   getConsoleString,
   getReplayString,
@@ -71,6 +72,7 @@ export default function LineupCard({
   );
   const [aiDesc, setAiDesc] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const flashState = (
     setter: (s: ButtonState) => void,
@@ -88,8 +90,8 @@ export default function LineupCard({
       const res = await getConsoleString(cluster.cluster_id, cluster.map_name);
       await navigator.clipboard.writeText(res.console_string);
       flashState(setCopyState, "success");
-    } catch (e: any) {
-      setErrorMsg(e?.response?.data?.detail ?? "Copy failed");
+    } catch (e) {
+      setErrorMsg(apiErrorMessage(e, "Copy failed"));
       flashState(setCopyState, "error");
     }
   };
@@ -105,8 +107,8 @@ export default function LineupCard({
           setReplayPhase("load");
           setReplayData(null);
         }, 1800);
-      } catch {
-        setErrorMsg("Clipboard write failed");
+      } catch (e) {
+        setErrorMsg(apiErrorMessage(e, "Clipboard write failed"));
         flashState(setReplayState, "error");
       }
       return;
@@ -123,8 +125,8 @@ export default function LineupCard({
       setReplayPhase("seek");
       setReplayState("success");
       setTimeout(() => setReplayState("idle"), 1800);
-    } catch (e: any) {
-      setErrorMsg(e?.response?.data?.detail ?? "Replay lookup failed");
+    } catch (e) {
+      setErrorMsg(apiErrorMessage(e, "Replay lookup failed"));
       flashState(setReplayState, "error");
     }
   };
@@ -140,8 +142,8 @@ export default function LineupCard({
         setErrorMsg(res.error || "RCON failed");
         flashState(setPracticeState, "error");
       }
-    } catch {
-      setErrorMsg("RCON connection failed — is CS2 running?");
+    } catch (e) {
+      setErrorMsg(apiErrorMessage(e, "RCON connection failed — is CS2 running?"));
       flashState(setPracticeState, "error");
     }
   };
@@ -149,15 +151,22 @@ export default function LineupCard({
   const handleDescribe = async () => {
     if (aiDesc || aiLoading) return;
     setAiLoading(true);
+    setAiError(null);
     try {
       const res = await describeLineup(cluster.cluster_id, cluster.map_name);
       setAiDesc(res.description);
-    } catch {
-      setAiDesc("Failed to generate description.");
+    } catch (e) {
+      setAiError(apiErrorMessage(e, "Failed to generate description."));
     } finally {
       setAiLoading(false);
     }
   };
+
+  // Utility damage is only meaningful for HE / molotov — smokes and
+  // flashes always read 0.0 HP, which looks like a bad stat.
+  const showDamage =
+    cluster.grenade_type !== "smokegrenade" &&
+    cluster.grenade_type !== "flashbang";
 
   const accent = GRENADE_ACCENT[cluster.grenade_type] ?? "#94a3b8";
   const winPct = (cluster.round_win_rate * 100).toFixed(1);
@@ -288,10 +297,14 @@ export default function LineupCard({
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
-        <span className="text-cs2-muted uppercase tracking-[0.1em]">Avg Dmg</span>
-        <span className="font-mono text-cs2-red text-right">
-          {cluster.avg_utility_damage.toFixed(1)} HP
-        </span>
+        {showDamage && (
+          <>
+            <span className="text-cs2-muted uppercase tracking-[0.1em]">Avg Dmg</span>
+            <span className="font-mono text-cs2-red text-right">
+              {cluster.avg_utility_damage.toFixed(1)} HP
+            </span>
+          </>
+        )}
 
         <span className="text-cs2-muted uppercase tracking-[0.1em]">Stand</span>
         <span className="font-mono text-gray-300 text-right">
@@ -336,18 +349,25 @@ export default function LineupCard({
           {aiDesc}
         </p>
       ) : (
-        <button
-          onClick={(e) => { e.stopPropagation(); handleDescribe(); }}
-          disabled={aiLoading}
-          className="text-[10px] text-cs2-muted hover:text-cs2-accent transition self-start"
-        >
-          {aiLoading ? "Generating..." : "AI Describe"}
-        </button>
+        <>
+          {aiError && (
+            <p className="text-[10px] text-cs2-red border-l-2 border-cs2-red/50 pl-2 break-words">
+              {aiError}
+            </p>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDescribe(); }}
+            disabled={aiLoading}
+            className="text-[10px] text-cs2-muted hover:text-cs2-accent transition self-start py-1 -my-1"
+          >
+            {aiLoading ? "Generating..." : aiError ? "Retry AI Describe" : "AI Describe"}
+          </button>
+        </>
       )}
 
       {/* Error message — shown inline so it never overlaps buttons */}
       {errorMsg && (
-        <p className="text-[10px] text-cs2-red border-l-2 border-cs2-red/50 pl-2">
+        <p className="text-[10px] text-cs2-red border-l-2 border-cs2-red/50 pl-2 break-words">
           {errorMsg}
         </p>
       )}
@@ -359,7 +379,7 @@ export default function LineupCard({
         <button
           onClick={handleCopy}
           disabled={copyState === "loading"}
-          className={`flex-1 min-w-0 text-[10px] ${
+          className={`flex-1 min-w-0 text-[10px] min-h-[40px] sm:min-h-0 max-sm:px-2 max-sm:whitespace-nowrap ${
             copyState === "success"
               ? "hud-btn-primary"
               : copyState === "error"
@@ -379,7 +399,7 @@ export default function LineupCard({
                 : "Step 1: copies `playdemo <file>`. Paste into CS2 console, wait for the demo to load, then click this button again to copy the seek + spectate command. Demo file must be in game/csgo/."
               : "No demo pointer stored — re-run the pipeline for this map."
           }
-          className={`flex-1 min-w-0 text-[10px] ${
+          className={`flex-1 min-w-0 text-[10px] min-h-[40px] sm:min-h-0 max-sm:px-2 max-sm:whitespace-nowrap ${
             !hasDemoPointer
               ? "hud-btn opacity-40 cursor-not-allowed"
               : replayState === "error"
@@ -394,7 +414,7 @@ export default function LineupCard({
         <button
           onClick={handlePractice}
           disabled={practiceState === "loading"}
-          className={`flex-1 min-w-0 text-[10px] ${
+          className={`flex-1 min-w-0 text-[10px] min-h-[40px] sm:min-h-0 max-sm:px-2 max-sm:whitespace-nowrap ${
             practiceState === "error" ? "hud-btn-danger" : "hud-btn-primary"
           }`}
         >

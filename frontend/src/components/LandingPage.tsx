@@ -158,13 +158,13 @@ export default function LandingPage() {
       <ClosingCTA onClick={() => navigate("/lineups")} />
 
       {/* ── Footer ─────────────────────────────────────────────────── */}
-      <footer className="relative border-t border-white/5 py-10 px-6">
+      <footer className="relative border-t border-white/5 py-10 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 text-[11px] text-cs2-muted">
           <div className="flex items-center gap-2">
             <LogoMark className="w-4 h-4" />
             <span>CS2 Meta Engine · Local demo-analysis workspace</span>
           </div>
-          <div className="flex items-center gap-5 font-mono uppercase tracking-[0.18em]">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono uppercase tracking-[0.18em]">
             <span>demoparser2</span>
             <span>·</span>
             <span>FastAPI</span>
@@ -214,7 +214,7 @@ function Hero({
   return (
     <section
       ref={heroRef}
-      className="relative min-h-[92vh] flex flex-col items-center justify-center px-6 pt-16 pb-24 overflow-hidden"
+      className="relative min-h-[92vh] flex flex-col items-center justify-center px-4 sm:px-6 pt-12 sm:pt-16 pb-16 sm:pb-24 overflow-hidden"
     >
       {/* Gradient orbs — sit behind everything. Parallax is applied via
           translateY so we never trigger layout, just compositor transforms. */}
@@ -279,7 +279,7 @@ function Hero({
           <span>CS2 META ENGINE</span>
         </span>
 
-        <h1 className="text-[clamp(2.75rem,8vw,6.5rem)] font-bold leading-[1.02] tracking-tight">
+        <h1 className="text-[clamp(2.4rem,8vw,6.5rem)] font-bold leading-[1.02] tracking-tight">
           <span className="block text-white">Read the meta.</span>
           <span className="block gradient-text">Win the round.</span>
         </h1>
@@ -301,7 +301,7 @@ function Hero({
         </div>
 
         {/* Live stat band — animated counters over a subtle divider line. */}
-        <div className="mt-16 w-full max-w-3xl">
+        <div className="mt-12 sm:mt-16 w-full max-w-3xl">
           <div className="grid grid-cols-3 gap-4 md:gap-10">
             <HeroStat value={lineups} label="Lineups indexed" accent="#22d3ee" />
             <HeroStat value={demos} label="Demos parsed" accent="#4ade80" />
@@ -325,12 +325,12 @@ function HeroStat({ value, label, accent }: { value: number; label: string; acce
   return (
     <div className="flex flex-col items-center">
       <div
-        className="text-3xl md:text-5xl font-bold font-mono tracking-tight"
+        className="text-2xl sm:text-3xl md:text-5xl font-bold font-mono tracking-tight"
         style={{ color: accent }}
       >
         {value.toLocaleString()}
       </div>
-      <div className="mt-1.5 text-[10px] md:text-[11px] font-semibold text-cs2-muted uppercase tracking-[0.22em]">
+      <div className="mt-1.5 text-[9px] sm:text-[10px] md:text-[11px] font-semibold text-cs2-muted uppercase tracking-[0.12em] sm:tracking-[0.22em] text-center">
         {label}
       </div>
     </div>
@@ -352,15 +352,15 @@ function FeaturesSection({
   const { ref, shown } = useReveal<HTMLDivElement>();
 
   return (
-    <section className="relative px-6 py-32">
+    <section className="relative px-4 sm:px-6 py-20 md:py-32">
       <div className="max-w-7xl mx-auto">
-        <div ref={ref} className={`reveal ${shown ? "in" : ""} text-center max-w-3xl mx-auto mb-16`}>
+        <div ref={ref} className={`reveal ${shown ? "in" : ""} text-center max-w-3xl mx-auto mb-10 md:mb-16`}>
           <span className="eyebrow mb-6">
             <span>THE WORKFLOW</span>
           </span>
-          <h2 className="mt-6 text-4xl md:text-5xl font-bold tracking-tight text-white leading-[1.08]">
+          <h2 className="mt-6 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-[1.08]">
             Every phase of the{" "}
-            <span className="gradient-text">demo workflow</span>,
+            <span className="gradient-text">demo workflow</span>,{" "}
             <br className="hidden md:block" />
             one surface.
           </h2>
@@ -447,7 +447,7 @@ function BentoCard({
       onClick={onClick}
       onMouseMove={onMouseMove}
       onMouseLeave={onMouseLeave}
-      className={`bento-card reveal ${delayClass} ${shown ? "in" : ""} ${spanClass} p-7 md:p-8 group`}
+      className={`bento-card reveal ${delayClass} ${shown ? "in" : ""} ${spanClass} p-5 sm:p-7 md:p-8 group`}
       style={{ ["--hero-color" as any]: feature.colorRgb }}
     >
       <div className="bento-inner flex flex-col h-full">
@@ -495,7 +495,7 @@ function MapMarquee() {
   const quadrupled = [...MAP_POOL, ...MAP_POOL, ...MAP_POOL, ...MAP_POOL];
 
   return (
-    <section className="relative py-20 border-y border-white/5 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+    <section className="relative py-14 md:py-20 border-y border-white/5 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
       <div ref={ref} className={`reveal ${shown ? "in" : ""} max-w-5xl mx-auto px-6 text-center mb-8`}>
         <span className="text-[11px] font-semibold text-cs2-muted uppercase tracking-[0.22em]">
           Supports the active duty pool
@@ -512,7 +512,7 @@ function MapMarquee() {
       >
         {/* No horizontal padding here — px-* on the track would break the
             -50% loop math (paddings live outside the repeated content). */}
-        <div className="marquee-track gap-12">
+        <div className="marquee-track gap-8 md:gap-12">
           {quadrupled.map((m, i) => (
             <div
               key={`${m.name}-${i}`}
@@ -545,7 +545,7 @@ function MapMarquee() {
 function ClosingCTA({ onClick }: { onClick: () => void }) {
   const { ref, shown } = useReveal<HTMLDivElement>();
   return (
-    <section className="relative px-6 py-32 overflow-hidden">
+    <section className="relative px-4 sm:px-6 py-20 md:py-32 overflow-hidden">
       <div
         className="absolute inset-0 pointer-events-none"
         aria-hidden
@@ -577,7 +577,7 @@ function ClosingCTA({ onClick }: { onClick: () => void }) {
         ref={ref}
         className={`reveal ${shown ? "in" : ""} relative max-w-3xl mx-auto text-center`}
       >
-        <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-white leading-[1.05]">
+        <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-white leading-[1.05]">
           Ready to <span className="gradient-text">read the meta</span>?
         </h2>
         <p className="mt-6 text-base md:text-lg text-cs2-muted max-w-xl mx-auto leading-relaxed">

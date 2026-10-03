@@ -7,12 +7,13 @@
  * - Delete demos they no longer need
  * - Click a card to open the replay viewer
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Cs2PathResponse,
   MatchDemoEntry,
   MatchInfoResponse,
+  apiErrorMessage,
   deleteDemo,
   getCs2Path,
   getMatchInfo,
@@ -48,6 +49,7 @@ export default function DemoPickerPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
 
   // Delete state
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -62,8 +64,8 @@ export default function DemoPickerPage() {
     setError(null);
     getMatchReplayDemos()
       .then((list) => setDemos(list))
-      .catch((e: any) => {
-        setError(e?.response?.data?.detail ?? "Failed to load demos");
+      .catch((e: unknown) => {
+        setError(apiErrorMessage(e, "Failed to load demos"));
       });
   }, []);
 
@@ -112,22 +114,26 @@ export default function DemoPickerPage() {
       await uploadDemo(file, (pct) => setUploadPct(pct));
       setUploadPct(100);
       loadDemos(); // refresh list
-    } catch (e: any) {
-      setUploadError(
-        e?.response?.data?.detail ?? `Upload failed: ${e?.message ?? "unknown error"}`
-      );
+    } catch (e) {
+      setUploadError(apiErrorMessage(e, "Upload failed"));
     } finally {
       setUploading(false);
     }
   }, [loadDemos]);
 
   const handleDelete = useCallback(async (demoFile: string) => {
+    // Del sits right next to Open; on touch screens a stray tap would
+    // otherwise remove the file with no way back.
+    if (!window.confirm(`Delete ${demoFile} from disk? This cannot be undone.`)) {
+      return;
+    }
     setDeleting(demoFile);
+    setError(null);
     try {
       await deleteDemo(demoFile);
       loadDemos();
-    } catch (e: any) {
-      setError(e?.response?.data?.detail ?? "Delete failed");
+    } catch (e) {
+      setError(apiErrorMessage(e, "Delete failed"));
     } finally {
       setDeleting(null);
     }
@@ -176,21 +182,21 @@ export default function DemoPickerPage() {
       {/* ── CS2 link status banner ── */}
       {linkInfo && (
         <div
-          className={`hud-panel px-4 py-2 flex items-center gap-2 text-[11px] border-l-2 ${
+          className={`hud-panel px-4 py-2 flex items-start sm:items-center gap-2 text-[11px] border-l-2 ${
             linkInfo.link_active
               ? "border-cs2-green text-cs2-green"
               : "border-cs2-muted text-cs2-muted"
           }`}
         >
           <span
-            className={`w-2 h-2 rounded-full shrink-0 ${
+            className={`w-2 h-2 rounded-full shrink-0 max-sm:mt-1 ${
               linkInfo.link_active ? "bg-cs2-green" : "bg-cs2-red"
             }`}
           />
           {linkInfo.link_active ? (
             <span>
               Demos linked to CS2 at{" "}
-              <span className="font-mono text-gray-300">
+              <span className="font-mono text-gray-300 break-all">
                 game/csgo/{linkInfo.link_name}/
               </span>{" "}
               — Replay buttons use the correct path automatically.
@@ -205,23 +211,42 @@ export default function DemoPickerPage() {
         </div>
       )}
 
-      {/* ── Upload zone ── */}
-      <div
+      {/* ── Upload zone ── a real <label> for the file input so a tap opens
+          the picker on iOS/Android too (programmatic .click() on a hidden
+          input is unreliable on some mobile browsers). Drag & drop still
+          works on desktop via the handlers below. */}
+      <label
+        htmlFor={fileInputId}
+        role="button"
+        tabIndex={uploading ? -1 : 0}
+        aria-disabled={uploading || undefined}
+        aria-label="Upload a .dem file"
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
-        onClick={() => !uploading && fileInputRef.current?.click()}
-        className={`hud-panel p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all border-2 border-dashed ${
+        onKeyDown={(e) => {
+          if (uploading) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        className={`hud-panel p-5 sm:p-6 min-h-[120px] sm:min-h-0 flex flex-col items-center justify-center gap-2 cursor-pointer select-none text-center transition-all border-2 border-dashed focus:outline-none focus-visible:border-cs2-accent ${
           dragOver
             ? "border-cs2-accent bg-cs2-accent/10 shadow-[0_0_24px_rgba(34,211,238,0.2)]"
             : "border-cs2-border/50 hover:border-cs2-accent/50"
         } ${uploading ? "pointer-events-none opacity-70" : ""}`}
       >
+        {/* ".dem" has no registered MIME type, so mobile pickers can grey
+            every file out unless octet-stream is accepted too. */}
         <input
           ref={fileInputRef}
+          id={fileInputId}
           type="file"
-          accept=".dem"
-          className="hidden"
+          accept=".dem,application/octet-stream"
+          className="sr-only"
+          tabIndex={-1}
+          disabled={uploading}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) handleUpload(f);
@@ -231,7 +256,7 @@ export default function DemoPickerPage() {
 
         {uploading ? (
           <>
-            <p className="text-[12px] text-cs2-accent font-mono">
+            <p className="text-[12px] text-cs2-accent font-mono max-w-full truncate">
               Uploading {uploadFile}…
             </p>
             <div className="w-full max-w-md h-2 rounded-full bg-cs2-border/50 overflow-hidden">
@@ -246,24 +271,27 @@ export default function DemoPickerPage() {
           <>
             <div className="text-[24px] text-cs2-accent/60">+</div>
             <p className="text-[12px] text-cs2-muted">
-              <span className="text-cs2-accent">Click to browse</span> or drag
-              & drop a .dem file here
+              <span className="text-cs2-accent sm:hidden">Tap to choose a .dem file</span>
+              <span className="hidden sm:inline">
+                <span className="text-cs2-accent">Click to browse</span> or drag
+                & drop a .dem file here
+              </span>
             </p>
             <p className="text-[10px] text-cs2-muted/60">
               CS2 demo files · max 2 GB
             </p>
           </>
         )}
-      </div>
+      </label>
 
       {uploadError && (
-        <p className="text-[12px] text-cs2-red border-l-2 border-cs2-red/50 pl-2">
+        <p className="text-[12px] text-cs2-red border-l-2 border-cs2-red/50 pl-2 break-words">
           {uploadError}
         </p>
       )}
 
       {error && (
-        <p className="text-[12px] text-cs2-red border-l-2 border-cs2-red/50 pl-2">
+        <p className="text-[12px] text-cs2-red border-l-2 border-cs2-red/50 pl-2 break-words">
           {error}
         </p>
       )}
@@ -279,7 +307,7 @@ export default function DemoPickerPage() {
       )}
 
       {grouped.map(([mapName, list]) => (
-        <section key={mapName} className="hud-panel p-4 flex flex-col gap-3">
+        <section key={mapName} className="hud-panel p-3 sm:p-4 flex flex-col gap-3">
           <header className="flex items-center justify-between">
             <h3 className="text-[12px] font-mono uppercase tracking-[0.18em] text-cs2-accent">
               {mapName}
@@ -299,9 +327,21 @@ export default function DemoPickerPage() {
                 key={d.demo_file}
                 className="text-left hud-panel p-3 hover:border-cs2-accent hover:shadow-[0_0_18px_rgba(34,211,238,0.18)] hover:-translate-y-0.5 transition-all flex flex-col"
               >
-                <p className="text-[12px] text-white font-semibold truncate">
-                  {title}
-                </p>
+                <div className="flex items-start gap-2 min-w-0">
+                  <p className="text-[12px] text-white font-semibold truncate flex-1 min-w-0" title={title}>
+                    {title}
+                  </p>
+                  {d.complete === false && (
+                    <span
+                      className="shrink-0 text-[9px] font-mono uppercase tracking-[0.08em] px-1.5 py-0.5 rounded border border-amber-400/50 bg-amber-400/10 text-amber-300 whitespace-nowrap cursor-help"
+                      title={`The demo file ends before the match did${
+                        d.score ? ` (it stops at ${d.score[0]}–${d.score[1]})` : ""
+                      }, so the replay won't show the final rounds.`}
+                    >
+                      Partial{d.score ? ` · ${d.score[0]}–${d.score[1]}` : ""}
+                    </span>
+                  )}
+                </div>
                 {mi?.event && (
                   <p className="text-[10px] text-cs2-accent/70 mt-0.5 truncate">
                     {mi.event}
@@ -333,7 +373,7 @@ export default function DemoPickerPage() {
                 <div className="flex gap-1.5 mt-2 pt-1">
                   <button
                     onClick={() => navigate(`/replay/${encodeURIComponent(d.demo_file)}`)}
-                    className="flex-1 text-[10px] hud-btn-primary"
+                    className="flex-1 text-[10px] hud-btn-primary max-sm:min-h-[44px] max-sm:text-[11px]"
                   >
                     Open
                   </button>
@@ -343,8 +383,9 @@ export default function DemoPickerPage() {
                       handleDelete(d.demo_file);
                     }}
                     disabled={deleting === d.demo_file}
-                    className="text-[10px] hud-btn text-cs2-red/70 hover:text-cs2-red hover:border-cs2-red/50"
+                    className="text-[10px] hud-btn text-cs2-red/70 hover:text-cs2-red hover:border-cs2-red/50 max-sm:min-h-[44px] max-sm:min-w-[56px] max-sm:text-[11px]"
                     title="Delete this demo"
+                    aria-label={`Delete ${d.demo_file}`}
                   >
                     {deleting === d.demo_file ? "…" : "Del"}
                   </button>

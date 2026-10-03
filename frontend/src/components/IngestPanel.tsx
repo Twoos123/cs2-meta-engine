@@ -98,7 +98,7 @@ export default function IngestPanel({ onComplete }: Props) {
   };
 
   return (
-    <div className="hud-panel p-5 space-y-4">
+    <div className="hud-panel p-4 sm:p-5 space-y-4">
       <div>
         <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em]">
           / ingest
@@ -108,7 +108,7 @@ export default function IngestPanel({ onComplete }: Props) {
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-[10px] text-cs2-muted uppercase tracking-[0.15em] mb-1 block">
             Team

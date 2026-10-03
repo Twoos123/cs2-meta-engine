@@ -17,7 +17,7 @@ export default function AppBackdrop({ tone = "cyan" }: { tone?: "cyan" | "green"
   const [c1, c2] = palettes[tone] ?? palettes.cyan;
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden>
       <div
         className="orb orb-1"
         style={{

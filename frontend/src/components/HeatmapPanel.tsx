@@ -246,10 +246,12 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
   }, [drawHeatmap]);
 
   return (
-    <div className="h-full flex gap-4 p-4 overflow-hidden">
+    // < lg: map on top (full width), controls stacked underneath and the
+    // page scrolls. lg+: map | fixed-width controls column (original).
+    <div className="flex flex-col gap-4 p-3 lg:p-4 lg:h-full lg:flex-row lg:overflow-hidden">
       {/* Radar + canvas overlay */}
-      <div className="flex-1 min-w-0 flex items-center justify-center">
-        <div className="relative" style={{ width: "min(100%, 80vh)", aspectRatio: "1" }}>
+      <div className="w-full min-w-0 flex items-center justify-center lg:flex-1">
+        <div className="relative w-full" style={{ maxWidth: "min(100%, 80vh)", aspectRatio: "1" }}>
           {radar && (
             <img
               src={radar.image_url}
@@ -276,7 +278,10 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
       </div>
 
       {/* Controls panel */}
-      <div className="w-64 shrink-0 flex flex-col gap-3 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+      <div
+        className="w-full grid grid-cols-1 sm:grid-cols-2 items-start gap-3 lg:items-stretch lg:w-64 lg:shrink-0 lg:flex lg:flex-col lg:overflow-y-auto"
+        style={{ scrollbarWidth: "thin" }}
+      >
         <div className="hud-panel p-3 space-y-3">
           <h3 className="text-xs text-cs2-muted uppercase tracking-[0.15em]">Mode</h3>
           <div className="flex flex-col gap-1">
@@ -288,7 +293,7 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
               <button
                 key={m.id}
                 onClick={() => setMode(m.id)}
-                className={`text-xs text-left px-2 py-1.5 rounded transition-all ${
+                className={`text-xs text-left px-2 py-2.5 lg:py-1.5 rounded transition-all ${
                   mode === m.id
                     ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40"
                     : "text-cs2-muted hover:text-white border border-transparent hover:bg-cs2-border/20"
@@ -308,7 +313,7 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
                 <button
                   key={h}
                   onClick={() => setHalfFilter(h)}
-                  className={`flex-1 text-[10px] px-2 py-1 rounded font-semibold ${
+                  className={`flex-1 text-[10px] px-2 py-2 lg:py-1 rounded font-semibold ${
                     halfFilter === h
                       ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40"
                       : "hud-btn"
@@ -334,7 +339,7 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
                 <button
                   key={t.id}
                   onClick={() => setRoundTime(t.id)}
-                  className={`text-[10px] px-2 py-1 rounded font-semibold ${
+                  className={`text-[10px] px-2 py-2 lg:py-1 rounded font-semibold ${
                     roundTime === t.id
                       ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40"
                       : "hud-btn"
@@ -364,7 +369,7 @@ export default function HeatmapPanel({ timeline, radar }: Props) {
               <button
                 key={String(t.id)}
                 onClick={() => setTeamFilter(t.id)}
-                className={`flex-1 text-[10px] px-2 py-1 rounded font-semibold ${
+                className={`flex-1 text-[10px] px-2 py-2 lg:py-1 rounded font-semibold ${
                   teamFilter === t.id
                     ? "bg-cs2-accent/15 text-cs2-accent border border-cs2-accent/40"
                     : "hud-btn"

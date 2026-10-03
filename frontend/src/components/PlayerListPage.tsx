@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MatchInfoResponse,
@@ -20,6 +20,11 @@ import PlayerAvatar from "./PlayerAvatar";
 import { useReveal } from "../hooks/useReveal";
 
 type SortKey = "rating" | "kd" | "kills" | "hs" | "openwr" | "matches";
+
+/** Default "min matches" filter, and the fallback threshold: if fewer than
+ *  MIN_QUALIFYING_PLAYERS clear the default on first load, drop it to 1. */
+const DEFAULT_MIN_MATCHES = 2;
+const MIN_QUALIFYING_PLAYERS = 5;
 
 const ROLE_COLORS: Record<string, string> = {
   AWP: "#5B9BD5",
@@ -152,7 +157,17 @@ export default function PlayerListPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("rating");
-  const [minMatches, setMinMatches] = useState(1);
+  // Default to 2 so one-off single-match stand-ins don't top the rating
+  // table. If that leaves too few players to be useful (small library),
+  // the effect below drops it to 1 once, on the first non-empty load.
+  const [minMatches, setMinMatches] = useState(DEFAULT_MIN_MATCHES);
+  const minMatchesAutoSet = useRef(false);
+  useEffect(() => {
+    if (minMatchesAutoSet.current || players.length === 0) return;
+    minMatchesAutoSet.current = true;
+    const qualifying = players.filter((p) => p.matches >= DEFAULT_MIN_MATCHES).length;
+    if (qualifying < MIN_QUALIFYING_PLAYERS) setMinMatches(1);
+  }, [players]);
 
   const load = async () => {
     // Only show the spinner on the very first load (when nothing is
@@ -459,7 +474,7 @@ export default function PlayerListPage() {
           {/* ── Top 3 podium cards (only when rating-sorted, so the visual
               ranking actually matches the list below) ── */}
           {!loading && topThree.length === 3 && sortKey === "rating" && (
-            <div ref={podium.ref} className={`reveal ${podium.shown ? "in" : ""} grid grid-cols-1 md:grid-cols-3 gap-4`}>
+            <div ref={podium.ref} className={`reveal ${podium.shown ? "in" : ""} grid grid-cols-1 lg:grid-cols-3 gap-4`}>
               {topThree.map((p, i) => {
                 const roleColor = ROLE_COLORS[p.role] ?? "#94a3b8";
                 const medal = ["#fde047", "#cbd5e1", "#fb923c"][i]; // gold/silver/bronze
@@ -542,8 +557,8 @@ export default function PlayerListPage() {
           )}
 
           {/* ── Filters ── */}
-          <div className="hud-panel p-4 flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[220px] space-y-1.5">
+          <div className="hud-panel p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+            <div className="w-full sm:w-auto sm:flex-1 sm:min-w-[220px] space-y-1.5">
               <label className="text-[10px] text-cs2-muted uppercase tracking-[0.18em] font-semibold">Search</label>
               <input
                 type="text"
@@ -558,6 +573,7 @@ export default function PlayerListPage() {
               <Select
                 value={roleFilter}
                 onChange={setRoleFilter}
+                className="w-full sm:w-auto"
                 minWidth={140}
                 options={[
                   { value: "all", label: "All roles" },
@@ -574,6 +590,7 @@ export default function PlayerListPage() {
               <Select
                 value={teamFilter}
                 onChange={setTeamFilter}
+                className="w-full sm:w-auto"
                 minWidth={180}
                 options={[
                   { value: "all", label: "All teams" },
@@ -589,6 +606,7 @@ export default function PlayerListPage() {
               <Select
                 value={sortKey}
                 onChange={(v) => setSortKey(v as SortKey)}
+                className="w-full sm:w-auto"
                 minWidth={130}
                 options={[
                   { value: "rating",  label: "Rating" },
@@ -607,10 +625,10 @@ export default function PlayerListPage() {
                 min={1}
                 value={minMatches}
                 onChange={(e) => setMinMatches(Math.max(1, parseInt(e.target.value || "1", 10)))}
-                className="hud-input w-24"
+                className="hud-input w-full sm:w-24"
               />
             </div>
-            <span className="ml-auto text-[11px] text-cs2-muted self-center font-mono">
+            <span className="sm:ml-auto text-[11px] text-cs2-muted sm:self-center font-mono">
               {filtered.length} / {players.length} players
             </span>
           </div>
@@ -634,11 +652,14 @@ export default function PlayerListPage() {
             </div>
           ) : (
             <div className="hud-panel overflow-hidden">
-              <table className="w-full text-[12px]">
+              {/* Below md the table scrolls sideways with the player column
+                  pinned; from md up it lays out exactly as before. */}
+              <div className="overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+              <table className="w-full text-[12px] whitespace-nowrap md:whitespace-normal">
                 <thead>
                   <tr className="text-cs2-muted uppercase tracking-[0.18em] border-b border-white/5 bg-white/[0.02]">
                     <th className="px-3 py-3 text-left font-semibold w-10">#</th>
-                    <th className="px-3 py-3 text-left font-semibold">Player</th>
+                    <th className="px-3 py-3 text-left font-semibold sticky left-0 z-10 bg-[#0b0f19] md:static md:bg-transparent">Player</th>
                     <th className="px-3 py-3 text-left font-semibold">Team</th>
                     <th className="px-3 py-3 text-center font-semibold">Role</th>
                     <th className="px-3 py-3 text-right font-semibold">Rating</th>
@@ -658,10 +679,10 @@ export default function PlayerListPage() {
                       <tr
                         key={p.steamid}
                         onClick={() => navigate(`/players/${p.steamid}`)}
-                        className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.03] cursor-pointer transition-colors"
+                        className="group border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.03] cursor-pointer transition-colors"
                       >
                         <td className="px-3 py-2 font-mono text-cs2-muted">{idx + 1}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 sticky left-0 z-10 bg-[#0b0f19] group-hover:bg-[#10141e] md:static md:bg-transparent md:group-hover:bg-transparent">
                           <div className="flex items-center gap-2.5">
                             <PlayerAvatar
                               name={p.name}
@@ -671,7 +692,7 @@ export default function PlayerListPage() {
                               cacheBust={photoCacheVersion || undefined}
                               hideIfNoImage
                             />
-                            <span className="font-semibold text-white truncate">{p.name}</span>
+                            <span className="font-semibold text-white truncate max-w-[9rem] md:max-w-none">{p.name}</span>
                           </div>
                         </td>
                         <td className="px-3 py-2 text-cs2-muted text-[11px] truncate max-w-[180px]">
@@ -705,6 +726,7 @@ export default function PlayerListPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

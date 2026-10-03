@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import {
   Cs2PathResponse,
+  apiErrorMessage,
   getCs2Path,
   setCs2Path,
   linkDemosToCs2,
@@ -27,14 +28,23 @@ export default function SettingsPanel({ open, onClose }: Props) {
       const res = await getCs2Path();
       setInfo(res);
       setPathInput(res.configured_path || res.detected_path || "");
-    } catch {
-      setMessage("Failed to load CS2 path info");
+    } catch (e) {
+      setMessage(apiErrorMessage(e, "Failed to load CS2 path info"));
     }
   };
 
   useEffect(() => {
     if (open) refresh();
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -45,8 +55,8 @@ export default function SettingsPanel({ open, onClose }: Props) {
       await setCs2Path(pathInput.trim());
       await refresh();
       setMessage("Path saved");
-    } catch (e: any) {
-      setMessage(e?.response?.data?.detail ?? "Save failed");
+    } catch (e) {
+      setMessage(apiErrorMessage(e, "Save failed"));
     } finally {
       setSaving(false);
     }
@@ -63,8 +73,8 @@ export default function SettingsPanel({ open, onClose }: Props) {
           : "Demos linked to CS2"
       );
       await refresh();
-    } catch (e: any) {
-      setMessage(e?.response?.data?.detail ?? "Link failed");
+    } catch (e) {
+      setMessage(apiErrorMessage(e, "Link failed"));
     } finally {
       setLinking(false);
     }
@@ -77,8 +87,8 @@ export default function SettingsPanel({ open, onClose }: Props) {
       await unlinkDemosFromCs2();
       setMessage("Junction removed");
       await refresh();
-    } catch (e: any) {
-      setMessage(e?.response?.data?.detail ?? "Unlink failed");
+    } catch (e) {
+      setMessage(apiErrorMessage(e, "Unlink failed"));
     } finally {
       setLinking(false);
     }
@@ -86,17 +96,23 @@ export default function SettingsPanel({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-3 sm:p-0"
       onClick={onClose}
     >
+      {/* Phones: inset by a gutter, capped to the viewport height and
+          scrollable. sm+ geometry unchanged. */}
       <div
-        className="hud-panel w-full max-w-lg p-6 flex flex-col gap-5 relative"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        className="hud-panel w-full max-w-lg p-4 sm:p-6 flex flex-col gap-5 relative max-h-full overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-cs2-muted hover:text-white text-lg leading-none"
+          aria-label="Close settings"
+          className="absolute top-3 right-3 text-cs2-muted hover:text-white text-lg leading-none max-sm:top-1.5 max-sm:right-1.5 max-sm:p-2"
         >
           x
         </button>
@@ -112,7 +128,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
           </label>
 
           {info?.detected_path && (
-            <p className="text-[10px] text-cs2-green">
+            <p className="text-[10px] text-cs2-green break-all">
               Auto-detected: {info.detected_path}
             </p>
           )}
@@ -128,7 +144,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="hud-btn text-[10px] px-3"
+              className="hud-btn text-[10px] px-3 max-sm:py-2.5"
             >
               {saving ? "Saving..." : "Save"}
             </button>
@@ -141,13 +157,13 @@ export default function SettingsPanel({ open, onClose }: Props) {
             Demo Link to CS2
           </label>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2 h-2 rounded-full shrink-0 ${
                 info?.link_active ? "bg-cs2-green" : "bg-cs2-red"
               }`}
             />
-            <span className="text-[11px] text-gray-300">
+            <span className="text-[11px] text-gray-300 min-w-0 break-all">
               {info?.link_active
                 ? `Linked at ${info.link_path}`
                 : "Not linked"}
@@ -191,7 +207,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
 
         {/* Feedback message */}
         {message && (
-          <p className="text-[10px] text-cs2-accent border-l-2 border-cs2-accent/40 pl-2">
+          <p className="text-[10px] text-cs2-accent border-l-2 border-cs2-accent/40 pl-2 break-words">
             {message}
           </p>
         )}

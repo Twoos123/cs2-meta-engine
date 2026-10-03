@@ -36,7 +36,13 @@ export default function PlayerRoleRadar({ axes, size = 220, color = "#22d3ee" }:
     .join(" ");
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+    // Renders at `size` px, but shrinks with its container on narrow screens.
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      overflow="visible"
+      className="block w-full h-auto"
+      style={{ maxWidth: size }}
+    >
       {/* Concentric rings */}
       {Array.from({ length: RINGS }, (_, i) => {
         const t = (i + 1) / RINGS;

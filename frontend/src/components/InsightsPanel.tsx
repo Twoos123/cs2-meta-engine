@@ -308,7 +308,10 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
           }
         }
       }
-      const isForceBuyWin = !!winner && winnerEquip > 0 && winnerEquip < 15000 && loserEquip >= 22000;
+      // Pistol rounds (1 and 13, MR12 — matches EconomyPanel's "Pistol" buy
+      // category) are never force-buys; overtime rounds (25+) are not pistols.
+      const isPistol = r.num === 1 || r.num === 13;
+      const isForceBuyWin = !isPistol && !!winner && winnerEquip > 0 && winnerEquip < 15000 && loserEquip >= 22000;
 
       // Streak-breaker: prev ≥3 rounds same winner, this round opposite
       const isStreakBreaker = !!winner && streak.winner !== null && streak.winner !== winner && streak.count >= 3;
@@ -325,7 +328,7 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
         winner,
         bombPlanted, bombDefused, bombExploded,
         tAlive, ctAlive,
-        isPistol: r.num === 1 || r.num === 13,
+        isPistol,
         isForceBuyWin,
         isStreakBreaker,
         aliveSwing,
@@ -958,10 +961,12 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
   };
 
   return (
-    <div className="h-full flex flex-col gap-2 p-2 overflow-hidden">
+    // < lg: everything stacks and the page scrolls (ribbon → scoreboards →
+    // radar → round details). lg+: fixed-height 3-column layout (original).
+    <div className="flex flex-col gap-2 p-2 lg:h-full lg:overflow-hidden">
       {/* ═══ Round ribbon ═══ */}
       <div className="hud-panel p-3 shrink-0">
-        <div className="flex items-center gap-3 text-sm text-cs2-muted mb-2 uppercase tracking-[0.1em] font-semibold">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-cs2-muted mb-2 uppercase tracking-[0.1em] font-semibold">
           <span>First Half</span>
           <span className="font-mono text-base text-white">
             {halfScores.firstA} : {halfScores.firstB}
@@ -980,13 +985,16 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
             </span>
           )}
         </div>
+        {/* < lg: rounds keep a tappable min width and the strip scrolls
+            horizontally; lg+: every round shares the full width. */}
+        <div className="overflow-x-auto lg:overflow-visible -mx-1 px-1 lg:mx-0 lg:px-0" style={{ scrollbarWidth: "thin" }}>
         <div className="flex items-stretch gap-0.5 w-full">
           {roundSummaries.map((ro) => {
             const isCurrent = ro.num === currentRound;
             const winColor = ro.winner === "T" ? TEAM_COLOR[2] : ro.winner === "CT" ? TEAM_COLOR[3] : "#555";
             const showHalfDivider = ro.num === halftimeRound;
             return (
-              <div key={ro.num} className="flex items-center gap-0.5 flex-1 min-w-0">
+              <div key={ro.num} className="flex items-center gap-0.5 flex-1 min-w-[44px] lg:min-w-0">
                 {showHalfDivider && (
                   <div className="w-[2px] bg-cs2-accent/40 self-stretch mx-1 rounded shrink-0" />
                 )}
@@ -1045,14 +1053,15 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Re-parse banner when aggregates are missing */}
       {!hasRealAggregates && (
-        <div className="hud-panel p-2 flex items-center gap-3 text-[11px] shrink-0"
+        <div className="hud-panel p-2 flex flex-wrap items-center gap-3 text-[11px] shrink-0"
              style={{ borderColor: "#fbbf24" }}>
           <span className="text-yellow-400">⚠</span>
-          <span className="text-gray-300 flex-1">
+          <span className="text-gray-300 flex-1 basis-[220px]">
             This demo was parsed before aggregate stats were available — DMG, assists, and flash durations will show as "—". Swing uses a K-based proxy.
           </span>
           <button
@@ -1065,11 +1074,20 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
         </div>
       )}
 
-      <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* ═══ Left scoreboard — user-resizable via the splitter to its right. ═══ */}
+      {/* Pane widths come from the drag splitters via CSS vars so they only
+          apply on lg+; below lg each pane is full width and stacks. */}
+      <div
+        className="flex flex-col gap-2 lg:flex-row lg:gap-0 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
+        style={{
+          "--ins-left-w": `${leftPaneWidth}px`,
+          "--ins-right-w": `${rightPaneWidth}px`,
+        } as React.CSSProperties}
+      >
+        {/* ═══ Left scoreboard — user-resizable via the splitter to its right.
+            < md: teams stack; md–lg: side by side; lg+: stacked column. ═══ */}
         <div
-          className="shrink-0 overflow-y-auto space-y-2 flex flex-col"
-          style={{ width: leftPaneWidth, scrollbarWidth: "thin" }}
+          className="w-full grid grid-cols-1 md:grid-cols-2 gap-2 lg:w-[var(--ins-left-w)] lg:shrink-0 lg:flex lg:flex-col lg:overflow-y-auto"
+          style={{ scrollbarWidth: "thin" }}
         >
           {[2, 3]
             .slice()
@@ -1154,7 +1172,7 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
         {/* Splitter — drag to resize the scoreboard. */}
         <div
           onMouseDown={startResize("left")}
-          className="w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
+          className="hidden lg:block w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
           title="Drag to resize"
         />
 
@@ -1163,8 +1181,8 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
             fixed-width). Container is wider than tall on most monitors;
             the SVG inside uses preserveAspectRatio="xMidYMid meet" so the
             radar stays square and centers within. */}
-        <div className="flex-1 min-w-0 h-full hud-panel p-2 overflow-hidden flex flex-col items-center">
-          <div className="flex items-center gap-2 mb-1 w-full">
+        <div className="w-full hud-panel p-2 overflow-hidden flex flex-col items-center lg:flex-1 lg:min-w-0 lg:h-full">
+          <div className="flex flex-wrap items-center gap-2 mb-1 w-full">
             {/* Mode tabs — round / heatmap / patterns */}
             <div className="flex items-center gap-1">
               {(["round", "heatmap", "patterns"] as const).map((m) => (
@@ -1289,23 +1307,30 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
             </div>
           )}
           <div
-            className="flex-1 min-h-0 w-full relative flex items-center justify-center"
+            className="w-full aspect-square relative flex items-center justify-center lg:aspect-auto lg:flex-1 lg:min-h-0"
             ref={radarHostRef}
-            style={{ overflow: "hidden", cursor: isDragging ? "grabbing" : mapScale > 1 ? "grab" : "default" }}
-            onMouseDown={(e) => {
+            style={{
+              overflow: "hidden",
+              cursor: isDragging ? "grabbing" : mapScale > 1 ? "grab" : "default",
+              // Zoomed in: one-finger drag pans the map instead of the page.
+              touchAction: mapScale > 1 ? "none" : "auto",
+            }}
+            // Pointer events = mouse + touch + pen for drag-to-pan.
+            onPointerDown={(e) => {
               if (mapScale <= 1 || e.button !== 0) return;
               setIsDragging(true);
               dragStart.current = { x: e.clientX, y: e.clientY, panX: mapPan.x, panY: mapPan.y };
             }}
-            onMouseMove={(e) => {
+            onPointerMove={(e) => {
               if (!isDragging) return;
               setMapPan({
                 x: dragStart.current.panX + (e.clientX - dragStart.current.x),
                 y: dragStart.current.panY + (e.clientY - dragStart.current.y),
               });
             }}
-            onMouseUp={() => setIsDragging(false)}
-            onMouseLeave={() => setIsDragging(false)}
+            onPointerUp={() => setIsDragging(false)}
+            onPointerCancel={() => setIsDragging(false)}
+            onPointerLeave={() => setIsDragging(false)}
             onWheel={(e) => {
               e.preventDefault();
               const delta = e.deltaY < 0 ? 0.1 : -0.1;
@@ -1855,14 +1880,14 @@ export default function InsightsPanel({ timeline, radar, matchInfo, demoFile, on
         {/* Splitter — drag to resize the right panel. */}
         <div
           onMouseDown={startResize("right")}
-          className="w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
+          className="hidden lg:block w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
           title="Drag to resize"
         />
 
-        <div
-          className="shrink-0 flex flex-col gap-2 overflow-hidden"
-          style={{ width: rightPaneWidth }}
-        >
+        {/* < lg: full width with a bounded height so its lists scroll
+            internally; lg+: splitter-controlled width, stretches to row. */}
+        <div className="w-full h-[70vh] min-h-[420px] max-h-[720px] shrink-0 flex flex-col gap-2 overflow-hidden lg:w-[var(--ins-right-w)] lg:h-auto lg:min-h-0 lg:max-h-none">
+
           <div className="hud-panel p-2 flex items-center gap-2 shrink-0">
             <button
               onClick={() => setRightMode("simple")}

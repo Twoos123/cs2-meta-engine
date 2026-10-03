@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  apiErrorMessage,
   Callout,
   clearAllData,
   ExecuteCombo,
@@ -80,9 +81,8 @@ export default function Dashboard() {
       const sideParam = selectedSide === "all" ? undefined : selectedSide;
       const res = await getTopLineups(selectedMap, selectedType, 500, sideParam);
       setLineups(res.lineups);
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail;
-      setError(detail ?? "Failed to fetch lineups");
+    } catch (e) {
+      setError(apiErrorMessage(e, "Failed to fetch lineups"));
       setLineups([]);
     } finally {
       setLoading(false);
@@ -330,9 +330,8 @@ export default function Dashboard() {
       setSelectedClusterId(undefined);
       setIngestedMaps(new Set());
       setError(null);
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail;
-      setError(detail ?? "Failed to clear data");
+    } catch (e) {
+      setError(apiErrorMessage(e, "Failed to clear data"));
     } finally {
       setClearing(false);
     }
@@ -351,8 +350,9 @@ export default function Dashboard() {
             <Select
               value={selectedMap}
               onChange={setSelectedMap}
-              minWidth={180}
+              className="min-w-[150px] sm:min-w-[180px]"
               title="Select map"
+              ariaLabel="Map"
               groups={[
                 ...(downloadedMaps.length > 0
                   ? [{
@@ -400,12 +400,15 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto w-full space-y-6">
       {/* ── Grenade type tabs + side filter ── */}
       <>
-      <div className="flex items-center gap-3 flex-wrap px-1">
-        <div className="flex gap-1.5 flex-wrap">
+      {/* Below sm the chips get tighter horizontal padding so each group
+          packs into as few rows as possible; desktop geometry unchanged. */}
+      <div className="flex items-center gap-x-3 gap-y-2 flex-wrap px-1">
+        <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Grenade type">
           {GRENADE_TYPES.map((g) => (
             <button
               key={g.id}
-              className={`hud-tab ${
+              aria-pressed={selectedType === g.id}
+              className={`hud-tab max-sm:px-3 ${
                 selectedType === g.id ? "hud-tab-active" : "hud-tab-idle"
               }`}
               onClick={() => setSelectedType(g.id)}
@@ -414,17 +417,19 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1.5 ml-auto items-center flex-wrap">
+        <div className="flex gap-1.5 ml-auto max-sm:ml-0 items-center flex-wrap min-w-0">
           <button
             onClick={() => setHideNoise((v) => !v)}
-            className={`hud-tab ${hideNoise ? "hud-tab-active" : "hud-tab-idle"}`}
+            aria-pressed={hideNoise}
+            className={`hud-tab max-sm:px-3 ${hideNoise ? "hud-tab-active" : "hud-tab-idle"}`}
             title="Hide noise: singleton losses + short flight distance throws"
           >
             {hideNoise ? "Noise Hidden" : "Hide Noise"}
           </button>
           <button
             onClick={() => setShowExecutes((v) => !v)}
-            className={`hud-tab ${showExecutes ? "hud-tab-active" : "hud-tab-idle"}`}
+            aria-pressed={showExecutes}
+            className={`hud-tab max-sm:px-3 ${showExecutes ? "hud-tab-active" : "hud-tab-idle"}`}
             title="Show detected execute combos for this map"
           >
             Executes{executes.length > 0 ? ` · ${executes.length}` : ""}
@@ -433,20 +438,22 @@ export default function Dashboard() {
             <Select
               value={selectedPlayer}
               onChange={setSelectedPlayer}
-              minWidth={160}
+              className="min-w-[140px] sm:min-w-[160px] max-w-[200px] sm:max-w-none"
               title="Filter to lineups thrown by a specific player"
+              ariaLabel="Player filter"
               options={[
                 { value: "", label: "All players" },
                 ...availablePlayers.map((p) => ({ value: p, label: p })),
               ]}
             />
           )}
-          <div className="flex gap-1 ml-1">
+          <div className="flex gap-1 ml-1 max-sm:ml-0" role="group" aria-label="Side">
             {(["all", "T", "CT"] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setSelectedSide(s)}
-                className={`hud-tab ${selectedSide === s ? "hud-tab-active" : "hud-tab-idle"}`}
+                aria-pressed={selectedSide === s}
+                className={`hud-tab max-sm:px-3 ${selectedSide === s ? "hud-tab-active" : "hud-tab-idle"}`}
                 title={
                   s === "all"
                     ? "Show both sides"
@@ -667,16 +674,17 @@ export default function Dashboard() {
                   <section key={g.name}>
                     <button
                       onClick={() => toggleGroup(g.name)}
-                      className="w-full flex items-center gap-3 mb-4 group"
+                      aria-expanded={!collapsed}
+                      className="w-full flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 mb-4 group text-left"
                     >
                       <span className="text-cs2-accent font-mono text-sm group-hover:drop-shadow-[0_0_6px_rgba(34,211,238,0.6)] transition">
                         {collapsed ? "▸" : "▾"}
                       </span>
-                      <span className="text-sm font-semibold tracking-tight text-white">
+                      <span className="text-sm font-semibold tracking-tight text-white min-w-0 max-sm:flex-1 truncate">
                         {g.name}
                       </span>
-                      <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
-                      <span className="text-[10px] text-cs2-muted font-mono uppercase tracking-[0.15em]">
+                      <div className="hidden sm:block flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+                      <span className="text-[10px] text-cs2-muted font-mono uppercase tracking-[0.15em] max-sm:basis-full max-sm:pl-5 max-sm:tracking-[0.1em] shrink-0">
                         {g.items.length} nade{g.items.length === 1 ? "" : "s"}{" "}
                         &middot; {variationCount} variation
                         {variationCount === 1 ? "" : "s"} &middot; impact{" "}
@@ -809,7 +817,8 @@ function MainNadeCard({
       {hasVariations && (
         <button
           onClick={onToggle}
-          className="text-[10px] font-mono uppercase tracking-[0.15em] px-2 py-1.5 rounded border border-cs2-border bg-cs2-panel/60 text-cs2-muted hover:text-cs2-accent hover:border-cs2-accent/60 transition flex items-center justify-between"
+          aria-expanded={expanded}
+          className="text-[10px] font-mono uppercase tracking-[0.15em] px-2 py-1.5 max-sm:py-2.5 gap-2 rounded border border-cs2-border bg-cs2-panel/60 text-cs2-muted hover:text-cs2-accent hover:border-cs2-accent/60 transition flex items-center justify-between"
         >
           <span>
             <span className="text-cs2-accent">{expanded ? "▾" : "▸"}</span>{" "}

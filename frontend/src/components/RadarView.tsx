@@ -18,6 +18,7 @@ import {
   Callout,
   LineupRanking,
   RadarInfo,
+  apiErrorMessage,
   getAllTypesForMap,
   getCallouts,
   getRadarInfo,
@@ -91,9 +92,9 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
         }
         setLineups(flat);
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e?.response?.data?.detail ?? "Failed to load radar data");
+        setError(apiErrorMessage(e, "Failed to load radar data"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -102,6 +103,14 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
       cancelled = true;
     };
   }, [mapName]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const project = useMemo(() => {
     if (!radarInfo) {
@@ -148,16 +157,21 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
       onClick={onClose}
     >
+      {/* Phones: near full-screen sheet (fills the viewport minus a small
+          gutter) with the body scrolling; sm+ keeps the centered modal. */}
       <div
-        className="hud-panel hud-corner max-w-5xl w-full max-h-[95vh] flex flex-col overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${mapName} radar`}
+        className="hud-panel hud-corner max-w-5xl w-full h-full sm:h-auto max-h-full sm:max-h-[95vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-cs2-border">
-          <div>
+        <div className="flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-2 px-3 sm:px-5 py-3 border-b border-cs2-border shrink-0">
+          <div className="min-w-0 max-sm:pr-8">
             <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em]">
               / radar
             </p>
@@ -211,8 +225,9 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
             </button>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white px-2 py-1 text-lg leading-none"
+              className="text-gray-400 hover:text-white px-2 py-1 text-lg leading-none max-sm:absolute max-sm:top-2 max-sm:right-2 max-sm:p-2"
               title="Close"
+              aria-label="Close radar"
             >
               &times;
             </button>
@@ -221,7 +236,7 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
 
         {/* Filter controls panel */}
         {showFilters && (
-          <div className="px-5 py-3 border-b border-cs2-border flex items-center gap-6 flex-wrap bg-cs2-panel/50">
+          <div className="px-3 sm:px-5 py-3 border-b border-cs2-border flex items-center gap-x-6 gap-y-3 flex-wrap bg-cs2-panel/50 shrink-0">
             <label className="flex items-center gap-2 text-[11px] text-cs2-muted">
               <span className="uppercase tracking-[0.1em] w-20">Min throws</span>
               <input
@@ -267,14 +282,14 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
         )}
 
         {/* Body */}
-        <div className="relative flex-1 overflow-auto bg-black flex items-center justify-center">
+        <div className="relative flex-1 min-h-0 overflow-auto bg-black flex items-start sm:items-center justify-center">
           {error && (
-            <div className="p-6 text-sm text-cs2-red">{error}</div>
+            <div className="p-6 text-sm text-cs2-red break-words">{error}</div>
           )}
           {!error && radarInfo && (
             <svg
               viewBox={`0 0 ${RADAR_PX} ${RADAR_PX}`}
-              className="max-w-full max-h-[80vh]"
+              className="w-full h-auto sm:w-auto sm:h-auto max-w-full sm:max-h-[80vh] shrink-0"
               style={{ aspectRatio: "1 / 1" }}
             >
               <image
@@ -392,7 +407,7 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
 
           {/* Hover card */}
           {hoverLineup && (
-            <div className="absolute bottom-3 left-3 hud-panel p-3 text-xs space-y-1 shadow-xl max-w-xs">
+            <div className="absolute bottom-3 left-3 max-sm:right-3 hud-panel p-3 text-xs space-y-1 shadow-xl max-w-xs">
               <p className="font-semibold text-white">
                 #{hoverLineup.ranking.rank}{" "}
                 {hoverLineup.ranking.cluster.label ??
@@ -431,7 +446,7 @@ export default function RadarView({ mapName, onClose, onSelect }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-2 border-t border-cs2-border text-[10px] text-gray-600 font-mono">
+        <div className="px-3 sm:px-5 py-2 border-t border-cs2-border text-[10px] text-gray-600 font-mono shrink-0">
           small dot = throw position &middot; big dot = landing &middot;
           dashed line connects them &middot; radar via awpy
         </div>

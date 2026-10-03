@@ -830,7 +830,9 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    // < lg: natural height, the page scrolls (round strip → map + controls →
+    // scoreboard → AI recap). lg+: fixed-height map | sidebar (original).
+    <div className="flex flex-col lg:h-full lg:overflow-hidden">
       {/* Match header (team names, event, score, time, bomb) lives in the
           ReplayLayout navbar — see onLiveStatus prop above. */}
 
@@ -855,7 +857,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
             const teamBFinal = fhCT + shT;   // first-half-CT team total
             const hasSecondHalf = roundOutcomes.some((r) => r.num >= 13);
             return (
-              <div className="flex items-center gap-3 text-sm text-cs2-muted uppercase tracking-[0.1em] font-semibold mb-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-cs2-muted uppercase tracking-[0.1em] font-semibold mb-2">
                 <span>First Half</span>
                 <span className="text-white font-mono text-base">{fhT} : {fhCT}</span>
                 {hasSecondHalf && (
@@ -868,6 +870,9 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
               </div>
             );
           })()}
+          {/* < lg: each round keeps its natural width (5 alive bars) and the
+              strip scrolls horizontally; lg+: rounds share the full width. */}
+          <div className="overflow-x-auto lg:overflow-visible" style={{ scrollbarWidth: "thin" }}>
           <div className="flex items-stretch gap-0.5 w-full">
           {roundOutcomes.map((ro) => {
             const isCurrent = ro.num === score.round;
@@ -882,7 +887,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
               ? playerStates.filter((p) => p.team === 3 && p.alive).length
               : ro.ctAlive;
             return (
-              <div key={ro.num} className="flex items-center gap-0.5 flex-1 min-w-0">
+              <div key={ro.num} className="flex items-center gap-0.5 flex-1 min-w-[58px] lg:min-w-0">
                 {ro.num === 13 && (
                   <div className="w-[2px] bg-cs2-accent/40 self-stretch mx-1 rounded shrink-0" />
                 )}
@@ -946,16 +951,23 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
             );
           })}
           </div>
+          </div>
         </div>
       </div>
 
-      {/* ═══ Main area: map | sidebar ═══ */}
-      <div className="flex-1 min-h-0 flex px-2 overflow-hidden">
+      {/* ═══ Main area: map | sidebar ═══
+          < lg: map panel then sidebar, stacked full width. lg+: side by
+          side; the sidebar width comes from the drag splitter via a CSS var
+          so it never applies to the stacked layout. */}
+      <div
+        className="flex flex-col gap-2 px-2 pb-2 lg:flex-row lg:gap-0 lg:pb-0 lg:flex-1 lg:min-h-0 lg:overflow-hidden"
+        style={{ "--replay-sidebar-w": `${sidebarWidth}px` } as React.CSSProperties}
+      >
         {/* ── Map + overlays ── */}
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-1">
+        <div className="w-full flex flex-col gap-1 lg:flex-1 lg:min-w-0 lg:min-h-0">
           <div className="hud-panel p-2 flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
           {/* Nade type filter toggles */}
-          <div className="flex items-center gap-1.5 px-1">
+          <div className="flex flex-wrap items-center gap-1.5 px-1">
             <span className="text-[11px] text-cs2-muted uppercase tracking-[0.12em] mr-1">Nades</span>
             {ALL_NADE_TYPES.map((t) => {
               const active = nadeTypeFilter.has(t);
@@ -970,7 +982,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                     else next.add(t);
                     return next;
                   })}
-                  className="px-2 py-0.5 rounded text-[11px] font-mono uppercase tracking-wide border transition-all"
+                  className="px-2 py-1.5 lg:py-0.5 rounded text-[11px] font-mono uppercase tracking-wide border transition-all"
                   style={{
                     borderColor: active ? color : "transparent",
                     background: active ? `${color}20` : "transparent",
@@ -992,22 +1004,29 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
             )}
           </div>
           <div
-            className="relative flex-1 min-h-0 w-full flex items-center justify-center"
-            style={{ overflow: "hidden", cursor: isDragging ? "grabbing" : mapScale > 1 ? "grab" : "default" }}
-            onMouseDown={(e) => {
+            className="relative w-full aspect-square flex items-center justify-center lg:aspect-auto lg:flex-1 lg:min-h-0"
+            style={{
+              overflow: "hidden",
+              cursor: isDragging ? "grabbing" : mapScale > 1 ? "grab" : "default",
+              // Zoomed in: one-finger drag pans the map instead of the page.
+              touchAction: mapScale > 1 ? "none" : "auto",
+            }}
+            // Pointer events = mouse + touch + pen for drag-to-pan.
+            onPointerDown={(e) => {
               if (mapScale <= 1 || e.button !== 0) return;
               setIsDragging(true);
               dragStart.current = { x: e.clientX, y: e.clientY, panX: mapPan.x, panY: mapPan.y };
             }}
-            onMouseMove={(e) => {
+            onPointerMove={(e) => {
               if (!isDragging) return;
               setMapPan({
                 x: dragStart.current.panX + (e.clientX - dragStart.current.x),
                 y: dragStart.current.panY + (e.clientY - dragStart.current.y),
               });
             }}
-            onMouseUp={() => setIsDragging(false)}
-            onMouseLeave={() => setIsDragging(false)}
+            onPointerUp={() => setIsDragging(false)}
+            onPointerCancel={() => setIsDragging(false)}
+            onPointerLeave={() => setIsDragging(false)}
             onWheel={(e) => {
               e.preventDefault();
               const delta = e.deltaY < 0 ? 0.1 : -0.1;
@@ -1018,16 +1037,24 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
               });
             }}
           >
-            {/* Zoom controls — floating overlay matching the Insights radar. */}
-            <div className="absolute top-2 right-2 z-40 flex items-center gap-1 hud-panel px-1.5 py-0.5">
+            {/* Zoom controls — floating overlay matching the Insights radar.
+                < lg the map fills the width, so they sit bottom-right (clear
+                of the kill feed) with larger tap targets. */}
+            <div className="absolute bottom-2 right-2 lg:bottom-auto lg:top-2 z-40 flex items-center gap-1 hud-panel px-1.5 py-0.5">
               <button onClick={(e) => { e.stopPropagation(); setMapScale((s) => { const n = Math.max(0.5, +(s - 0.1).toFixed(1)); if (n <= 1) setMapPan({ x: 0, y: 0 }); return n; }); }}
-                className="text-[11px] text-cs2-muted hover:text-white px-1">−</button>
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label="Zoom out"
+                className="text-sm px-2.5 py-1 lg:text-[11px] lg:px-1 lg:py-0 text-cs2-muted hover:text-white">−</button>
               <span className="text-[10px] font-mono text-white w-9 text-center">{Math.round(mapScale * 100)}%</span>
               <button onClick={(e) => { e.stopPropagation(); setMapScale((s) => Math.min(3, +(s + 0.1).toFixed(1))); }}
-                className="text-[11px] text-cs2-muted hover:text-white px-1">+</button>
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label="Zoom in"
+                className="text-sm px-2.5 py-1 lg:text-[11px] lg:px-1 lg:py-0 text-cs2-muted hover:text-white">+</button>
               {(mapScale !== 1 || mapPan.x !== 0 || mapPan.y !== 0) && (
                 <button onClick={(e) => { e.stopPropagation(); setMapScale(1); setMapPan({ x: 0, y: 0 }); }}
-                  className="text-[10px] text-cs2-accent hover:text-white px-1">⟳</button>
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label="Reset zoom"
+                  className="text-sm px-2.5 py-1 lg:text-[10px] lg:px-1 lg:py-0 text-cs2-accent hover:text-white">⟳</button>
               )}
             </div>
           <div style={{
@@ -1707,20 +1734,20 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
 
             {/* ── Kill feed overlay (top-right corner) ── */}
             {killFeed.length > 0 && (
-              <div className="absolute top-2 right-2 flex flex-col gap-1 pointer-events-none">
+              <div className="absolute top-1 right-1 lg:top-2 lg:right-2 max-w-[calc(100%-0.5rem)] lg:max-w-none flex flex-col items-end lg:items-stretch gap-1 pointer-events-none">
                 {killFeed.map((k, i) => {
                   const ICON_FILTER_RED = "brightness(0) saturate(100%) invert(36%) sepia(93%) saturate(7471%) hue-rotate(355deg) brightness(101%) contrast(107%)";
                   const ICON_FILTER_WHITE = "brightness(0) invert(0.85)";
                   return (
                     <div key={i}
-                      className="flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-mono border border-white/10"
+                      className="max-w-full flex items-center gap-1 px-1.5 py-0.5 text-[10px] lg:gap-2 lg:px-3 lg:py-1 lg:text-sm rounded-lg font-mono border border-white/10"
                       style={{
                         background: "rgba(15, 20, 32, 0.75)",
                         backdropFilter: "blur(10px) saturate(140%)",
                         WebkitBackdropFilter: "blur(10px) saturate(140%)",
                       }}
                     >
-                      <span className="font-semibold" style={{ color: TEAM_COLOR[k.attackerTeam] ?? "#fff" }}>
+                      <span className="font-semibold truncate min-w-0" style={{ color: TEAM_COLOR[k.attackerTeam] ?? "#fff" }}>
                         {k.attacker}
                       </span>
                       <span className="flex items-center gap-1 text-cs2-muted">
@@ -1769,7 +1796,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                             style={{ filter: ICON_FILTER_WHITE }} />
                         )}
                       </span>
-                      <span className="font-semibold" style={{ color: TEAM_COLOR[k.victimTeam] ?? "#fff" }}>
+                      <span className="font-semibold truncate min-w-0" style={{ color: TEAM_COLOR[k.victimTeam] ?? "#fff" }}>
                         {k.victim}
                       </span>
                     </div>
@@ -1838,7 +1865,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                         .find((r) => r.start_tick < currentTick - 1);
                       if (prev) setCurrentTick(prev.start_tick);
                     }}
-                    className="hud-btn p-1.5" title="Previous round"
+                    className="hud-btn p-3 lg:p-1.5" title="Previous round" aria-label="Previous round"
                   >
                     <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
                       <rect x="2" y="2" width="2" height="12" rx="0.5" />
@@ -1847,7 +1874,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                   </button>
                   <button
                     onClick={() => setPlaying((p) => !p)}
-                    className="hud-btn-primary p-2" title={playing ? "Pause" : "Play"}
+                    className="hud-btn-primary p-3 lg:p-2" title={playing ? "Pause" : "Play"} aria-label={playing ? "Pause" : "Play"}
                   >
                     {playing ? (
                       <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
@@ -1865,7 +1892,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                       const next = timeline.rounds.find((r) => r.start_tick > currentTick);
                       if (next) setCurrentTick(next.start_tick);
                     }}
-                    className="hud-btn p-1.5" title="Next round"
+                    className="hud-btn p-3 lg:p-1.5" title="Next round" aria-label="Next round"
                   >
                     <svg viewBox="0 0 16 16" className="w-4 h-4 fill-current">
                       <path d="M2 2l8 6-8 6V2z" />
@@ -1878,7 +1905,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                   <div className="flex items-center gap-1">
                     {[0.5, 1, 2, 4].map((s) => (
                       <button key={s} onClick={() => setSpeed(s)}
-                        className={`hud-tab ${speed === s ? "hud-tab-active" : "hud-tab-idle"} font-mono`}
+                        className={`hud-tab ${speed === s ? "hud-tab-active" : "hud-tab-idle"} font-mono min-h-[40px] px-3 lg:min-h-0 lg:px-[1.1rem]`}
                       >{s}×</button>
                     ))}
                   </div>
@@ -1897,7 +1924,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
 
                   <button
                     onClick={() => setShowNotes((s) => !s)}
-                    className={`hud-tab ${showNotes ? "hud-tab-active" : "hud-tab-idle"}`}
+                    className={`hud-tab ${showNotes ? "hud-tab-active" : "hud-tab-idle"} min-h-[40px] lg:min-h-0`}
                     title="Toggle notes panel"
                   >
                     Notes{notes.length > 0 ? ` · ${notes.length}` : ""}
@@ -1913,12 +1940,14 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                       onChange={(e) => setNoteInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") addNote(); }}
                       placeholder={`Add note at ${fmtTime(currentTick)}…`}
-                      className="hud-input flex-1 text-xs py-1 px-2"
+                      // text-base below lg: iOS zooms the page when focusing inputs < 16px.
+                      className="hud-input flex-1 min-w-0 text-base py-2 px-3 lg:text-xs lg:py-1 lg:px-2"
                     />
                     <button
                       onClick={addNote}
                       disabled={!noteInput.trim()}
-                      className="hud-btn-primary text-[10px] px-2 py-1"
+                      aria-label="Add note"
+                      className="hud-btn-primary text-sm px-4 py-2.5 lg:text-[10px] lg:px-2 lg:py-1"
                     >
                       +
                     </button>
@@ -1942,7 +1971,7 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
                         <span className="text-gray-300 truncate flex-1">{n.text}</span>
                         <button
                           onClick={() => deleteNote(n.id)}
-                          className="text-cs2-red/50 hover:text-cs2-red opacity-0 group-hover:opacity-100 shrink-0"
+                          className="text-cs2-red/50 hover:text-cs2-red shrink-0 px-2 text-sm lg:px-0 lg:text-[10px] lg:opacity-0 lg:group-hover:opacity-100"
                           title="Delete note"
                         >
                           ×
@@ -1960,24 +1989,25 @@ export default function MatchReplayViewer({ demoFile, timeline, radar, matchInfo
         {/* Splitter — drag to resize the sidebar. */}
         <div
           onMouseDown={startSidebarResize}
-          className="w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
+          className="hidden lg:block w-2 shrink-0 cursor-col-resize hover:bg-cs2-accent/40 transition-colors rounded"
           title="Drag to resize"
         />
 
-        {/* ── Sidebar (right) ── */}
+        {/* ── Sidebar (right on lg+, below the map otherwise) ── */}
         <div
-          className="shrink-0 flex flex-col gap-2 overflow-y-auto"
-          style={{ width: sidebarWidth, scrollbarWidth: "thin" }}
+          className="w-full shrink-0 flex flex-col gap-2 lg:w-[var(--replay-sidebar-w)] lg:overflow-y-auto"
+          style={{ scrollbarWidth: "thin" }}
         >
-          {/* Scoreboard / player list — CS2-style with full loadout */}
-          <div className="hud-panel p-2">
+          {/* Scoreboard / player list — CS2-style with full loadout.
+              md–lg: the two teams sit side by side. */}
+          <div className="hud-panel p-2 md:grid md:grid-cols-2 md:gap-3 lg:block">
             {[2, 3].map((team) => {
               const teamPlayers = playerStates
                 .filter((p) => p.team === team)
                 .sort((a, b) => a.name.localeCompare(b.name));
               if (teamPlayers.length === 0) return null;
               return (
-                <div key={team} className="mb-3 last:mb-0">
+                <div key={team} className="mb-3 last:mb-0 md:mb-0 lg:mb-3 lg:last:mb-0 min-w-0">
                   <div className="flex items-center gap-2 mb-1.5 px-1">
                     <span className="w-3 h-3 rounded-full" style={{ background: TEAM_COLOR[team] }} />
                     <span className="text-sm uppercase tracking-wider font-bold" style={{ color: TEAM_COLOR[team] }}>

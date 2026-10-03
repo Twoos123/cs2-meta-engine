@@ -198,6 +198,14 @@ export default function AntiStratPage() {
     getMatchReplayDemos().then(setAllDemos).catch(() => {});
   }, []);
 
+  // ── Completeness / score per demo (from getMatchReplayDemos) ──
+  // Fields may be absent on an older backend — treat missing as unknown.
+  const demoMetaByFile = useMemo(() => {
+    const m = new Map<string, Partial<Pick<MatchDemoEntry, "complete" | "score">>>();
+    for (const d of allDemos) m.set(d.demo_file, { complete: d.complete, score: d.score });
+    return m;
+  }, [allDemos]);
+
   // ── Unique maps ──
   const maps = useMemo(() => {
     const s = new Set(allDemos.map((d) => d.map_name).filter(Boolean));
@@ -618,6 +626,10 @@ export default function AntiStratPage() {
   const overallTotal = winPatterns.tTotal + winPatterns.ctTotal;
   const maxPlayerKills = Math.max(1, ...playerStats.map((p) => p.kills));
 
+  const partialCount = matchedDemos.filter(
+    (d) => demoMetaByFile.get(d.demo_file)?.complete === false,
+  ).length;
+
   // Find team logo from match info cache
   const teamLogo = useMemo(() => {
     if (!teamName) return "";
@@ -676,13 +688,18 @@ export default function AntiStratPage() {
       <AppBackdrop tone="violet" />
       <AppHeader />
 
-      <div className="relative flex-1 min-h-0 flex overflow-hidden">
+      {/* Below lg the config sidebar becomes a top section and the whole
+          page scrolls as one column; from lg up it's sidebar + report. */}
+      <div
+        className="relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden"
+        style={{ scrollbarWidth: "thin" }}
+      >
       {/* ── Sidebar ── */}
-      <aside className="w-80 shrink-0 border-r border-white/5 flex flex-col overflow-y-auto glass-sidebar" style={{ scrollbarWidth: "thin" }}>
+      <aside className="w-full lg:w-80 shrink-0 border-b lg:border-b-0 lg:border-r border-white/5 flex flex-col lg:overflow-y-auto glass-sidebar" style={{ scrollbarWidth: "thin" }}>
 
         {/* Controls */}
-        <div className="px-5 py-5 space-y-4 border-b border-white/5">
-          <div className="mb-1">
+        <div className="px-4 sm:px-5 py-5 grid gap-4 sm:grid-cols-2 lg:flex lg:flex-col border-b border-white/5">
+          <div className="mb-1 sm:col-span-2">
             <span className="section-eyebrow" style={{ color: "#fca5a5" }}>SCOUT</span>
             <p className="mt-2 text-sm font-semibold text-white">Configure the report</p>
           </div>
@@ -729,7 +746,7 @@ export default function AntiStratPage() {
           <button
             onClick={handleAnalyze}
             disabled={!teamName || !selectedMap || phase === "timelines"}
-            className="hud-btn-primary w-full"
+            className="hud-btn-primary w-full sm:col-span-2"
           >
             {phase === "timelines" ? (
               <span className="flex items-center justify-center gap-2">
@@ -752,6 +769,11 @@ export default function AntiStratPage() {
               {matchedDemos.map((d) => {
                 const mi = matchInfoCache[d.demo_file];
                 const isLoaded = timelines.length > 0;
+                // `complete` is null/missing until the timeline has been
+                // parsed once — only an explicit false counts as partial.
+                const meta = demoMetaByFile.get(d.demo_file);
+                const partial = meta?.complete === false;
+                const score = meta?.score;
                 return (
                   <div key={d.demo_file} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-cs2-border/10 transition-colors">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLoaded ? "bg-cs2-green" : "bg-cs2-muted/30"}`} />
@@ -761,16 +783,33 @@ export default function AntiStratPage() {
                       </p>
                       {mi?.event && <p className="text-[9px] text-cs2-muted truncate">{mi.event}</p>}
                     </div>
+                    {partial && (
+                      <span
+                        className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/30"
+                        title={
+                          score
+                            ? `Demo ends at ${score[0]}–${score[1]} — the recording stops before the match did`
+                            : "Demo ends before the match did"
+                        }
+                      >
+                        Partial{score ? ` ${score[0]}–${score[1]}` : ""}
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
+            {matchedDemos.some((d) => demoMetaByFile.get(d.demo_file)?.complete === false) && (
+              <p className="mt-2 px-2 text-[10px] text-amber-300/80 leading-snug">
+                Partial demos skew side stats — they stop before the match ends.
+              </p>
+            )}
           </div>
         )}
       </aside>
 
       {/* ── Main report ── */}
-      <main className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+      <main className="flex-1 min-w-0 lg:overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
         {phase === "idle" && timelines.length === 0 && (
           <AntiStratEmptyState
             hasMap={!!selectedMap}
@@ -780,7 +819,7 @@ export default function AntiStratPage() {
         )}
 
         {phase === "timelines" && (
-          <div className="flex flex-col items-center justify-center h-full gap-5 px-8">
+          <div className="flex flex-col items-center justify-center h-full gap-5 px-8 py-16 lg:py-0">
             <div className="w-12 h-12 border-2 border-cs2-accent border-t-transparent rounded-full animate-spin" />
             <div className="text-center">
               <p className="text-lg font-semibold text-white">Parsing demos</p>
@@ -788,7 +827,7 @@ export default function AntiStratPage() {
                 {loadProgress.loaded} / {loadProgress.total}
               </p>
             </div>
-            <div className="w-80 h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div className="w-full max-w-[20rem] h-1.5 rounded-full bg-white/5 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{
@@ -802,11 +841,11 @@ export default function AntiStratPage() {
         )}
 
         {phase === "done" && (
-          <div className="p-6 space-y-6 max-w-6xl mx-auto">
+          <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
             {/* ═══ Summary Banner ═══ */}
-            <div className="hud-panel hud-corner p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="hud-panel hud-corner p-4 sm:p-5">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4 min-w-0">
                   {teamLogo ? (
                     <img
                       src={teamLogo}
@@ -819,15 +858,20 @@ export default function AntiStratPage() {
                       <span className="text-cs2-accent font-mono font-bold text-base">VS</span>
                     </div>
                   )}
-                  <div>
-                    <h1 className="text-xl font-bold text-white tracking-tight">{teamName}</h1>
+                  <div className="min-w-0">
+                    <h1 className="text-xl font-bold text-white tracking-tight truncate">{teamName}</h1>
                     <p className="text-xs text-cs2-muted mt-0.5">
                       {selectedMap.replace("de_", "").charAt(0).toUpperCase() + selectedMap.replace("de_", "").slice(1)} · {timelines.length} demo{timelines.length === 1 ? "" : "s"} · {totalRounds} rounds analyzed
                     </p>
+                    {partialCount > 0 && (
+                      <p className="text-[10px] text-amber-300/80 mt-1">
+                        {partialCount} partial demo{partialCount === 1 ? "" : "s"} — side stats may be skewed
+                      </p>
+                    )}
                   </div>
                 </div>
                 {/* Overall win rate rings */}
-                <div className="flex items-center gap-6">
+                <div className="flex items-center justify-center gap-6 shrink-0">
                   <WinRateRing rate={pctNum(winPatterns.tWins, winPatterns.tTotal)} color={T_COLOR} label="T-side" />
                   <WinRateRing rate={pctNum(overallWins, overallTotal)} size={80} color="#22d3ee" label="Overall" />
                   <WinRateRing rate={pctNum(winPatterns.ctWins, winPatterns.ctTotal)} color={CT_COLOR} label="CT-side" />
@@ -838,7 +882,7 @@ export default function AntiStratPage() {
             {/* ═══ Top row: Win Patterns + Site Hits side by side ═══ */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Win Patterns */}
-              <div className="hud-panel p-5">
+              <div className="hud-panel p-4 sm:p-5">
                 <SectionHeader num="01" title="Round Win Patterns" sub="Win rates by category" />
                 <div className="grid grid-cols-2 gap-3">
                   <StatCard label="T-side" value={pct(winPatterns.tWins, winPatterns.tTotal)} sub={`${winPatterns.tWins}W – ${winPatterns.tTotal - winPatterns.tWins}L`} color="text-[#DCBF6E]" />
@@ -849,7 +893,7 @@ export default function AntiStratPage() {
               </div>
 
               {/* Site Hit Frequency */}
-              <div className="hud-panel p-5">
+              <div className="hud-panel p-4 sm:p-5">
                 <SectionHeader num="02" title="T-Side Site Hits" sub={`${siteHits.total} T-side rounds`} />
                 {siteHits.total > 0 ? (
                   <div className="space-y-3">
@@ -880,19 +924,19 @@ export default function AntiStratPage() {
             </div>
 
             {/* ═══ First Blood Timing ═══ */}
-            <div className="hud-panel p-5">
+            <div className="hud-panel p-4 sm:p-5">
               <SectionHeader num="03" title="First Blood Timing" sub="Average time to first kill per round" />
-              <div className="grid grid-cols-3 gap-4">
-                <div className="hud-panel p-3 text-center">
-                  <p className="text-2xl font-bold font-mono text-white">{firstKillTiming.avg.toFixed(1)}<span className="text-sm text-cs2-muted">s</span></p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="hud-panel px-1 py-3 sm:p-3 text-center">
+                  <p className="text-xl sm:text-2xl font-bold font-mono text-white">{firstKillTiming.avg.toFixed(1)}<span className="text-sm text-cs2-muted">s</span></p>
                   <p className="text-[9px] text-cs2-muted uppercase tracking-wide mt-1">Overall</p>
                 </div>
-                <div className="hud-panel p-3 text-center">
-                  <p className="text-2xl font-bold font-mono" style={{ color: T_COLOR }}>{firstKillTiming.tAvg.toFixed(1)}<span className="text-sm text-cs2-muted">s</span></p>
+                <div className="hud-panel px-1 py-3 sm:p-3 text-center">
+                  <p className="text-xl sm:text-2xl font-bold font-mono" style={{ color: T_COLOR }}>{firstKillTiming.tAvg.toFixed(1)}<span className="text-sm text-cs2-muted">s</span></p>
                   <p className="text-[9px] text-cs2-muted uppercase tracking-wide mt-1">T-side</p>
                 </div>
-                <div className="hud-panel p-3 text-center">
-                  <p className="text-2xl font-bold font-mono" style={{ color: CT_COLOR }}>{firstKillTiming.ctAvg.toFixed(1)}<span className="text-sm text-cs2-muted">s</span></p>
+                <div className="hud-panel px-1 py-3 sm:p-3 text-center">
+                  <p className="text-xl sm:text-2xl font-bold font-mono" style={{ color: CT_COLOR }}>{firstKillTiming.ctAvg.toFixed(1)}<span className="text-sm text-cs2-muted">s</span></p>
                   <p className="text-[9px] text-cs2-muted uppercase tracking-wide mt-1">CT-side</p>
                 </div>
               </div>
@@ -901,7 +945,7 @@ export default function AntiStratPage() {
             {/* ═══ Radar row: Utility + AWP side by side ═══ */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Utility Tendencies */}
-              <div className="hud-panel p-5">
+              <div className="hud-panel p-4 sm:p-5">
                 <SectionHeader num="04" title="Utility Tendencies" sub="Most common grenade usage" />
                 <div className="space-y-4">
                   {radar && <RadarHeatmap radar={radar} points={utilityTendencies.points} label="Grenade landings" />}
@@ -927,7 +971,7 @@ export default function AntiStratPage() {
               </div>
 
               {/* AWP Positions */}
-              <div className="hud-panel p-5">
+              <div className="hud-panel p-4 sm:p-5">
                 <SectionHeader num="05" title="AWP Positions" sub={awpData.primaryAwper ? `Primary: ${awpData.primaryAwper}` : "CT-side AWP holding spots"} />
                 {radar && <RadarHeatmap radar={radar} points={awpData.points} label="AWP positions (CT)" />}
               </div>
@@ -947,16 +991,16 @@ export default function AntiStratPage() {
                   return (
                     <div key={p.steamid} className="hud-panel overflow-hidden">
                       <div
-                        className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${isExpanded ? "bg-cs2-accent/5" : "hover:bg-cs2-border/10"}`}
+                        className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 cursor-pointer transition-colors ${isExpanded ? "bg-cs2-accent/5" : "hover:bg-cs2-border/10"}`}
                         onClick={() => setExpandedPlayer(isExpanded ? null : p.steamid)}
                       >
                         {/* Name + KDR */}
-                        <div className="w-36 shrink-0">
-                          <p className="text-sm font-semibold text-white">{p.name}</p>
+                        <div className="w-28 sm:w-36 shrink-0 min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{p.name}</p>
                           <p className="text-[10px] text-cs2-muted font-mono">{kdr} KDR</p>
                         </div>
-                        {/* Kill bar */}
-                        <div className="flex-1 min-w-0">
+                        {/* Kill bar — quick stats wrap under it on phones */}
+                        <div className="flex-1 min-w-[6rem]">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 rounded-full bg-cs2-border/30 overflow-hidden">
                               <div className="h-full rounded-full bg-cs2-accent/60 transition-all" style={{ width: `${killBarWidth}%` }} />
@@ -980,7 +1024,7 @@ export default function AntiStratPage() {
                         </div>
                       </div>
                       {isExpanded && (
-                        <div className="px-4 pb-4 grid grid-cols-3 gap-3 border-t border-cs2-border/20 pt-3">
+                        <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-cs2-border/20 pt-3">
                           <div className="hud-panel p-3 space-y-1.5">
                             <p className="text-[9px] text-cs2-muted uppercase tracking-wide font-semibold">Top Weapons</p>
                             {topWeapons.map(([wpn, count]) => {
@@ -1106,7 +1150,7 @@ function AntiStratEmptyState({
   ];
 
   return (
-    <div className="relative min-h-full flex items-center justify-center px-8 py-16 overflow-hidden">
+    <div className="relative min-h-full flex items-center justify-center px-4 sm:px-8 py-12 sm:py-16 overflow-hidden">
       {/* Ambient violet glow behind the hero. */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -1135,11 +1179,11 @@ function AntiStratEmptyState({
         </p>
 
         {/* Step indicator — matches sidebar flow */}
-        <div className="mt-10 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.04] border border-white/10">
+        <div className="mt-8 sm:mt-10 inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 py-2 rounded-2xl sm:rounded-full bg-white/[0.04] border border-white/10">
           <StepDot n={1} label="Pick a map" active={step >= 1} done={step > 1} />
-          <div className="w-6 h-px bg-white/10" />
+          <div className="hidden sm:block w-6 h-px bg-white/10" />
           <StepDot n={2} label="Pick a team" active={step >= 2} done={step > 2} />
-          <div className="w-6 h-px bg-white/10" />
+          <div className="hidden sm:block w-6 h-px bg-white/10" />
           <StepDot n={3} label="Analyze" active={step >= 3} done={false} />
         </div>
 
@@ -1152,7 +1196,7 @@ function AntiStratEmptyState({
         {/* Feature cards */}
         <div
           ref={cards.ref}
-          className={`reveal reveal-delay-2 ${cards.shown ? "in" : ""} mt-14 grid grid-cols-1 md:grid-cols-3 gap-3 text-left`}
+          className={`reveal reveal-delay-2 ${cards.shown ? "in" : ""} mt-10 sm:mt-14 grid grid-cols-1 md:grid-cols-3 gap-3 text-left`}
         >
           {features.map((f) => (
             <div
@@ -1172,7 +1216,8 @@ function AntiStratEmptyState({
         </div>
 
         <p className="mt-10 text-[10px] text-cs2-muted/70 font-mono uppercase tracking-[0.2em]">
-          Configure on the left · Runs locally
+          <span className="lg:hidden">Configure above</span>
+          <span className="hidden lg:inline">Configure on the left</span> · Runs locally
         </p>
       </div>
     </div>

@@ -35,6 +35,10 @@ interface PlayerStats {
   totalRounds: number;
 }
 
+/** Pinned first column while the stats grid scrolls horizontally (< lg).
+ *  Needs an opaque background so scrolled numbers don't show through. */
+const STICKY_COL = "sticky left-0 z-10 bg-[#0b0f1a] lg:static lg:bg-transparent";
+
 export default function StatsPanel({ timeline, matchInfo }: Props) {
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
 
@@ -200,13 +204,18 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
             {teamNames[team as 2 | 3]}
           </span>
         </div>
-        <div className="text-[11px]">
+        {/* Horizontal scroll on narrow screens (the grid keeps a min width so
+            numbers never squash); the player column stays pinned left. The
+            scroll box is an inline-size container so the expanded detail can
+            be sized to the visible width (100cqw) instead of the table's. */}
+        <div className="overflow-x-auto [container-type:inline-size]" style={{ scrollbarWidth: "thin" }}>
+        <div className="text-[11px] min-w-[600px]">
           {/* Header row */}
           <div
             className="grid text-cs2-muted uppercase tracking-[0.08em] border-b border-cs2-border/30"
             style={{ gridTemplateColumns: "2fr repeat(11, 1fr)" }}
           >
-            <div className="px-3 py-2 font-medium text-left">Player</div>
+            <div className={`px-3 py-2 font-medium text-left ${STICKY_COL}`}>Player</div>
             <div className="px-2 py-2 font-medium text-center">K</div>
             <div className="px-2 py-2 font-medium text-center">D</div>
             <div className="px-2 py-2 font-medium text-center">+/-</div>
@@ -236,7 +245,7 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
                 >
                   {/* Main row */}
                   <div className="grid" style={{ gridTemplateColumns: "2fr repeat(11, 1fr)" }}>
-                    <div className="px-3 py-2 font-semibold text-white truncate">{p.name}</div>
+                    <div className={`px-3 py-2 font-semibold text-white truncate ${STICKY_COL}`}>{p.name}</div>
                     <div className="px-2 py-2 text-center font-mono font-bold text-white">{p.kills}</div>
                     <div className="px-2 py-2 text-center font-mono text-gray-400">{p.deaths}</div>
                     <div className={`px-2 py-2 text-center font-mono font-bold ${diff > 0 ? "text-cs2-green" : diff < 0 ? "text-cs2-red" : "text-gray-400"}`}>
@@ -254,7 +263,7 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
 
                   {/* Expanded detail */}
                       {isExpanded && (
-                        <div className="px-4 pb-3 pt-1 grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="px-4 pb-3 pt-1 grid grid-cols-2 md:grid-cols-4 gap-3 sticky left-0 w-[100cqw] lg:static lg:w-auto">
                           <div className="hud-panel p-2 space-y-1">
                             <p className="text-[9px] text-cs2-muted uppercase tracking-wide">Kill Breakdown</p>
                             <div className="space-y-0.5 text-[11px]">
@@ -343,11 +352,12 @@ export default function StatsPanel({ timeline, matchInfo }: Props) {
           })}
           </div>
         </div>
+        </div>
     );
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4" style={{ scrollbarWidth: "thin" }}>
+    <div className="h-full overflow-y-auto p-3 lg:p-4 space-y-4" style={{ scrollbarWidth: "thin" }}>
       <h2 className="text-xs text-cs2-muted uppercase tracking-[0.15em]">
         Player Statistics · {timeline.rounds.length} rounds
       </h2>

@@ -86,8 +86,8 @@ export default function ScatterPlot({ lineups, selectedId, onSelect }: Props) {
   const maxCount = Math.max(...data.map((d) => d.throw_count), 1);
 
   return (
-    <div className="hud-panel p-4">
-      <div className="flex items-baseline gap-3 mb-4">
+    <div className="hud-panel p-3 sm:p-4">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3 sm:mb-4">
         <p className="text-[10px] text-cs2-accent uppercase tracking-[0.2em]">
           / chart
         </p>
@@ -96,7 +96,10 @@ export default function ScatterPlot({ lineups, selectedId, onSelect }: Props) {
           dot size = utility damage
         </span>
       </div>
-      <ResponsiveContainer width="100%" height={320}>
+      {/* Height lives on the wrapper so phones get a shorter chart while
+          desktop keeps the original 320px. */}
+      <div className="h-[240px] sm:h-[280px] lg:h-[320px] min-w-0">
+      <ResponsiveContainer width="100%" height="100%">
         <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" />
           <XAxis
@@ -158,6 +161,7 @@ export default function ScatterPlot({ lineups, selectedId, onSelect }: Props) {
           </Scatter>
         </ScatterChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }
