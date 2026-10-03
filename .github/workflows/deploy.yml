@@ -150,7 +150,7 @@ jobs:
           retention-days: 14
 
   build-and-deploy:
-    needs: [test, test-postgres, frontend]
+    needs: [test, test-postgres, frontend, e2e]
     if: github.event_name == 'push'
     runs-on: self-hosted
     env:
