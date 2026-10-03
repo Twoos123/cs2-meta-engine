@@ -1,0 +1,153 @@
+{
+ "batchcomplete": true,
+ "query": {
+  "normalized": [
+   {
+    "fromencoded": false,
+    "from": "alex",
+    "to": "Alex"
+   },
+   {
+    "fromencoded": false,
+    "from": "try",
+    "to": "Try"
+   },
+   {
+    "fromencoded": false,
+    "from": "iM",
+    "to": "IM"
+   },
+   {
+    "fromencoded": false,
+    "from": "drop",
+    "to": "Drop"
+   },
+   {
+    "fromencoded": false,
+    "from": "kyousuke",
+    "to": "Kyousuke"
+   }
+  ],
+  "pages": [
+   {
+    "ns": 0,
+    "title": "Nonexistentplayerxyz",
+    "missing": true
+   },
+   {
+    "pageid": 71902,
+    "ns": 0,
+    "title": "Alex",
+    "pageprops": {
+     "displaytitle": "alex",
+     "metaimage": "alex at Asia Minor Championship Kraków 2017.jpg"
+    }
+   },
+   {
+    "pageid": 113583,
+    "ns": 0,
+    "title": "Seb",
+    "pageprops": {
+     "displaytitle": "seb",
+     "metaimage": "Seb Team Singularity.png"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   },
+   {
+    "pageid": 122916,
+    "ns": 0,
+    "title": "ZywOo",
+    "pageprops": {
+     "displaytitle": "ZywOo",
+     "metaimage": "ZywOo at BLAST Bounty Winter 2026.jpg"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   },
+   {
+    "pageid": 153471,
+    "ns": 0,
+    "title": "JT",
+    "pageprops": {
+     "displaytitle": "JT",
+     "metaimage": "JT at BLAST Bounty Summer 2026.jpg"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   },
+   {
+    "pageid": 302232,
+    "ns": 0,
+    "title": "Try",
+    "pageprops": {
+     "displaytitle": "try",
+     "metaimage": "Try at BLAST Open Fall 2026.jpg"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   },
+   {
+    "pageid": 305033,
+    "ns": 0,
+    "title": "IM",
+    "pageprops": {
+     "displaytitle": "iM",
+     "metaimage": "IM at BLAST Open Spring 2026.jpg"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   },
+   {
+    "pageid": 325230,
+    "ns": 0,
+    "title": "Drop",
+    "pageprops": {
+     "displaytitle": "drop",
+     "metaimage": "Drop at IEM Rio 2026.jpg"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   },
+   {
+    "pageid": 365529,
+    "ns": 0,
+    "title": "Kyousuke",
+    "pageprops": {
+     "displaytitle": "kyousuke",
+     "metaimage": "Kyousuke at BLAST Open Spring 2026.jpg"
+    },
+    "categories": [
+     {
+      "ns": 14,
+      "title": "Category:Players"
+     }
+    ]
+   }
+  ]
+ }
+}

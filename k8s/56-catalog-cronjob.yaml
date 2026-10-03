@@ -1,13 +1,23 @@
-# Hourly incremental HLTV catalog refresh. The endpoint queues a background
-# task and returns immediately; 409 means an ingest is already running —
-# expected overlap, treated as success so the CronJob doesn't false-alarm.
+# Incremental match-catalog refresh from Liquipedia, every 2 hours.
+#
+# Liquipedia's API terms allow 1 request / 2 s and 1 `action=parse` / 30 s.
+# A run costs one parse of Liquipedia:Matches (cached 20 min, so overlapping
+# triggers are free), one categories query per 50 tournaments (tiers cached
+# 7 days) and at most LIQUIPEDIA_MAX_TOURNAMENT_PARSES (default 3) tournament
+# page parses, each ≥30 s apart and only for S/A-tier events that finished a
+# match since their last parse. That is ≤ ~4 parses per run, ~50 per day.
+# The 50 most recent results on Liquipedia:Matches span about a day, so a
+# 2-hour cadence misses nothing.
+#
+# The endpoint queues a background task and returns immediately; 409 means a
+# refresh is already running — expected overlap, treated as success.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: catalog-refresh
   namespace: cs2
 spec:
-  schedule: "17 * * * *"
+  schedule: "17 */2 * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

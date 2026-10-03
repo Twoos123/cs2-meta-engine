@@ -1,0 +1,118 @@
+{
+ "batchcomplete": true,
+ "query": {
+  "pages": [
+   {
+    "pageid": 619142,
+    "ns": 6,
+    "title": "File:S1mple at IEM Kraków 2026.jpg",
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "user": "Leprazzori",
+      "url": "https://liquipedia.net/commons/images/d/d8/S1mple_at_IEM_Krak%C3%B3w_2026.jpg",
+      "descriptionurl": "https://liquipedia.net/commons/File:S1mple_at_IEM_Krak%C3%B3w_2026.jpg",
+      "descriptionshorturl": "https://liquipedia.net/commons/index.php?curid=619142",
+      "extmetadata": {
+       "DateTime": {
+        "value": "2026-02-07T12:40:03Z",
+        "source": "mediawiki-metadata",
+        "hidden": ""
+       },
+       "ObjectName": {
+        "value": "S1mple at IEM Kraków 2026",
+        "source": "mediawiki-metadata"
+       }
+      }
+     }
+    ],
+    "revisions": [
+     {
+      "slots": {
+       "main": {
+        "contentmodel": "wikitext",
+        "contentformat": "text/x-wiki",
+        "content": "== Summary ==\n{{FileInfo\n|featured=s1mple\n|featured2=ESL\n|event=Intel Extreme Masters/2026/Kraków\n|date=2026-01-28\n|game=counterstrike\n|description=\n|license=permission\n|author=Adela Sznajder\n|copyright=[https://about.eslgaming.com/ ESL Gaming GmbH]\n|note=Liquipedia has been granted permission to use photos and graphics owned by ESL.\n|source=[https://x.com/IEM/status/2016555837351690279/photo/1 Link]\n}}"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "pageid": 627013,
+    "ns": 6,
+    "title": "File:ZywOo at BLAST Bounty Winter 2026.jpg",
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "user": "NiKoholic",
+      "url": "https://liquipedia.net/commons/images/2/2b/ZywOo_at_BLAST_Bounty_Winter_2026.jpg",
+      "descriptionurl": "https://liquipedia.net/commons/File:ZywOo_at_BLAST_Bounty_Winter_2026.jpg",
+      "descriptionshorturl": "https://liquipedia.net/commons/index.php?curid=627013",
+      "extmetadata": {
+       "DateTime": {
+        "value": "2026-03-30T16:33:12Z",
+        "source": "mediawiki-metadata",
+        "hidden": ""
+       },
+       "ObjectName": {
+        "value": "ZywOo at BLAST Bounty Winter 2026",
+        "source": "mediawiki-metadata"
+       }
+      }
+     }
+    ],
+    "revisions": [
+     {
+      "slots": {
+       "main": {
+        "contentmodel": "wikitext",
+        "contentformat": "text/x-wiki",
+        "content": "== Summary ==\n{{FileInfo\n|featured=ZywOo\n|featured2=BLAST.tv\n|event=BLAST/Bounty/2026/Winter\n|date=2026-01-24\n|game=counterstrike\n|description=\n|license=permission\n|author=Stephanie Lindgren\n|copyright=[https://about.blast.tv/ BLAST]\n|note=BLAST has allowed Liquipedia to use images from their Flickr account. All rights to the images remain in the hands of BLAST.\n|source=[https://www.flickr.com/photos/blastesports/55059979515/in/album-72177720331601052 Link]\n}}"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "pageid": 627047,
+    "ns": 6,
+    "title": "File:M0NESY at BLAST Bounty Winter 2026.jpg",
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "user": "NiKoholic",
+      "url": "https://liquipedia.net/commons/images/8/81/M0NESY_at_BLAST_Bounty_Winter_2026.jpg",
+      "descriptionurl": "https://liquipedia.net/commons/File:M0NESY_at_BLAST_Bounty_Winter_2026.jpg",
+      "descriptionshorturl": "https://liquipedia.net/commons/index.php?curid=627047",
+      "extmetadata": {
+       "DateTime": {
+        "value": "2026-03-30T17:42:23Z",
+        "source": "mediawiki-metadata",
+        "hidden": ""
+       },
+       "ObjectName": {
+        "value": "M0NESY at BLAST Bounty Winter 2026",
+        "source": "mediawiki-metadata"
+       }
+      }
+     }
+    ],
+    "revisions": [
+     {
+      "slots": {
+       "main": {
+        "contentmodel": "wikitext",
+        "contentformat": "text/x-wiki",
+        "content": "== Summary ==\n{{FileInfo\n|featured=m0NESY\n|featured2=BLAST.tv\n|event=BLAST/Bounty/2026/Winter\n|date=2026-01-22\n|game=counterstrike\n|description=\n|license=permission\n|author=Stephanie Lindgren\n|copyright=[https://about.blast.tv/ BLAST]\n|note=BLAST has allowed Liquipedia to use images from their Flickr account. All rights to the images remain in the hands of BLAST.\n|source=[https://www.flickr.com/photos/blastesports/55054612382/in/album-72177720331601052 Link]\n}}"
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "limits": {
+  "categories": 500
+ }
+}

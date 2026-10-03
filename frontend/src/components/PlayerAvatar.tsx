@@ -1,18 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getPhotoAttribution, playerPhotoUrl } from "../api/catalog";
 
 /**
- * PlayerAvatar — HLTV body-shot if we have an id, otherwise a
- * deterministic initials-on-color tile generated from the player's name.
+ * PlayerAvatar — the player's photo when we have a reusable one, otherwise
+ * a deterministic initials-on-color tile generated from the player's name.
  *
- * Caller passes `hltvId` when known (populated via
- * `/api/player-hltv-ids` or `match-info.team1.players_detailed`). When
- * the image fails to load (CORS, missing photo, wrong id) we fall back
- * to the initials version, so the avatar slot always renders something.
+ * Photos come from Liquipedia via our backend proxy, only when the image
+ * license allows reuse (CC BY / CC BY-SA / CC0 / public domain). With an
+ * HLTV id the proxy is `/api/player-photo/{id}.png`; without one (FACEIT,
+ * own matches) it is `/api/player-photo/by-name/{name}.png`. The license
+ * and author show in the tooltip ("Photo: <Artist>, <License> via
+ * Liquipedia"). When the image fails to load we fall back to initials, so
+ * the avatar slot always renders something.
  */
 
 export interface PlayerAvatarProps {
   name: string;
-  /** HLTV player id — drives the bodyshot image. Optional. */
+  /** HLTV player id — preferred photo key. Without it the photo is looked
+   *  up by name. */
   hltvId?: number | null;
   size?: number;
   shape?: "circle" | "rounded";
@@ -30,9 +35,8 @@ export interface PlayerAvatarProps {
    *  a week (we set max-age=604800 on the proxy response). */
   cacheBust?: string | number;
   /** When true, render nothing at all if we don't have a photo for this
-   *  player (missing `hltvId`, or the image 404s). Used by the player
-   *  list to avoid showing a row of initials-boxes for non-pro players
-   *  who don't have an HLTV profile. */
+   *  player (the image 404s). Used by the player list to avoid showing a
+   *  row of initials-boxes for non-pro players. */
   hideIfNoImage?: boolean;
 }
 
@@ -82,21 +86,29 @@ function shadeHex(hex: string, percent: number): string {
   return `#${toHex(adjust(r))}${toHex(adjust(g))}${toHex(adjust(b))}`;
 }
 
-/** Player bodyshot URL — routed through our backend, not HLTV's CDN
- *  directly.
- *
- *  HLTV's `static.hltv.org` bodyshot host is fronted by Cloudflare with a
- *  managed-challenge rule that 403s every hotlink from a third-party
- *  origin. Loading `<img src="https://static.hltv.org/...">` from the
- *  app therefore shows broken images for every player.
- *
- *  The backend's `/api/player-photo/{id}.png` endpoint fetches the image
- *  using the same curl_cffi Chrome-impersonation session the scraper
- *  uses for match pages (which already bypasses the CF check), caches
- *  it to disk, and serves it from our own origin — no CORS, no CF,
- *  fast warm-cache loads. */
+/** Photo URL for an HLTV id — routed through our backend proxy, which
+ *  caches Liquipedia images with reusable licenses only. Kept for callers
+ *  that build URLs themselves; see `playerPhotoUrl` for the by-name form. */
 export function hltvImageUrl(hltvId: number): string {
   return `/api/player-photo/${hltvId}.png`;
+}
+
+/** Visible credit for pages that show player photos (CC-BY-SA terms). */
+export function LiquipediaPhotoCredit({ className = "" }: { className?: string }) {
+  return (
+    <p className={`text-[11px] text-cs2-muted ${className}`}>
+      Player photos via{" "}
+      <a
+        href="https://liquipedia.net/counterstrike/Main_Page"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline decoration-dotted hover:text-white"
+      >
+        Liquipedia
+      </a>{" "}
+      — openly licensed images only; hover a photo for its author and license.
+    </p>
+  );
 }
 
 export default function PlayerAvatar({
@@ -117,12 +129,26 @@ export default function PlayerAvatar({
   const ringColor = accent ?? fg;
   const fontSize = Math.max(10, Math.round(size * 0.42));
 
-  // When the HLTV image fails to load (404, CORS, wrong id) we collapse
+  // When the photo fails to load (404 = no reusable photo) we collapse
   // to the initials-only look. Kept in local state so the swap survives
   // re-renders — useful because the parent often re-renders mid-match.
   const [imgFailed, setImgFailed] = useState(false);
-  const showImage =
-    typeof hltvId === "number" && Number.isFinite(hltvId) && !imgFailed;
+  const [credit, setCredit] = useState<string | null>(null);
+  const hasId = typeof hltvId === "number" && Number.isFinite(hltvId);
+  const showImage = (hasId || name.trim().length > 0) && !imgFailed;
+
+  // A new player in the same slot (scoreboards re-use avatars) gets a
+  // fresh attempt and a fresh credit.
+  useEffect(() => {
+    setImgFailed(false);
+    setCredit(null);
+  }, [hltvId, name]);
+
+  const onImgLoad = () => {
+    getPhotoAttribution(hasId ? hltvId : null, name).then((a) => {
+      if (a?.available) setCredit(a.credit ?? null);
+    });
+  };
 
   // `hideIfNoImage`: caller wants the avatar slot gone entirely when we
   // have nothing to render — not a colored initials tile. Returns null
@@ -150,19 +176,18 @@ export default function PlayerAvatar({
           : "0 1px 0 rgba(255,255,255,0.05) inset",
       }}
       aria-label={name}
-      title={name}
+      title={credit ? `${name} — ${credit}` : name}
     >
       {/* Initials ONLY render when no image is shown. Rendering them
-          behind the img caused bleed-through on HLTV bodyshots — HLTV
-          serves transparent-background PNGs (just the player cut-out),
-          so any letter behind the image shows right through the empty
-          negative space. Rendering conditionally instead keeps the
+          behind the img caused bleed-through on transparent cut-out
+          photos — any letter behind the image shows right through the
+          empty negative space. Rendering conditionally instead keeps the
           fallback clean while making image-backed avatars a pure photo. */}
       {!showImage && <span>{initials}</span>}
       {showImage && (
         <img
           src={
-            hltvImageUrl(hltvId!) +
+            playerPhotoUrl(hasId ? hltvId : null, name) +
             (cacheBust != null ? `?v=${encodeURIComponent(String(cacheBust))}` : "")
           }
           alt=""
@@ -171,6 +196,7 @@ export default function PlayerAvatar({
           decoding="async"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ borderRadius: radius }}
+          onLoad={onImgLoad}
           onError={() => setImgFailed(true)}
         />
       )}

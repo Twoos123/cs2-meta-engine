@@ -4,24 +4,34 @@ import {
   CatalogEventEntry,
   CatalogMatchEntry,
   CatalogStatus,
+  CatalogTier,
   apiErrorMessage,
-  backfillRosters,
-  fetchCatalogMatch,
   getCatalogEvents,
   getCatalogMatches,
   getCatalogStatus,
   refreshCatalog,
-} from "../api/client";
+} from "../api/catalog";
 import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 import { useReveal } from "../hooks/useReveal";
 
-const DAY_RANGES = [14, 45, 90] as const;
+const DAY_RANGES = [14, 45, 90, 365] as const;
+const STATUS_TABS = [
+  { id: "all", label: "All" },
+  { id: "completed", label: "Results" },
+  { id: "upcoming", label: "Upcoming" },
+] as const;
+type StatusTab = (typeof STATUS_TABS)[number]["id"];
+
+const LIQUIPEDIA_MATCHES_URL = "https://liquipedia.net/counterstrike/Liquipedia:Matches";
+const CC_BY_SA_URL = "https://creativecommons.org/licenses/by-sa/3.0/";
 
 /**
- * Tournaments & matches browser backed by the persistent HLTV catalog.
- * Metadata is near-free; demo files are the expensive part — each map chip
- * shows whether its .dem is already local (▶ opens the replay) or fetchable.
+ * Tournaments & matches browser backed by the persistent catalog, which is
+ * fed by Liquipedia (CC-BY-SA — attribution shown on the page). The server
+ * no longer downloads demos (HLTV blocks it): each match opens on HLTV,
+ * where the browser extension sends the demo back, and demos already on
+ * disk open straight in the 2D replay.
  */
 export default function MatchesPage() {
   const navigate = useNavigate();
@@ -30,6 +40,7 @@ export default function MatchesPage() {
   const [matches, setMatches] = useState<CatalogMatchEntry[]>([]);
   const [status, setStatus] = useState<CatalogStatus | null>(null);
   const [days, setDays] = useState(45);
+  const [statusTab, setStatusTab] = useState<StatusTab>("all");
   const [teamQuery, setTeamQuery] = useState("");
   const [eventFilter, setEventFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +55,7 @@ export default function MatchesPage() {
           days,
           event: eventFilter ?? undefined,
           team: teamQuery || undefined,
+          status: statusTab === "all" ? undefined : statusTab,
           limit: 400,
         }),
         getCatalogStatus(),
@@ -57,13 +69,13 @@ export default function MatchesPage() {
     } finally {
       setLoading(false);
     }
-  }, [days, eventFilter, teamQuery]);
+  }, [days, eventFilter, teamQuery, statusTab]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // While a background task runs, poll status; reload data when it finishes.
+  // While a refresh runs, poll status; reload data when it finishes.
   const startPolling = useCallback(() => {
     if (pollRef.current !== null) return;
     pollRef.current = window.setInterval(async () => {
@@ -98,32 +110,12 @@ export default function MatchesPage() {
       setStatus((s) => (s ? { ...s, running: true, phase: "queued" } : s));
       startPolling();
     } catch (e) {
-      setError(apiErrorMessage(e, "A catalog task is already running."));
-    }
-  };
-
-  const onBackfill = async () => {
-    try {
-      await backfillRosters();
-      setStatus((s) => (s ? { ...s, running: true, phase: "backfilling" } : s));
-      startPolling();
-    } catch (e) {
-      setError(apiErrorMessage(e, "A catalog task is already running."));
-    }
-  };
-
-  const onFetch = async (matchId: number, map?: string) => {
-    try {
-      await fetchCatalogMatch(matchId, map);
-      setStatus((s) => (s ? { ...s, running: true, phase: "queued" } : s));
-      startPolling();
-    } catch (e) {
-      setError(apiErrorMessage(e, "A catalog task is already running."));
+      setError(apiErrorMessage(e, "A catalog refresh is already running."));
     }
   };
 
   // Group matches by event, ordered by each event's most recent match.
-  const grouped: { event: string; big: boolean; rows: CatalogMatchEntry[] }[] = [];
+  const grouped: { event: string; info: CatalogEventEntry | undefined; rows: CatalogMatchEntry[] }[] = [];
   {
     const byEvent = new Map<string, CatalogMatchEntry[]>();
     for (const m of matches) {
@@ -131,13 +123,11 @@ export default function MatchesPage() {
       list.push(m);
       byEvent.set(m.event, list);
     }
-    const bigness = new Map(events.map((e) => [e.event, e.big]));
+    const info = new Map(events.map((e) => [e.event, e]));
     for (const [event, rows] of byEvent) {
-      grouped.push({ event, big: bigness.get(event) ?? false, rows });
+      grouped.push({ event, info: info.get(event), rows });
     }
-    grouped.sort(
-      (a, b) => (b.rows[0]?.date_unix ?? 0) - (a.rows[0]?.date_unix ?? 0),
-    );
+    grouped.sort((a, b) => (b.rows[0]?.date_unix ?? 0) - (a.rows[0]?.date_unix ?? 0));
   }
 
   const diskPct = status
@@ -153,15 +143,15 @@ export default function MatchesPage() {
             onClick={onRefresh}
             disabled={status?.running}
             className="hud-btn-primary"
-            title="Pull the latest HLTV results — metadata only, no demo downloads"
+            title="Pull the latest matches from Liquipedia (cached and rate-limited)"
           >
-            {status?.running ? "Working…" : "Refresh from HLTV"}
+            {status?.running ? "Working…" : "Refresh"}
           </button>
         }
       />
 
       <div
-        className="relative flex-1 min-h-0 overflow-y-auto px-4 md:px-6 pt-8 pb-12"
+        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 md:px-6 pt-8 pb-12"
         style={{ scrollbarWidth: "thin" }}
       >
         <div className="max-w-6xl mx-auto w-full space-y-8">
@@ -172,10 +162,12 @@ export default function MatchesPage() {
               Tournaments &amp; <span className="accent">matches</span>
             </h1>
             <p className="mt-3 text-sm text-cs2-muted leading-relaxed max-w-2xl">
-              Recent events and results from HLTV. Metadata is free to browse —
-              fetch demos per map, or open any map that's already on disk in
-              the 2D replay.
+              Recent results and upcoming matches. Open a match on HLTV and use the
+              browser extension's <span className="text-white">Send to CS2 Meta Engine</span>{" "}
+              button to import its demo — demos already on disk open straight in the 2D
+              replay.
             </p>
+            <LiquipediaCredit className="mt-3" />
           </div>
 
           {/* ── Filters + catalog status ── */}
@@ -193,6 +185,23 @@ export default function MatchesPage() {
                       className={`hud-tab ${days === d ? "hud-tab-active" : "hud-tab-idle"} font-mono`}
                     >
                       {d}d
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] text-cs2-muted uppercase tracking-[0.18em] font-semibold">
+                  Show
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_TABS.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setStatusTab(t.id)}
+                      className={`hud-tab ${statusTab === t.id ? "hud-tab-active" : "hud-tab-idle"}`}
+                    >
+                      {t.label}
                     </button>
                   ))}
                 </div>
@@ -238,7 +247,7 @@ export default function MatchesPage() {
             {/* Status strip */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-mono text-cs2-muted">
               {status?.running && (
-                <span className="flex items-center gap-2 text-cs2-accent min-w-0">
+                <span className="flex items-center gap-2 text-cs2-accent min-w-0 max-w-full">
                   <span className="inline-block w-2 h-2 rounded-full bg-cs2-accent animate-pulse shrink-0" />
                   <span className="truncate">
                     {status.phase}
@@ -251,6 +260,9 @@ export default function MatchesPage() {
                   {status?.last_refresh_unix
                     ? `last refresh ${new Date(status.last_refresh_unix * 1000).toLocaleString()}`
                     : "never refreshed"}
+                  {status?.phase === "error" && status.detail && (
+                    <span className="text-red-300"> · {status.detail}</span>
+                  )}
                 </span>
               )}
               {status && (
@@ -267,17 +279,6 @@ export default function MatchesPage() {
                   </span>
                 </span>
               )}
-              {status?.autopull_enabled && (
-                <span className="text-amber-300/80">auto-pull: big events</span>
-              )}
-              <button
-                onClick={onBackfill}
-                disabled={status?.running}
-                className="underline decoration-dotted hover:text-white disabled:opacity-40"
-                title="Write roster sidecars (team/player metadata + photos) for demos uploaded manually"
-              >
-                backfill rosters
-              </button>
             </div>
           </div>
 
@@ -306,15 +307,17 @@ export default function MatchesPage() {
                 </svg>
               </div>
               <p className="mt-5 text-base font-semibold text-white">
-                {teamQuery || eventFilter ? "No matches for these filters" : "The catalog is empty"}
+                {teamQuery || eventFilter || statusTab !== "all"
+                  ? "No matches for these filters"
+                  : "The catalog is empty"}
               </p>
               <p className="mt-2 text-sm text-cs2-muted leading-relaxed max-w-md mx-auto">
-                {teamQuery || eventFilter ? (
-                  "Try a wider day range or clear the team / event filter."
+                {teamQuery || eventFilter || statusTab !== "all" ? (
+                  "Try a wider day range or clear the filters."
                 ) : (
                   <>
-                    Hit <span className="text-cs2-accent">Refresh from HLTV</span> to pull the
-                    latest results — metadata only, no demo downloads.
+                    Hit <span className="text-cs2-accent">Refresh</span> to pull recent and
+                    upcoming matches from Liquipedia.
                   </>
                 )}
               </p>
@@ -322,17 +325,20 @@ export default function MatchesPage() {
           )}
 
           {/* ── Events with their matches ── */}
-          {grouped.map(({ event, big, rows }) => (
+          {grouped.map(({ event, info, rows }) => (
             <section key={event} className="hud-panel overflow-hidden">
-              <button
-                onClick={() => setEventFilter(eventFilter === event ? null : event)}
-                className="w-full flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 border-b border-white/5 bg-white/[0.02] text-left group"
-                title={eventFilter === event ? "Show all events" : "Show only this event"}
-              >
-                <h2 className="text-sm font-bold text-white tracking-wide group-hover:text-cs2-accent transition-colors min-w-0 break-words">
-                  {event}
-                </h2>
-                {big && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 border-b border-white/5 bg-white/[0.02]">
+                <button
+                  onClick={() => setEventFilter(eventFilter === event ? null : event)}
+                  className="text-left min-w-0 max-w-full group"
+                  title={eventFilter === event ? "Show all events" : "Show only this event"}
+                >
+                  <h2 className="text-sm font-bold text-white tracking-wide group-hover:text-cs2-accent transition-colors break-words">
+                    {event}
+                  </h2>
+                </button>
+                <TierBadge tier={info?.tier ?? rows[0]?.tier ?? null} />
+                {info?.big && !info.tier && (
                   <span className="text-[9px] font-mono uppercase tracking-widest text-amber-400 border border-amber-400/40 rounded px-1.5 py-0.5">
                     big event
                   </span>
@@ -340,121 +346,203 @@ export default function MatchesPage() {
                 <span className="text-[11px] font-mono text-cs2-muted">
                   {rows.length} {rows.length === 1 ? "match" : "matches"}
                 </span>
-              </button>
+                {info?.liquipedia_url && (
+                  <a
+                    href={info.liquipedia_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto text-[11px] font-mono text-cs2-muted hover:text-white underline decoration-dotted"
+                    title="Open the tournament on Liquipedia"
+                  >
+                    Liquipedia ↗
+                  </a>
+                )}
+              </div>
 
               <div className="divide-y divide-white/5">
                 {rows.map((m) => (
                   <MatchRow
-                    key={m.match_id}
+                    key={m.match_key}
                     m={m}
-                    busy={!!status?.running}
-                    onFetch={onFetch}
                     onOpen={(file) => navigate(`/replay/${encodeURIComponent(file)}`)}
                   />
                 ))}
               </div>
             </section>
           ))}
+
+          {!loading && grouped.length > 0 && (
+            <div className="text-center">
+              <LiquipediaCredit />
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
+function LiquipediaCredit({ className = "" }: { className?: string }) {
+  return (
+    <p className={`text-[11px] text-cs2-muted ${className}`}>
+      Data from{" "}
+      <a
+        href={LIQUIPEDIA_MATCHES_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline decoration-dotted hover:text-white"
+      >
+        Liquipedia
+      </a>{" "}
+      (
+      <a
+        href={CC_BY_SA_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline decoration-dotted hover:text-white"
+      >
+        CC-BY-SA
+      </a>
+      )
+    </p>
+  );
+}
+
+const TIER_STYLE: Record<string, string> = {
+  S: "text-amber-300 border-amber-400/50 bg-amber-400/10",
+  A: "text-cs2-accent border-cs2-accent/50 bg-cs2-accent/10",
+  B: "text-sky-300 border-sky-400/40",
+  C: "text-cs2-muted border-white/15",
+};
+
+function TierBadge({ tier }: { tier: CatalogTier | null }) {
+  if (!tier) return null;
+  const letter = tier.length === 1;
+  return (
+    <span
+      className={`text-[9px] font-mono uppercase tracking-widest border rounded px-1.5 py-0.5 shrink-0 ${
+        TIER_STYLE[tier] ?? "text-cs2-muted border-white/15"
+      }`}
+      title={`Liquipedia ${letter ? `${tier}-Tier` : tier} tournament`}
+    >
+      {letter ? `${tier}-tier` : tier}
+    </span>
+  );
+}
+
 function MatchRow({
   m,
-  busy,
-  onFetch,
   onOpen,
 }: {
   m: CatalogMatchEntry;
-  busy: boolean;
-  onFetch: (matchId: number, map?: string) => void;
   onOpen: (demoFile: string) => void;
 }) {
-  const date = m.date_unix
-    ? new Date(m.date_unix * 1000).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      })
+  const d = m.date_unix ? new Date(m.date_unix * 1000) : null;
+  const upcoming = m.status === "upcoming";
+  const date = d
+    ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : "—";
+  // Started but not finished on Liquipedia yet.
+  const live = upcoming && d !== null && d.getTime() <= Date.now();
+  const time = d && upcoming && !live
+    ? d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : null;
+  const played = m.score1 !== null && m.score2 !== null;
 
   return (
     <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4 px-4 py-3 hover:bg-white/[0.03] transition-colors">
-      {/* Date + stars — own line on phones, fixed columns on desktop. */}
-      <div className="flex items-center gap-3 md:gap-4 shrink-0">
-        <span className="md:w-14 text-[11px] font-mono text-cs2-muted">{date}</span>
-        <span className="md:w-10 text-[11px] text-amber-400" title={`${m.stars} star match`}>
-          {"★".repeat(m.stars)}
-        </span>
+      {/* Date / format — own line on phones, fixed columns on desktop. */}
+      <div className="flex items-center gap-3 md:gap-4 shrink-0 text-[11px] font-mono text-cs2-muted whitespace-nowrap">
+        <span className="md:w-14">{date}</span>
+        {time && <span className="text-cs2-accent md:w-16">{time}</span>}
+        {live && (
+          <span className="md:w-16 text-red-400 font-bold tracking-widest" title="In progress">
+            LIVE
+          </span>
+        )}
+        {m.best_of && <span className="md:w-8">Bo{m.best_of}</span>}
+        {m.stage && <span className="truncate max-w-[10rem] md:hidden">{m.stage}</span>}
       </div>
 
-      <div className="flex items-center gap-2 min-w-0 md:min-w-[16rem]">
-        <TeamBadge name={m.team1} logo={m.team1_logo} />
-        <span className="text-xs font-mono text-cs2-muted shrink-0">
-          {m.score1 !== null && m.score2 !== null ? `${m.score1} : ${m.score2}` : "vs"}
+      <div className="flex items-center gap-2 min-w-0">
+        <TeamName name={m.team1} won={played && m.score1! > m.score2!} alignRight />
+        <span className="text-xs font-mono text-cs2-muted shrink-0 md:w-12 text-center">
+          {played ? `${m.score1} : ${m.score2}` : "vs"}
         </span>
-        <TeamBadge name={m.team2} logo={m.team2_logo} />
+        <TeamName name={m.team2} won={played && m.score2! > m.score1!} />
       </div>
+
+      {m.stage && (
+        <span className="hidden md:inline text-[11px] font-mono text-cs2-muted truncate max-w-[12rem]">
+          {m.stage}
+        </span>
+      )}
 
       <div className="hidden md:block flex-1" />
 
       <div className="flex items-center gap-1.5 flex-wrap">
-        {m.demo_available === 0 && (
-          <span className="text-[10px] font-mono text-cs2-muted/60">no demo on HLTV</span>
-        )}
-        {m.demo_available !== 0 && m.maps.length === 0 && (
-          <button
-            onClick={() => onFetch(m.match_id)}
-            disabled={busy}
-            className="text-[11px] font-mono px-2.5 py-1 rounded-full border border-amber-400/40 text-amber-400 hover:bg-amber-400/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Resolve maps and download demos for this match"
-          >
-            ↓ fetch match
-          </button>
-        )}
-        {m.maps.map((tok) => {
-          const local = m.local_maps.includes(tok);
-          return local ? (
+        {m.local_demos.map((file) => {
+          const tok = file.replace(/\.dem$/, "").split("_").slice(1).join("_") || "demo";
+          return (
             <button
-              key={tok}
-              onClick={() => onOpen(`${m.match_id}_${tok}.dem`)}
+              key={file}
+              onClick={() => onOpen(file)}
               className="text-[11px] font-mono px-2.5 py-1 rounded-full border border-cs2-green/50 text-cs2-green hover:bg-cs2-green/10 transition-colors"
-              title="Demo is local — open the 2D replay"
+              title={`${file} is on disk — open the 2D replay`}
             >
               ▶ {tok}
             </button>
-          ) : (
-            <button
-              key={tok}
-              onClick={() => onFetch(m.match_id, tok)}
-              disabled={busy || m.demo_available === 0}
-              className="text-[11px] font-mono px-2.5 py-1 rounded-full border border-amber-400/40 text-amber-400 hover:bg-amber-400/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              title={`Download the ${tok} demo (~250 MB)`}
-            >
-              ↓ {tok}
-            </button>
           );
         })}
+        {m.local_demos.length === 0 && m.maps.length > 0 && (
+          <span className="text-[10px] font-mono text-cs2-muted/70 truncate max-w-full">
+            {m.maps.join(" · ")}
+          </span>
+        )}
+        {m.hltv_url && (
+          <a
+            href={m.hltv_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] font-mono px-2.5 py-1 rounded-full border border-amber-400/40 text-amber-400 hover:bg-amber-400/10 transition-colors"
+            title="Open the HLTV match page — the browser extension can send its demo here"
+          >
+            Open on HLTV ↗
+          </a>
+        )}
+        {m.liquipedia_url && (
+          <a
+            href={m.liquipedia_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] font-mono px-2.5 py-1 rounded-full border border-white/15 text-cs2-muted hover:text-white hover:bg-white/5 transition-colors"
+            title="Open the match's tournament page on Liquipedia"
+          >
+            Open on Liquipedia ↗
+          </a>
+        )}
       </div>
     </div>
   );
 }
 
-function TeamBadge({ name, logo }: { name: string; logo: string | null }) {
-  const [imgOk, setImgOk] = useState(true);
+function TeamName({
+  name,
+  won,
+  alignRight = false,
+}: {
+  name: string;
+  won: boolean;
+  alignRight?: boolean;
+}) {
   return (
-    <span className="flex items-center gap-1.5 min-w-0 md:min-w-[6.5rem]">
-      {logo && imgOk && (
-        <img
-          src={logo}
-          alt=""
-          className="w-4 h-4 object-contain shrink-0"
-          loading="lazy"
-          onError={() => setImgOk(false)}
-        />
-      )}
-      <span className="text-sm text-white truncate max-w-[9rem]">{name}</span>
+    <span
+      className={`text-sm truncate min-w-0 max-w-[9rem] md:max-w-none md:w-40 ${
+        alignRight ? "md:text-right" : ""
+      } ${won ? "text-white font-semibold" : "text-white/80"}`}
+      title={name}
+    >
+      {name}
     </span>
   );
 }
