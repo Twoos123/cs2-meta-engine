@@ -89,3 +89,22 @@ def test_photo_chain_uses_wikimedia_and_purges_unlicensed(monkeypatch, tmp_root)
     assert m.purge_unlicensed_photos() == 1
     assert not (d / "11893.png").exists()
     assert (d / f"{key}.png").exists()                          # licensed photo kept
+
+
+@pytest.mark.parametrize("url,ok", [
+    ("https://upload.wikimedia.org/a.jpg", True),
+    ("https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/x.jpg/500px-x.jpg", True),
+    ("https://evil.example/a.jpg", False),
+])
+def test_fetch_image_host_allowlist(monkeypatch, url, ok):
+    import importlib
+
+    real = importlib.reload(wm)            # undo the conftest offline stub for this test
+    monkeypatch.setattr(real, "_http", lambda: type("S", (), {
+        "get": staticmethod(lambda u, timeout=None: type("R", (), {
+            "status_code": 200, "headers": {"content-type": "image/jpeg"}, "content": b"x"})())})())
+    if ok:
+        assert real.fetch_image(url)[0] == 200
+    else:
+        with pytest.raises(ValueError):
+            real.fetch_image(url)

@@ -216,9 +216,13 @@ def _lookup_uncached(nick: str) -> PhotoRef:
     )
 
 
+_IMAGE_HOSTS = {"upload.wikimedia.org", "thumb.wikimedia.org"}
+
+
 def fetch_image(url: str) -> Tuple[int, str, bytes]:
-    """Download a Commons image (only from upload.wikimedia.org)."""
-    if urlparse(url).hostname != "upload.wikimedia.org":
+    """Download a Commons image (only from Wikimedia's media hosts —
+    thumbnails moved to thumb.wikimedia.org)."""
+    if urlparse(url).hostname not in _IMAGE_HOSTS:
         raise ValueError(f"refusing non-Commons image URL: {url}")
     global _last_request
     with _session_lock:
