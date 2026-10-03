@@ -13,11 +13,16 @@ POST /api/ingest/hltv                                  Scrape + download demos
 POST /api/ingest/run                                   Run analysis pipeline
 POST /api/match-replay/upload                          Upload a .dem file
 DELETE /api/match-replay/{demo_file}                   Delete a demo + cache
+GET  /api/match-replay/{demo_file}/meta                Cache + completeness info
 GET  /api/health                                       Health check
+
+Destructive endpoints (deletes, uploads, CS2 path settings) require an
+X-Admin-Token header when ADMIN_TOKEN is set.
 """
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -29,20 +34,22 @@ from typing import List, Optional
 
 import httpx
 
-from fastapi import FastAPI, HTTPException, Query, UploadFile
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from backend.config import settings
 from backend.models.schemas import (
-    HLTVMatch,
     TopLineupsResponse,
-    LineupRanking,
     PracticeRequest,
     PracticeResponse,
     IngestionStatusResponse,
     DemoListEntry,
+    DemoMetaResponse,
     MatchTimeline,
     MatchInsightsResponse,
     ExecuteCombo,
@@ -53,6 +60,7 @@ from backend.models.schemas import (
 )
 from backend.analysis.metrics import MetricsPipeline
 from backend.analysis.player_stats import PlayerStatsStore
+from backend.analysis.validation import assess_completeness
 from backend.rcon.bridge import RCONBridge, generate_console_string
 from backend.utils.logging_setup import install_logging
 from backend.utils.ai_cache import ai_cache
@@ -65,10 +73,22 @@ logger = logging.getLogger(__name__)
 logger.info("== CS2 Meta Engine starting (log level=%s) ==",
             logging.getLevelName(logging.getLogger().level))
 
+APP_VERSION = "1.2.0"
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # Housekeeping runs off the event loop so startup isn't blocked by
+    # reading every cached timeline.
+    asyncio.create_task(asyncio.to_thread(_startup_housekeeping))
+    yield
+
+
 app = FastAPI(
     title="CS2 Utility Meta-Analysis Engine",
-    description="Discover and practice pro-level grenade lineups powered by demoparser2, DBSCAN, and RCON.",
-    version="1.1.0",
+    description="Discover and practice pro-level grenade lineups powered by demoparser2, bucket clustering, and RCON.",
+    version=APP_VERSION,
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -78,6 +98,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Timelines are 40–80 MB of JSON and compress ~10x. Under k8s the /api
+# ingress bypasses nginx, so compression has to happen here. Level 5 keeps
+# CPU cost low for those large payloads.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+
+
+# ─── Admin guard ───────────────────────────────────────────────────────
+# Open when ADMIN_TOKEN is unset (local dev); otherwise destructive routes
+# need a matching X-Admin-Token header. The frontend prompts on 401.
+ADMIN_REQUIRED_DETAIL = "admin token required"
+
+
+async def require_admin(x_admin_token: Optional[str] = Header(default=None)) -> None:
+    expected = settings.admin_token
+    if not expected:
+        return
+    if not x_admin_token or not hmac.compare_digest(x_admin_token, expected):
+        raise HTTPException(status_code=401, detail=ADMIN_REQUIRED_DETAIL)
+
+
+_ADMIN = [Depends(require_admin)]
 
 # Prometheus metrics at /metrics — scraped in-cluster via ServiceMonitor.
 # The ingress only routes /api and /, so /metrics is never reachable from
@@ -159,7 +201,17 @@ async def _llm_complete(prompt: str, max_tokens: int = 1500) -> str:
             model=settings.anthropic_model,
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
+            # Server-side refusal fallback: a declined request is re-run on a
+            # fallback model inside the same call. Passed raw so it works on
+            # SDK versions that predate the typed parameter.
+            extra_headers={"anthropic-beta": "server-side-fallback-2026-07-01"},
+            extra_body={"fallbacks": "default"},
         )
+        if getattr(message, "stop_reason", None) == "refusal":
+            raise HTTPException(
+                status_code=422,
+                detail="The AI model declined to answer this request.",
+            )
         parts: list[str] = []
         for block in getattr(message, "content", []) or []:
             text = getattr(block, "text", None)
@@ -273,12 +325,30 @@ from backend.models.schemas import (  # noqa: E402
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": "1.1.0"}
+    return {"status": "ok", "version": APP_VERSION}
 
 
 # ---------------------------------------------------------------------------
 # Lineup endpoints
 # ---------------------------------------------------------------------------
+
+GRENADE_TYPES = ("smokegrenade", "hegrenade", "flashbang", "molotov")
+
+
+def _require_known_map(map_name: str) -> None:
+    """404 for map names we have no radar calibration for (typos, junk).
+    A known map with no analysed data still returns an empty result."""
+    if _RADAR_MAP_DATA and map_name not in _RADAR_MAP_DATA:
+        raise HTTPException(status_code=404, detail=f"Unknown map: {map_name}")
+
+
+def _require_grenade_type(grenade_type: str) -> None:
+    if grenade_type not in GRENADE_TYPES:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown grenade type: {grenade_type} "
+                   f"(expected one of {', '.join(GRENADE_TYPES)})",
+        )
 
 @app.get(
     "/api/lineups/{map_name}/{grenade_type}",
@@ -299,6 +369,8 @@ async def get_top_lineups(
     - **limit**: number of results (1–2000, default 10)
     - **side**: optional T or CT filter
     """
+    _require_known_map(map_name)
+    _require_grenade_type(grenade_type)
     lineups = _pipeline.get_top_lineups(
         map_name=map_name,
         grenade_type=grenade_type,
@@ -324,6 +396,7 @@ async def get_all_types_for_map(
     limit: int = Query(10, ge=1, le=2000),
 ):
     """Returns ranked lineups for every grenade type available on this map."""
+    _require_known_map(map_name)
     types = _pipeline.list_available_types(map_name)
     if not types:
         return []
@@ -356,6 +429,7 @@ async def get_callouts(map_name: str):
     """
     from backend.analysis import callouts as callouts_mod
 
+    _require_known_map(map_name)
     origins = callouts_mod._CALLOUTS.get(map_name, [])
     return {
         "map_name": map_name,
@@ -453,7 +527,7 @@ async def get_stats():
     return _pipeline.get_stats()
 
 
-@app.delete("/api/data", summary="Clear all analysed lineup data")
+@app.delete("/api/data", summary="Clear all analysed lineup data", dependencies=_ADMIN)
 async def clear_data():
     """
     Wipes every row from the `lineup_clusters` table. Demo files on disk
@@ -662,7 +736,94 @@ def _get_player_slots(demo_file: str) -> dict[str, int]:
 # second open is a fast disk read.
 
 _TIMELINE_CACHE_DIR = Path("data/timelines")
+# Small per-demo sidecars (completeness, score) so list endpoints never have
+# to load a 50 MB timeline. Kept out of _TIMELINE_CACHE_DIR because the
+# player-stats refresh globs every *.json in there as a timeline.
+_TIMELINE_META_DIR = Path("data/timeline_meta")
 _INSIGHTS_CACHE: dict[str, MatchInsightsResponse] = {}
+
+
+def _read_timeline_meta(name: str) -> Optional[dict]:
+    try:
+        return json.loads((_TIMELINE_META_DIR / f"{name}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _write_timeline_meta(name: str, bundle: dict) -> dict:
+    """Score a parsed timeline for completeness and persist the sidecar."""
+    meta = assess_completeness(bundle)
+    meta["cache_version"] = bundle.get("cache_version", 0)
+    if meta["complete"] is False:
+        hi, lo = meta["score"]
+        logger.warning(
+            "%s is a partial demo: file ends at %d-%d after %d rounds "
+            "(HLTV split demo?)", name, hi, lo, meta["rounds"],
+        )
+    try:
+        _TIMELINE_META_DIR.mkdir(parents=True, exist_ok=True)
+        (_TIMELINE_META_DIR / f"{name}.json").write_text(json.dumps(meta), encoding="utf-8")
+    except OSError as exc:
+        logger.warning("Could not write timeline meta for %s: %s", name, exc)
+    return meta
+
+
+def _delete_timeline_cache(name: str) -> bool:
+    """Remove a demo's cached timeline + meta sidecar. Returns whether a timeline existed."""
+    cache_file = _TIMELINE_CACHE_DIR / f"{name}.json"
+    existed = cache_file.exists()
+    cache_file.unlink(missing_ok=True)
+    (_TIMELINE_META_DIR / f"{name}.json").unlink(missing_ok=True)
+    return existed
+
+
+def _demo_meta(name: str) -> dict:
+    cached = (_TIMELINE_CACHE_DIR / f"{name}.json").exists()
+    meta = (_read_timeline_meta(name) if cached else None) or {}
+    return {
+        "demo_file": name,
+        "timeline_cached": cached,
+        "complete": meta.get("complete"),
+        "score": meta.get("score"),
+        "rounds": meta.get("rounds"),
+    }
+
+
+def _startup_housekeeping() -> None:
+    """
+    1. Delete leftovers from interrupted HLTV downloads (`*.archive.tmp`,
+       `*.extract/`) — a failed download can strand a 500 MB temp file.
+    2. Backfill completeness sidecars for timelines cached before they existed.
+    """
+    import shutil
+
+    demo_dir = settings.demo_dir
+    cutoff = time.time() - 3600  # never touch anything modified in the last hour
+    if demo_dir.exists():
+        for p in [*demo_dir.glob("*.archive.tmp"), *demo_dir.glob("*.extract")]:
+            try:
+                if p.stat().st_mtime > cutoff:
+                    continue
+                size_mb = (p.stat().st_size if p.is_file() else 0) / (1024 * 1024)
+                if p.is_dir():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+                logger.info("Removed stale download leftover %s (%.0f MB)", p.name, size_mb)
+            except OSError as exc:
+                logger.warning("Could not remove %s: %s", p, exc)
+
+    if _TIMELINE_CACHE_DIR.exists():
+        for cache in sorted(_TIMELINE_CACHE_DIR.glob("*.dem.json")):
+            name = cache.name[: -len(".json")]
+            if _read_timeline_meta(name) is not None:
+                continue
+            try:
+                bundle = json.loads(cache.read_bytes())
+            except (OSError, ValueError) as exc:
+                logger.warning("Meta backfill skipped %s: %s", cache.name, exc)
+                continue
+            _write_timeline_meta(name, bundle)
 
 
 def _safe_demo_name(demo_file: str) -> str:
@@ -1098,6 +1259,7 @@ async def warm_player_photos_status():
 @app.post(
     "/api/player-photos/clear",
     summary="Invalidate the entire on-disk player-photo cache",
+    dependencies=_ADMIN,
 )
 async def clear_player_photos():
     """Delete every cached image and `.404` marker under the photo cache
@@ -1266,6 +1428,7 @@ async def list_match_replay_demos():
             stat = p.stat()
         except OSError:
             continue
+        meta = _demo_meta(p.name)
         out.append(
             DemoListEntry(
                 demo_file=p.name,
@@ -1273,6 +1436,10 @@ async def list_match_replay_demos():
                 match_id=_parse_match_id(stem),
                 size_bytes=int(stat.st_size),
                 mtime=float(stat.st_mtime),
+                timeline_cached=meta["timeline_cached"],
+                complete=meta["complete"],
+                score=meta["score"],
+                rounds=meta["rounds"],
             )
         )
     out.sort(key=lambda d: d.mtime, reverse=True)
@@ -1281,6 +1448,7 @@ async def list_match_replay_demos():
 
 @app.post(
     "/api/match-replay/upload",
+    dependencies=_ADMIN,
     summary="Upload a .dem file to the demo directory",
 )
 async def upload_demo(file: UploadFile):
@@ -1346,6 +1514,7 @@ async def upload_demo(file: UploadFile):
 
 @app.delete(
     "/api/match-replay/{demo_file}",
+    dependencies=_ADMIN,
     summary="Delete a demo file and its cached timeline",
 )
 async def delete_demo(demo_file: str):
@@ -1354,22 +1523,32 @@ async def delete_demo(demo_file: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Demo not found")
     path.unlink()
-    # Also remove cached timeline if any
-    cache_file = _TIMELINE_CACHE_DIR / f"{name}.json"
-    cache_file.unlink(missing_ok=True)
+    # Also remove cached timeline + meta if any
+    _delete_timeline_cache(name)
     return {"deleted": name}
 
 
 @app.delete(
     "/api/match-replay/{demo_file}/timeline",
+    dependencies=_ADMIN,
     summary="Delete cached timeline only (forces re-parse on next GET)",
 )
 async def delete_match_replay_timeline(demo_file: str):
     name = _safe_demo_name(demo_file)
-    cache_file = _TIMELINE_CACHE_DIR / f"{name}.json"
-    existed = cache_file.exists()
-    cache_file.unlink(missing_ok=True)
+    existed = _delete_timeline_cache(name)
     return {"deleted_cache": existed, "demo_file": name}
+
+
+@app.get(
+    "/api/match-replay/{demo_file}/meta",
+    response_model=DemoMetaResponse,
+    summary="Whether a demo's timeline is cached, and whether the demo is complete",
+)
+async def get_match_replay_meta(demo_file: str):
+    name = _safe_demo_name(demo_file)
+    if not (settings.demo_dir / name).exists():
+        raise HTTPException(status_code=404, detail=f"Demo not found: {name}")
+    return _demo_meta(name)
 
 
 @app.get(
@@ -1392,16 +1571,20 @@ async def get_match_replay_timeline(demo_file: str):
     cache_path = _TIMELINE_CACHE_DIR / f"{name}.json"
     if cache_path.exists():
         try:
-            with cache_path.open("r", encoding="utf-8") as f:
-                bundle = json.load(f)
+            raw = await asyncio.to_thread(cache_path.read_bytes)
+            bundle = await asyncio.to_thread(json.loads, raw)
             if int(bundle.get("cache_version", 0)) >= TIMELINE_CACHE_VERSION:
+                if _read_timeline_meta(name) is None:
+                    _write_timeline_meta(name, bundle)
                 # Opportunistic upsert — cheap, keeps player_stats fresh without
                 # requiring an explicit refresh after the first view.
                 try:
-                    _player_stats.ingest_timeline(bundle, name)
+                    await asyncio.to_thread(_player_stats.ingest_timeline, bundle, name)
                 except Exception as exc:
                     logger.warning("player_stats upsert failed for %s: %s", name, exc)
-                return MatchTimeline.model_validate(bundle)
+                # The cache was validated when it was written; serving the
+                # bytes as-is skips re-validating + re-serialising ~50 MB.
+                return Response(content=raw, media_type="application/json")
             logger.info(
                 "Cached timeline %s is stale (v%s < v%s) — re-parsing",
                 cache_path.name, bundle.get("cache_version", 0), TIMELINE_CACHE_VERSION,
@@ -1423,6 +1606,7 @@ async def get_match_replay_timeline(demo_file: str):
             json.dump(bundle, f, separators=(",", ":"))
     except Exception as exc:
         logger.warning("Could not cache timeline to %s: %s", cache_path, exc)
+    _write_timeline_meta(name, bundle)
 
     try:
         _player_stats.ingest_timeline(bundle, name)
@@ -1659,7 +1843,7 @@ async def get_cs2_path():
     }
 
 
-@app.post("/api/settings/cs2-path", summary="Save CS2 game directory path")
+@app.post("/api/settings/cs2-path", summary="Save CS2 game directory path", dependencies=_ADMIN)
 async def set_cs2_path(body: dict):
     path = body.get("cs2_game_dir", "").strip()
     if path and not Path(path).is_dir():
@@ -1677,7 +1861,7 @@ async def set_cs2_path(body: dict):
     return {"status": "saved", "cs2_game_dir": path}
 
 
-@app.post("/api/demos/link-to-cs2", summary="Create directory junction from demos to CS2 game/csgo")
+@app.post("/api/demos/link-to-cs2", summary="Create directory junction from demos to CS2 game/csgo", dependencies=_ADMIN)
 async def link_demos_to_cs2():
     cs2_dir = _resolve_cs2_dir()
     if not cs2_dir:
@@ -1715,7 +1899,7 @@ async def link_demos_to_cs2():
     return {"status": "linked", "link_path": str(link_path)}
 
 
-@app.delete("/api/demos/link-to-cs2", summary="Remove the demos→CS2 directory junction")
+@app.delete("/api/demos/link-to-cs2", summary="Remove the demos→CS2 directory junction", dependencies=_ADMIN)
 async def unlink_demos_from_cs2():
     cs2_dir = _resolve_cs2_dir()
     if not cs2_dir:
@@ -1751,6 +1935,7 @@ async def get_executes(map_name: str):
     throw together in the same round (e.g. a B site execute with 2 smokes
     + 1 flash + 1 molotov).
     """
+    _require_known_map(map_name)
     return _pipeline.get_executes(map_name=map_name)
 
 
@@ -2332,6 +2517,30 @@ def _infer_role(row: dict) -> str:
     return "Rifler"
 
 
+# HLTV Rating 1.0 baselines — average pro per-round values, so ~1.00 is
+# an average player and 1.20+ a star. Uses only what demos give us
+# (kills, deaths, multi-kill rounds); no ADR/KAST needed.
+_AVG_KPR = 0.679
+_AVG_SPR = 0.317
+_AVG_RMK = 1.277
+
+
+def _hltv_rating(row: dict) -> float:
+    rounds = row.get("rounds_played") or 0
+    if not rounds:
+        return 0.0
+    kills = row.get("kills") or 0
+    deaths = row.get("deaths") or 0
+    m2, m3, m4, m5 = (row.get(f"multi_{n}k") or 0 for n in (2, 3, 4, 5))
+    # Rounds with exactly one kill = kills not accounted for by multi-kill rounds.
+    m1 = max(kills - (2 * m2 + 3 * m3 + 4 * m4 + 5 * m5), 0)
+
+    kill_rating = (kills / rounds) / _AVG_KPR
+    survival_rating = (max(rounds - deaths, 0) / rounds) / _AVG_SPR
+    rmk_rating = ((m1 + 4 * m2 + 9 * m3 + 16 * m4 + 25 * m5) / rounds) / _AVG_RMK
+    return (kill_rating + 0.7 * survival_rating + rmk_rating) / 2.7
+
+
 def _to_summary(row: dict) -> dict:
     kills = row.get("kills") or 0
     deaths = row.get("deaths") or 0
@@ -2346,12 +2555,7 @@ def _to_summary(row: dict) -> dict:
     open_wr = _safe_div(open_k, open_k + open_d)
     surv = _safe_div(alive, rounds)
 
-    rating = (
-        0.5 * _safe_div(kills, rounds)
-        + 0.3 * surv
-        + 0.15 * hs_pct
-        + 0.15 * open_wr
-    )
+    rating = _hltv_rating(row)
 
     return {
         "steamid": row["steamid"],
@@ -2445,6 +2649,8 @@ def _ensure_timeline_for_demo(demo_path: Path) -> bool:
                 cached = json.load(f)
             if int(cached.get("cache_version", 0)) >= TIMELINE_CACHE_VERSION:
                 logger.debug("timeline cache hit: %s", demo_path.name)
+                if _read_timeline_meta(demo_path.name) is None:
+                    _write_timeline_meta(demo_path.name, cached)
                 return False
             logger.info(
                 "stale cache (v%s < v%s) — re-parsing %s",
@@ -2471,6 +2677,7 @@ def _ensure_timeline_for_demo(demo_path: Path) -> bool:
         )
         with cache_path.open("w", encoding="utf-8") as f:
             json.dump(bundle, f, separators=(",", ":"))
+        _write_timeline_meta(demo_path.name, bundle)
         _ingest_state["demos_parsed_this_run"] += 1
         try:
             _player_stats.ingest_timeline(bundle, demo_path.name)

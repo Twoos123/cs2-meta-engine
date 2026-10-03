@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from backend.config import settings
 from backend.models.schemas import LineupCluster, PracticeResponse

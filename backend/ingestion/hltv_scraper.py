@@ -1137,14 +1137,29 @@ class HLTVScraper:
         """
         map_token = _normalize_map(prefer_map) if prefer_map else None
 
-        def _pick(names: list[str]) -> Optional[str]:
+        def _largest_part(candidates: list, size_of) -> object:
+            """
+            HLTV ships a map as `-p1.dem` / `-p2.dem` when the server restarted
+            mid-match. Only one file can be saved per map, so keep the largest
+            part (most rounds) and say so — the timeline's completeness check
+            flags the demo as partial downstream.
+            """
+            if len(candidates) > 1:
+                logger.warning(
+                    "  archive has %d demo parts for %s — keeping the largest; "
+                    "the saved demo will be partial",
+                    len(candidates), map_token,
+                )
+            return max(candidates, key=size_of)
+
+        def _pick(names: list[str], size_of=lambda n: 0) -> Optional[str]:
             """Pick the best-matching .dem from a list of archive filenames."""
             if not names:
                 return None
             if map_token:
-                for n in names:
-                    if map_token in Path(n).name.lower():
-                        return n
+                matches = [n for n in names if map_token in Path(n).name.lower()]
+                if matches:
+                    return _largest_part(matches, size_of)
                 # No filename match and (for ZIP) no cheap header-probe path —
                 # discard rather than save a mislabeled demo.
                 logger.warning(
@@ -1158,7 +1173,7 @@ class HLTVScraper:
         try:
             with zipfile.ZipFile(archive_path) as zf:
                 dem_names = [n for n in zf.namelist() if n.endswith(".dem")]
-                chosen = _pick(dem_names)
+                chosen = _pick(dem_names, lambda n: zf.getinfo(n).file_size)
                 if chosen:
                     logger.info("  Extracting from ZIP → %s", chosen)
                     return zf.read(chosen)
@@ -1182,10 +1197,12 @@ class HLTVScraper:
                     # Fast path: pick by filename substring match.
                     target = None
                     if dem_infos and map_token:
-                        for info in dem_infos:
-                            if map_token in Path(info.filename).name.lower():
-                                target = info
-                                break
+                        named = [
+                            i for i in dem_infos
+                            if map_token in Path(i.filename).name.lower()
+                        ]
+                        if named:
+                            target = _largest_part(named, lambda i: i.file_size or 0)
 
                     def _extract_with_progress(
                         info, verify_token: Optional[str]
@@ -1290,10 +1307,9 @@ class HLTVScraper:
                 chosen_path: Optional[Path] = None
                 # Fast path: filename substring match.
                 if map_token:
-                    for p in dems:
-                        if map_token in p.name.lower():
-                            chosen_path = p
-                            break
+                    named = [p for p in dems if map_token in p.name.lower()]
+                    if named:
+                        chosen_path = _largest_part(named, lambda p: p.stat().st_size)
                 # Header-based fallback: all files are already on disk,
                 # so probing is cheap compared to the RAR case.
                 if chosen_path is None and map_token:

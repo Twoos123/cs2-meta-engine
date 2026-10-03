@@ -39,7 +39,11 @@ class Settings(BaseSettings):
 
     # Anthropic (Claude) API for match-replay AI insights
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-opus-4-6"
+    anthropic_model: str = "claude-opus-5-5"
+
+    # When set, destructive endpoints (deletes, uploads, CS2 path settings)
+    # require a matching X-Admin-Token header. Leave empty for local dev.
+    admin_token: str = ""
 
     # OpenRouter free API (used when anthropic_api_key is not set)
     openrouter_api_key: str = ""

@@ -6,10 +6,11 @@ coordinated fashion: smokes to block sight lines, flashes to blind defenders,
 and molotovs to clear positions.  This module detects recurring patterns by:
 
   1. Grouping raw throws by (demo, round, team)
-  2. Finding bursts of ≥3 throws within a 10-second window
+  2. Splitting each group into bursts of throws within a 10-second window
   3. Mapping each throw to its parent lineup cluster via bucket key
-  4. Tracking which cluster combinations recur across rounds
-  5. Surfacing combos that appear ≥2 times as "detected executes"
+  4. Counting every 3- and 4-lineup subset of each burst, once per round
+  5. Surfacing combos that recur in ≥2 rounds, dropping subsets that a
+     larger reported combo already explains
 
 Usage
 -----
@@ -21,7 +22,8 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from typing import List
+from itertools import combinations
+from typing import Iterator, List
 
 import numpy as np
 import pandas as pd
@@ -40,6 +42,62 @@ MIN_NADES = 3
 
 # Minimum round occurrences for a combo to be reported.
 MIN_OCCURRENCES = 2
+
+# Sub-combination sizes counted per burst, and a cap on distinct lineups per
+# burst so a chaotic round can't explode the combination count (C(8,4)=70).
+COMBO_SIZES = (3, 4)
+MAX_BURST_CLUSTERS = 8
+
+# Report at most this many combos per map.
+MAX_RESULTS = 20
+
+# grenade_type → summary bucket ("flashbang" has no "grenade" suffix to strip).
+_SHORT_TYPE = {
+    "smokegrenade": "smoke",
+    "flashbang": "flash",
+    "hegrenade": "he",
+    "molotov": "molotov",
+    "incgrenade": "molotov",
+    "decoy": "decoy",
+}
+
+
+def _bursts(sorted_g: pd.DataFrame) -> Iterator[pd.DataFrame]:
+    """Split one team's round of throws (sorted by tick) into bursts: each
+    burst starts at a throw and takes every throw within the time window."""
+    ticks = sorted_g["tick"].to_numpy(dtype=float)
+    start = 0
+    for i in range(1, len(ticks) + 1):
+        if i == len(ticks) or ticks[i] > ticks[start] + EXECUTE_TIME_WINDOW:
+            yield sorted_g.iloc[start:i]
+            start = i
+
+
+def _select_combos(
+    combos: Counter[tuple[int, ...]],
+) -> List[tuple[tuple[int, ...], int]]:
+    """
+    Recurring combos, most frequent first (larger combos win ties). A combo
+    is dropped when it differs by at most one lineup from one already chosen
+    that occurred at least as often — subsets and one-swap variants of the
+    same execute add nothing the reported one doesn't say.
+    """
+    ranked = sorted(
+        ((k, n) for k, n in combos.items() if n >= MIN_OCCURRENCES),
+        key=lambda kv: (-kv[1], -len(kv[0]), kv[0]),
+    )
+    chosen: List[tuple[tuple[int, ...], int]] = []
+    for key, count in ranked:
+        members = set(key)
+        if any(
+            len(members & set(k)) >= len(members) - 1 and n >= count
+            for k, n in chosen
+        ):
+            continue
+        chosen.append((key, count))
+        if len(chosen) >= MAX_RESULTS:
+            break
+    return chosen
 
 
 def detect_executes(
@@ -136,22 +194,28 @@ def detect_executes(
         ["source_demo", "round_number", "team_num"], sort=False
     ):
         sorted_g = group.sort_values("tick")
-        first_tick = float(sorted_g.iloc[0]["tick"])
-        burst = sorted_g[sorted_g["tick"] <= first_tick + EXECUTE_TIME_WINDOW]
+        team_label = {2: "T", 3: "CT"}.get(int(team))
+        won = False
+        if "round_winner" in sorted_g.columns and team_label:
+            won = sorted_g.iloc[0].get("round_winner") == team_label
 
-        unique_clusters = tuple(sorted(burst["_cid"].unique()))
-        if len(unique_clusters) < MIN_NADES:
-            continue
+        # Every burst in the round counts (default smokes early, the real
+        # execute later), and each 3- or 4-lineup subset of a burst is a
+        # candidate — teams rarely repeat the exact same full set, but the
+        # core of an execute recurs. Counted once per round.
+        seen_this_round: set[tuple[int, ...]] = set()
+        for burst in _bursts(sorted_g):
+            unique_clusters = sorted(burst["_cid"].unique())[:MAX_BURST_CLUSTERS]
+            if len(unique_clusters) < MIN_NADES:
+                continue
+            for size in COMBO_SIZES:
+                seen_this_round.update(combinations(unique_clusters, size))
 
-        combos[unique_clusters] += 1
-        combo_sides[unique_clusters] = {2: "T", 3: "CT"}.get(int(team), "T")
-
-        # Win check
-        if "round_winner" in burst.columns:
-            rw = burst.iloc[0].get("round_winner")
-            team_label = {2: "T", 3: "CT"}.get(int(team))
-            if rw and team_label and rw == team_label:
-                combo_wins[unique_clusters] += 1
+        for combo in seen_this_round:
+            combos[combo] += 1
+            combo_sides[combo] = team_label or "T"
+            if won:
+                combo_wins[combo] += 1
 
     # ------------------------------------------------------------------
     # Build ExecuteCombo objects for recurring combos.
@@ -159,9 +223,8 @@ def detect_executes(
     from backend.analysis import callouts
 
     results: List[ExecuteCombo] = []
-    for eid, (combo_key, count) in enumerate(combos.most_common()):
-        if count < MIN_OCCURRENCES:
-            break
+    name_counts: Counter[str] = Counter()
+    for eid, (combo_key, count) in enumerate(_select_combos(combos)):
 
         members: List[ExecuteComboMember] = []
         grenade_counts: Counter[str] = Counter()
@@ -177,8 +240,7 @@ def detect_executes(
                 grenade_type=c.grenade_type,
                 label=c.label,
             ))
-            short = c.grenade_type.replace("grenade", "")
-            grenade_counts[short] += 1
+            grenade_counts[_SHORT_TYPE.get(c.grenade_type, c.grenade_type)] += 1
             land_xs.append(c.land_centroid_x)
             land_ys.append(c.land_centroid_y)
 
@@ -195,7 +257,9 @@ def detect_executes(
             n = grenade_counts.get(gtype, 0)
             if n > 0:
                 name = label_map.get(gtype, gtype.title())
-                summary_parts.append(f"{n} {name}{'s' if n > 1 else ''}")
+                if n > 1:
+                    name += "es" if name.endswith("sh") else "s"
+                summary_parts.append(f"{n} {name}")
         grenade_summary = " + ".join(summary_parts) or "Mixed"
 
         # Auto-name from average landing area
@@ -207,7 +271,11 @@ def detect_executes(
             area_name = callouts.humanize(area)
             name = f"{map_display} {area_name} Execute"
         else:
-            name = f"{map_display} Execute #{eid + 1}"
+            name = f"{map_display} Execute"
+        # Several executes can land on the same area — number the repeats.
+        name_counts[name] += 1
+        if name_counts[name] > 1:
+            name = f"{name} #{name_counts[name]}"
 
         total = combos[combo_key]
         wins = combo_wins.get(combo_key, 0)

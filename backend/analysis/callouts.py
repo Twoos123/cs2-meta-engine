@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -148,4 +149,6 @@ def humanize(raw_name: str) -> str:
             if not prev.isupper() or (nxt and nxt.islower()):
                 out.append(" ")
         out.append(ch)
-    return "".join(out)
+    # Valve place names glue a lowercase "of" in: "TopofMid" → "Top of Mid".
+    # Only when a capitalised word follows, so "Roof" stays "Roof".
+    return re.sub(r"(?<=[a-z])of (?=[A-Z])", " of ", "".join(out))

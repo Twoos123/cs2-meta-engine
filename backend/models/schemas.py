@@ -260,6 +260,19 @@ class DemoListEntry(BaseModel):
     match_id: Optional[int] = None
     size_bytes: int
     mtime: float             # unix seconds, for sort-by-date in the picker
+    timeline_cached: bool = False        # opening it is a disk read, not a parse
+    complete: Optional[bool] = None      # False = demo ends before the match did
+    score: Optional[List[int]] = None    # final [higher, lower] round score
+    rounds: Optional[int] = None
+
+
+class DemoMetaResponse(BaseModel):
+    """Cheap per-demo status — never triggers a parse."""
+    demo_file: str
+    timeline_cached: bool
+    complete: Optional[bool] = None
+    score: Optional[List[int]] = None
+    rounds: Optional[int] = None
 
 
 class TimelinePlayer(BaseModel):

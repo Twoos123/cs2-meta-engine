@@ -28,7 +28,6 @@ import sqlite3
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-import pandas as pd
 
 from backend.config import settings
 from backend.ingestion.demo_parser import DemoParser
