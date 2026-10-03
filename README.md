@@ -1,434 +1,357 @@
 # CS2 Meta Engine
 
-A pro-level CS2 demo analysis platform. Mines demos from HLTV and FACEIT, extracts every grenade throw, clusters identical lineups, ranks them by impact, and serves them on a HUD-styled dashboard. Includes a full 2D match replay viewer, an Insights panel with round/pattern/heatmap modes, economy tracking, per-player stats, cross-demo Player Profiles, AI-powered insights, and **automated opponent scouting reports** — a feature neither Refrag nor SCL.gg offer.
+A CS2 demo-analysis platform for players, coaches and analysts. It ingests pro, FACEIT and your own matchmaking demos, extracts every grenade throw, clusters identical lineups and ranks them by impact. It also gives you:
+- a full 2D match replay
+- HLTV 2.0-style player ratings
+- automated opponent scouting reports
+- practice configs you can load in-game
+- a live radar fed by CS2 itself
 
-### 1. Home — Pick a module from the landing page
+It runs locally, or self-hosted on Kubernetes with Postgres, a job worker, CI/CD, monitoring and infrastructure as code.
+
+**Highlights**
+- **Lineups** mined from real demos: impact-ranked, with stand/run/jump technique and left/right click detection, executes, and *your throw vs the pro lineup* ("12u left, 3° too high")
+- **2D replay**: smooth playback with key moments (entries, clutches, multi-kills, eco wins) and shareable links to any round and second
+- **Anti-strat**: site hits, utility, AWP spots, CT setups and T defaults at 0:20, with a shareable link and PDF
+- **Player profiles**: Rating 2.0, ADR, KAST, clutches (1v1–1v5), trade %
+- **Practice lists**: star lineups, then export a `.cfg` that cycles through them in CS2 with `]` / `[`
+- **Live radar**: CS2 Game State Integration, including upper and lower levels on Nuke and Vertigo
+- **Imports**:
+  - your matchmaking demos, picked up automatically
+  - FACEIT demos via the official API
+  - HLTV demos via a one-click browser extension
+  - archives (`.rar`, `.zip`, `.dem.gz` / `.bz2` / `.zst`)
+- **Phone-friendly**: every page works at 375px
+
+---
+
+## Screenshots
+
+### Home
 ![Landing Page](screenshots/landing.png)
 
-### 2. Grenade Lineups — Browse impact-ranked pro lineups with scatter plot and technique detection
+### Grenade lineups: impact-ranked pro lineups with scatter plot and technique detection
 ![Grenade Lineups](screenshots/lineups.png)
 
-### 3. Demo Picker — Upload or browse demos grouped by map, then open one to analyze
+### Demo picker: upload or browse demos grouped by map
 ![Demo Picker](screenshots/demo-picker.png)
 
-### 4. Match Replay — Live 2D viewer with team-vs-team header, score, and bomb timer in the navbar
+### Match replay: live 2D viewer with team header, score and bomb timer
 ![Match Replay](screenshots/replay.png)
 
-### 5. Insights — Round overlay with utility damage paths, victim entry/exit markers, flash blinds, and AOE radii
+### Insights: round overlay with utility paths, entry/exit markers, flash blinds and AOE radii
 ![Insights — Round mode](screenshots/insights.png)
 
-### 6. Insights · Patterns mode — Aggregate every round of one player or drill into a single round; live-scrub through the demo
+### Insights · Patterns: one player across every round, or drill into a single round
 ![Insights — Patterns](screenshots/insights-patterns.png)
 
-### 7. Insights · Heatmap mode — Aggregated grenade landings across the entire match, filterable by HE / Smoke / Flash / Molly
+### Insights · Heatmap: grenade landings across the match
 ![Insights — Heatmap](screenshots/insights-heatmap.png)
 
-### 8. Economy — Track equipment value and buy types round by round
+### Economy: equipment value and buy types round by round
 ![Economy Tracker](screenshots/economy.png)
 
-### 9. Heatmap — See where players position, die, and land utility
+### Heatmap: positions, deaths and utility
 ![Heatmap](screenshots/heatmap.png)
 
-### 10. Stats — Per-player scoreboard with K/D, HS%, first kills, and multi-kill rounds
+### Stats: per-player scoreboard
 ![Stats Panel](screenshots/stats.png)
 
-### 11. Anti-Strat — Select an opponent team and generate a scouting report
+### Anti-strat: scouting report for an opponent
 ![Anti-Strat Report](screenshots/anti-strat.png)
-
-### 12. Anti-Strat — Utility tendency and AWP position heatmaps
 ![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
-
-### 13. Anti-Strat — Per-player breakdown with weapons, utility usage, and opening duels
 ![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
 
-### 14. Players — Cross-demo per-player aggregates rebuilt from cached timelines
+### Players: cross-demo leaderboard and profiles
 ![Players](screenshots/players.png)
-
-### 15. Player Detail — Per-player profile with role radar, side/map splits, and recent match history
 ![Player Detail](screenshots/player-detail.png)
 
 ---
 
 ## Features
 
-### Grenade Lineup Intelligence
-- **Auto-discovery** — Parse pro demos, extract every grenade throw, bucket identical lineups by position + angle
-- **Impact ranking** — `win_rate x log(throws) x (1 + avg_damage/100)` surfaces the highest-value lineups
-- **Technique detection** — Stand, walk, run, crouch, jump, running-jump — recovered from velocity + duck state 8 ticks before the throw
-- **Click classification** — Left / right / both — from the Source button bitmask
-- **Callout labeling** — Auto-tags lineups with the nearest map callout (e.g. "B Window", "A Ramp")
-- **Radar overlay** — 1024x1024 radar with throw-to-land lines, color-coded by grenade type, with callout labels and min-throws/win-rate sliders
-- **Execute detection** — Identifies coordinated multi-grenade combos that pros throw together in the same round
+### Getting demos in
+HLTV blocks automated server-side requests (Cloudflare). The app never tries to get around that; every source below is user-initiated or an official API.
 
-### Anti-Strat Report (Opponent Scouting)
-Feed the engine multiple demos of the team you're playing next week and get:
-- **Site hit frequency** — "A site 65%, B site 20%, unknown 15%" with visual bars
-- **Utility tendencies** — Radar heatmap of grenade landings + "Smoke long doors 92% of T rounds" frequency table with nade icons
-- **AWP positions** — CT-side radar heatmap showing where they hold with the AWP, primary AWPer identified
-- **First blood timing** — Average time to first kill per side (T-side / CT-side)
-- **Round win patterns** — Win rate by side, pistol round win rate, eco conversion rate — displayed as SVG donut rings
-- **Player breakdown** — Per-player K/D, HS%, KDR, opening duels, top weapons (with icons), utility usage (with nade icons), expandable detail cards
-- **Multi-demo aggregation** — Loads all matching demos in parallel with progress bar, computes everything client-side
-- **Team logos** — Scraped from HLTV match pages and displayed in the report header
+| Source | How |
+|---|---|
+| **Your matchmaking games** | The folder watcher picks up demos from CS2's `replays` folder as soon as you click Download in CS2's Watch tab, renames them by map and parses them. "My matches" in the demo picker filters to games you played in (set your SteamID in Ingest → Auto-import). |
+| **FACEIT** | Paste a FACEIT profile URL, pick a match, and the demo downloads through FACEIT's official Data + Downloads APIs (`FACEIT_API_KEY`). |
+| **HLTV (browser extension)** | The [Chrome extension](extension/README.md) adds **Send to CS2 Meta Engine** to HLTV match pages. Your own browser downloads the demo; the app imports the archive and writes the roster (teams, players, logos) from the page you sent. |
+| **Upload / drop folder** | Drag a `.dem`, `.rar`, `.zip`, `.dem.gz`, `.dem.bz2` or `.dem.zst` onto the demo picker, or drop it in `data/inbox`. |
 
-### 2D Match Replay Viewer
-- **Full match playback** — Player positions, yaw direction, health bars, weapon icons, armor indicators, centered player names
-- **Grenade visualization** — Smoke clouds (20s), molotov patches (7s), flash bursts, HE shockwaves with countdown timers
-- **Kill feed** — Real-time kill feed with headshot/wallbang/noscope/smoke/blind icons
-- **Bomb events** — Plant/defuse indicators with site label and countdown timer
-- **Custom scrubber** — HUD-styled playback slider with round tick markers, SVG transport buttons, elapsed/total time
-- **Map zoom + pan** — Smooth 50%–200% zoom with click-and-drag panning when zoomed in
-- **Round timeline** — Horizontal bar showing alive players per team, winner indicators, bomb/defuse/elimination icons
-- **Stable player cards** — Fixed-height scoreboard cards that don't shift when players die
-- **Timestamped notes** — Add bookmarks at any tick (stored in localStorage), shown as diamond markers on the scrubber
-- **AI match recap** — Claude/OpenRouter-powered 3-5 paragraph narrative summary
+Every import:
+- is de-duplicated
+- is named `<match>_<map>.dem` from the demo header
+- has multi-part HLTV archives handled (the largest part is kept)
+- is parsed into a replay timeline and player stats straight away
 
-### Insights Panel
-Accessed from the Insights tab within any loaded demo:
-- **Round mode** — Utility paths, victim entry/exit markers, flash blinds, and AOE radii overlaid on the radar
-- **Patterns mode** — Detect repeated grenade sequences across rounds; click any pattern badge to jump to it; filter by player or nade type; flash effectiveness scoring (enemies-in-range at detonation)
-- **Heatmap mode** — Aggregated grenade landings across the entire match, filterable by HE / Smoke / Flash / Molotov
-- **Live scrub** — Seek to any throw or event directly from the panel; highlights sync with the radar overlay
+### Match catalog (Liquipedia)
+- Recent and upcoming pro matches from the [Liquipedia](https://liquipedia.net) API: teams, scores, tier (S/A/B…), maps and links to HLTV and Liquipedia.
+- Demos already on disk are matched to their catalog row.
+- The client follows Liquipedia's [API terms](https://liquipedia.net/api-terms-of-use):
+  - an identifying User-Agent
+  - gzip
+  - throttling: 1 request per 2 s, and 1 page parse per 30 s
+  - disk caching
+  - CC-BY-SA attribution
+- Refreshes run as background jobs (every 2 h on the cluster).
 
-### Economy Tracker
-- **Equipment value graph** — Bar chart of T vs CT equipment value per round with hover details
-- **Buy type classification** — Eco / Force / Half / Full buy badges based on team equipment thresholds
-- **Round-by-round table** — Winner, buy types, equipment values, cash spent for both teams
-- **Loss bonus tracking** — Consecutive loss bonus ($1400 base + $500/loss, max $3400)
+### Grenade lineup intelligence
+- **Auto-discovery:** every throw from every demo, bucketed by throw position (75u), stand position and angle (6°).
+- **Current CS2 demos:** the game no longer emits `grenade_thrown`. Throws are rebuilt from the grenade's flight path, and this matches the real event exactly on all 5,003 throws in the reference pro demos.
+- **Impact ranking:** `round_win_rate × log1p(throws) × (1 + avg_utility_damage/100)`.
+- **Technique + click:** stand / walk / run / crouch / jump / running-jump, and left / right / both. Taken from velocity, stance, buttons and throw strength.
+- **Callouts:** each lineup is labelled with the nearest map callout, e.g. "Mirage Top of Mid Smoke".
+- **Executes:** recurring 3–4-grenade cores thrown together within 10 s, with win rates.
+- **Practice:**
+  - copy the `setpos` / `setang` / `give` console string
+  - teleport via RCON
+  - jump to the exact throw in the demo with `playdemo`
+- **Practice lists:** star lineups into per-map lists, reorder and annotate them, then download or install `practice_<list>.cfg`. In CS2, `exec practice_<list>` loads it, and `]` / `[` cycle through the lineups.
 
-### Heatmaps
-- **Position density** — Where players spend time across rounds (gaussian blur + jet colormap)
-- **Death locations** — Where players die most frequently
-- **Grenade landings** — Where utility lands on the map
-- **Filters** — Half (1st/2nd/all), team (T/CT/both), individual player
+### 2D match replay
+- **Playback:** positions, view direction, health, armor, weapons, smokes, molotovs, flashes, HEs and bomb timers. You can zoom and pan with the mouse or by touch.
+- **Kill feed** and a **round timeline** showing alive counts, winners and how each round ended.
+- **Key moments:** entries, multi-kills, clutches (won or lost), plants, defuses and eco wins. Click one to jump there; each has a link.
+- **Shareable links:** `/replay/<demo>?round=14&t=45` opens paused at that moment.
+- **Partial-demo detection:** demos that end before the match did (HLTV split demos) are flagged everywhere. Restarted or replayed rounds are dropped, and the final score comes from the game's own scoreboard.
+- **Notes**, bookmarks, and an **AI recap** (Claude, or OpenRouter as a free fallback).
 
-### Per-Player Stats
-- **Scoreboard** — K / D / +/- / HS% / FK / FD / 2K-5K / Survival rate
-- **Expandable detail cards** — Kill breakdown (headshot/wallbang/noscope/smoke/blind), opening duels, utility usage, multi-kill rounds
-- **Computed client-side** — No backend changes needed, all derived from timeline data
+### Compare: your throws vs the pro lineup
+A replay tab that matches each of a player's throws to the nearest pro lineup on the same map. It shows:
+- where you stood and aimed, relative to the pro's facing ("12u left, 3° too high, landed 40u short")
+- a radar overlay of both throws
+- an on-point / close / off badge
 
-### Player Profiles (Cross-Demo)
-- **Leaderboard** — All players seen across every parsed demo, ranked by an HLTV Rating 1.0–style score (≈1.00 average, 1.20+ star) computed from kills, survival and multi-kill rounds; sortable by K/D, kills, matches
-- **Partial-demo detection** — HLTV sometimes splits a map across several demo files; demos that end before the match did are flagged in the picker, replay header and anti-strat
-- **Role inference** — AWP / Entry / Support / Lurker / Rifler — inferred from AWP ratio, opening kill rate, utility rate, survival rate
-- **Filters** — Search by name, filter by role, set minimum match threshold
-- **Detail view** — Per-map and per-side splits, recent match list (up to 50), multi-kill and special kill breakdown
-- **Refresh** — One-click re-scan of all cached timelines to rebuild player stats without re-opening demos
+### Insights, Economy, Heatmap, Stats
+- **Insights:** round mode, patterns mode and heatmap mode for utility.
+- **Economy:** equipment-value chart and buy types (Pistol / Eco / Force / Half / Full), with loss-bonus tracking.
+- **Heatmaps:** position density, deaths and utility landings, with half/team/player filters.
+- **Stats:**
+  - K / D / ±, HS %, opening kills, multi-kills
+  - ADR, KAST and 1vX clutches
+  - trade breakdown
 
-### Practice Tools
-- **Copy Console** — One-click `setpos/setang/give` string for any lineup
-- **RCON teleport** — Send commands directly to a running CS2 instance
-- **Demo replay** — `playdemo` + `demo_goto` commands to watch exact throws in-game
-- **CS2 integration** — Auto-detect CS2 install, directory junctions for seamless replay
+### Player profiles
+- **Rating 2.0** (the community approximation of HLTV's formula), falling back to Rating 1.0 for old demos without damage counters.
+- **ADR, KAST %, APR**, trade-kill % and traded-death %, and **clutches 1v1–1v5** (won/attempted).
+- **Role inference** (AWP / Entry / Support / Lurker / Rifler), with per-map and per-side splits and match history.
+- **Player photos:** only openly licensed images from Liquipedia are used, with attribution. They refresh in the background after 14 days, and a failed or blocked fetch never removes a photo you already have.
 
-### Data Ingestion
-- **HLTV scraping** — Filter by team, event, map; auto-download and extract demo archives; skips already-cached match IDs
-- **FACEIT integration** — Look up any player by FACEIT profile URL, list recent CS2 matches, download demos automatically (with manual-URL fallback)
-- **Team logos** — Scraped from HLTV match pages during ingestion, stored in roster sidecar files
-- **Pipeline orchestration** — Parse, cluster, rank, and persist in one click; also parses full timelines and updates Player Profiles automatically
-- **Status tracking** — Real-time progress for download, extraction, parsing, and analysis phases
+### Anti-strat report (opponent scouting)
+Pick a map and a team, and every demo of theirs is analysed together:
+- **Default setups:** CT setups and the T default spread at 0:20, as callouts and A / Mid / B zones, with win rates and a radar.
+- **Site hits, utility tendencies and AWP positions**, as radar heatmaps.
+- **First-blood timing** and **round win patterns** (sides, pistols, eco conversion).
+- **Per-player breakdown:** weapons, utility and opening duels.
+- **Sharing:** `/anti-strat?map=de_mirage&team=G2` runs automatically, and **Print / PDF** gives a clean report.
 
-### AI Features
-- **Match recap** — Narrative summaries highlighting turning points and standout players
-- **Lineup descriptions** — Natural language explanations of what each lineup does
-- **Dual provider** — Claude (Anthropic) or OpenRouter (free tier)
+### Live radar (Game State Integration)
+- **Setup:** one click installs `gamestate_integration_cs2metaengine.cfg` into CS2. After restarting CS2, open `/live`.
+- **Spectating, GOTV or watching a demo:** all 10 players appear with facing arrows, HP, money, weapons and utility. You also get the bomb, smokes and fires in-flight, a scoreboard and the phase timer. Nuke and Vertigo show **upper and lower radars side by side**.
+- **While you're playing:** CS2 only sends your own data. This is Valve's anti-cheat design; no setting changes it.
+
+### Mobile
+Every page works on phones and tablets: a menu button below 1024px, stacked panels, tables that scroll inside their panel, and touch-friendly controls.
 
 ---
 
-## Quick Start
+## Quick start
 
 ### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- WinRAR or 7-Zip on `PATH` (for HLTV demo archives)
-- (Optional) CS2 with `-netconport 27015` for in-game practice
+- Python 3.12, Node.js 20+
+- WinRAR / UnRAR or 7-Zip on `PATH`, for `.rar` archives
+- Optional: CS2, for practice configs, RCON and the live radar
 
-### Install
-
-**One-shot (Windows):**
-```bat
-install.bat
-```
-
-**Manual:**
+### Install and run
 ```bash
-# Backend
 pip install -r requirements.txt
+cd frontend && npm install && cd ..
 
-# Frontend
-cd frontend && npm install
-```
-
-### Configure
-Copy `.env.example` to `.env` and fill in the values you need:
-```env
-# ── Directories ───────────────────────────────────────────────────────────────
-DEMO_DIR=demos
-DB_PATH=data/lineups.db
-
-# ── CS2 RCON (local server) ───────────────────────────────────────────────────
-# Launch CS2 with: -netconport 27015
-# Set in game: rcon_password changeme; sv_cheats 1
-RCON_HOST=127.0.0.1
-RCON_PORT=27015
-RCON_PASSWORD=changeme
-
-# ── HLTV scraping ─────────────────────────────────────────────────────────────
-HLTV_REQUEST_DELAY=2.5    # seconds between requests — be polite
-
-# ── Clustering ────────────────────────────────────────────────────────────────
-DBSCAN_EPS=75.0           # world-unit radius (decrease for tighter clusters)
-DBSCAN_MIN_SAMPLES=5      # minimum throws to form a cluster
-
-# ── AI features (pick one) ────────────────────────────────────────────────────
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=google/gemma-3-27b-it:free
-# or
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-### Run
-```bash
-# Terminal 1 — Backend
-uvicorn backend.main:app --reload --port 8000
-
-# Terminal 2 — Frontend
+# Terminal 1
+uvicorn backend.main:app --reload --reload-dir backend --port 8000
+# Terminal 2
 cd frontend && npm run dev
 ```
+Open http://localhost:5173. On Windows, `install.bat`, `run_backend.bat` and `run_frontend.bat` do the same.
 
-Open `http://localhost:5173`
+With the default `PROCESS_ROLE=all`, the API process also runs the job worker and the folder watcher, so this is all you need locally.
 
-### Run with Docker (production)
+### Configure (`.env`)
+Copy `.env.example` to `.env`. Everything is optional:
+
+| Variable | Purpose |
+|---|---|
+| `FACEIT_API_KEY` | FACEIT match lists and demo downloads ([developers.faceit.com](https://developers.faceit.com)) |
+| `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | AI match recaps and lineup descriptions (default model `claude-opus-5-5`) |
+| `ADMIN_TOKEN` | Required `X-Admin-Token` for deletes, uploads, imports and settings. The browser prompts once. Leave empty on a private machine. |
+| `DATABASE_URL` | `postgresql://…` to use Postgres; empty = SQLite at `DB_PATH` |
+| `PROCESS_ROLE` | `all` (default) · `api` (enqueue only, scale-out) · `worker` (`python -m backend.worker`) |
+| `DEMO_DIR`, `DB_PATH` | Where demos and the SQLite DB live (default `demos/`, `data/lineups.db`) |
+| `RCON_HOST/PORT/PASSWORD` | In-game teleport practice (launch CS2 with `-netconport 27015`) |
+| `LIQUIPEDIA_CONTACT` | Contact string in the Liquipedia User-Agent (defaults to this repo's URL) |
+
+### Docker
 ```bash
-cp .env.example .env    # fill in ANTHROPIC_API_KEY etc.
-docker compose up -d --build
+cp .env.example .env
+docker compose up -d --build     # http://localhost (WEB_PORT to change)
+```
+This runs nginx (static frontend plus the `/api` proxy) and the FastAPI backend as a non-root user, with a pinned dependency lock (`requirements.lock`).
+
+---
+
+## Architecture
+
+```
+            ┌──────────────── browser (React + Vite) ────────────────┐
+            │  pages · mobile nav · admin-token prompt · SSE radar   │
+            └───────────────┬────────────────────────────────────────┘
+                            │ /api (gzip)
+   CS2 (GSI) ──POST──▶ ┌────┴────────────────┐   enqueue    ┌──────────────────────┐
+   extension ──POST──▶ │ FastAPI  (role=api) │ ───────────▶ │  jobs table          │
+                       │  × N replicas       │ ◀─ status ── │  (Postgres / SQLite) │
+                       └────┬────────────────┘              └──────────┬───────────┘
+                            │ reads                                    │ claim (SKIP LOCKED)
+                            ▼                                          ▼
+                 ┌─────────────────────┐                  ┌──────────────────────────┐
+                 │ Postgres            │ ◀──── writes ─── │ worker (role=worker) × 1 │
+                 │ lineups · players · │                  │ ingest · pipeline ·      │
+                 │ catalog · jobs …    │                  │ catalog · photo warm ·   │
+                 └─────────────────────┘                  │ folder watcher           │
+                                                          └──────────────────────────┘
+        shared volumes: demos/ · data/timelines (parsed replay cache) · player photos
 ```
 
-Open `http://localhost` (set `WEB_PORT` in `.env` to publish on a different port).
+- **Job queue** (`backend/jobs.py`): long work (ingest, the lineup pipeline, catalog refresh, photo warm-up) is a row in `jobs`.
+  - Workers claim atomically (`FOR UPDATE SKIP LOCKED`), and jobs in a group run one at a time.
+  - Progress and heartbeats live in the row, so any API replica reports the same status. Stale jobs are reaped.
+- **Database layer** (`backend/db.py`): one `connect()` for SQLite or Postgres. It translates placeholders, identity columns, `INSERT OR IGNORE`, scalar `MAX`/`MIN` and `datetime('now')`, and tolerates concurrent `CREATE … IF NOT EXISTS`.
+- **Migration:** `python -m backend.migrate_sqlite` copies a SQLite DB into Postgres. The worker does this automatically, once, against an empty Postgres.
+- **Live radar across replicas:** the latest GSI state is mirrored to a one-row table, so CS2 can post to one pod while browsers read from another.
 
-Two images: nginx serves the built frontend and reverse-proxies `/api` to the
-FastAPI backend (single origin, no CORS). Demos, the SQLite DB, and parsed
-timeline caches persist in the `demos`, `app-data`, and `player-photos` named
-volumes. The backend runs as a non-root user with a pinned dependency lock
-(`requirements.lock`).
+---
 
-### Self-hosted production deployment
+## Deployment (self-hosted)
 
-This repo also carries the full infrastructure-as-code for the production
-deployment on a self-hosted Proxmox box:
+Everything for the production deployment on a Proxmox box is in the repo:
 
-- [`terraform/`](terraform/README.md) — VM provisioning via the Proxmox API (bpg provider)
-- [`ansible/`](ansible/README.md) — OS → Docker → registry → k3s → CI runner → app, idempotent
-- [`terraform/cloudflare/`](terraform/cloudflare/README.md) — public HTTPS via Cloudflare Tunnel with Cloudflare Access login (no open ports)
-- [`k8s/`](k8s/README.md) — Kubernetes manifests incl. Prometheus/Grafana monitoring
-- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — tests + lint + frontend build on every push/PR, then push-to-deploy on a self-hosted runner
+| Path | What |
+|---|---|
+| [`terraform/`](terraform/README.md) | The VM, via the Proxmox API (bpg provider) |
+| [`terraform/cloudflare/`](terraform/cloudflare/README.md) | Public HTTPS via **Cloudflare Tunnel** plus a **Cloudflare Access** login (email one-time PIN), with no open ports |
+| [`ansible/`](ansible/README.md) | OS → Docker → registry → k3s → CI runner → app secrets (admin token, Postgres credentials) → optional `cloudflared`, idempotent |
+| [`k8s/`](k8s/README.md) | Postgres StatefulSet, API ×2 (rolling), worker ×1, web, ingress, CronJobs (catalog refresh, nightly `pg_dump`), Prometheus + Grafana dashboards and alerts |
+| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | CI/CD (below) |
 
-### Admin token
+### CI/CD
+Every push and PR runs on GitHub-hosted runners:
+- `pytest` + ruff on SQLite
+- the **same suite against a Postgres 16 service**
+- frontend type-check and build
+- `terraform validate` for both Terraform roots
+- Playwright end-to-end tests at phone and desktop sizes
 
-Deletes, uploads and the CS2-path settings are guarded by `ADMIN_TOKEN`. When
-it is set, those requests need an `X-Admin-Token` header; the web UI prompts
-for the token once and remembers it in the browser. Leave it empty on a
-private machine. On the cluster, Ansible generates it into `cs2-secrets` and
-writes a copy to `~debian/cs2-admin-token.txt` on the VM.
+Pushes to `main` then build both images on the self-hosted runner, push them to the cluster's registry, generate database credentials if missing, roll out Postgres, the API, the worker and the web, and smoke-test.
 
 ### Backups
-
-- **Database** — `k8s/57-db-backup-cronjob.yaml` takes a nightly online
-  SQLite backup (03:30) into the `backups` PVC, keeping the last 14. Restore
-  by gunzipping one over `/app/data/lineups.db` with the backend scaled to 0.
-- **Whole VM** — demos, timelines and photos are re-derivable, so the VM-level
-  backup covers them. Schedule it once on the Proxmox host:
-
+- **Database:** a nightly `pg_dump` at 03:30 into the `backups` volume, keeping 14.
+  Restore with `gunzip -c cs2-<stamp>.sql.gz | kubectl -n cs2 exec -i postgres-0 -- psql -U cs2 cs2`.
+- **Whole VM:** demos, timelines and photos can be re-derived, so a VM-level backup covers them. Schedule it once on the Proxmox host:
   ```bash
-  pvesh create /cluster/backup --id cs2-weekly --schedule 'sun 04:00'     --vmid 101 --storage local --mode snapshot --compress zstd     --prune-backups keep-last=4
+  pvesh create /cluster/backup --id cs2-weekly --schedule 'sun 04:00' --vmid 101 --storage local --mode snapshot --compress zstd --prune-backups keep-last=4
   ```
 
-### Tests
+### Admin token
+When `ADMIN_TOKEN` is set, destructive and filesystem-writing endpoints need an `X-Admin-Token` header; the web UI asks once and remembers it. On the cluster, Ansible generates the token and writes a copy to `~debian/cs2-admin-token.txt`.
+
+---
+
+## Tests
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                                   # backend API + validation tests
+pytest                                    # backend suite on SQLite
+TEST_DATABASE_URL=postgresql://… pytest   # same suite on Postgres
 ruff check backend tests --select E9,F63,F7,F82,F401
-cd frontend && npx tsc --noEmit          # frontend type-check
+cd frontend && npx tsc --noEmit           # type-check
+cd frontend && npm run e2e                # Playwright, phone + desktop
+```
+
+No local Postgres? `pip install pgserver` gives you a throwaway one:
+```python
+import pgserver, tempfile; print(pgserver.get_server(tempfile.mkdtemp()).get_uri())
 ```
 
 ---
 
-## Navigation
+## Pages
 
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | Landing Page | Hub linking to all modules |
-| `/ingest` | Ingest | HLTV and FACEIT demo ingestion |
-| `/lineups` | Grenade Lineups | Lineup grid, scatter plot, ingest controls, execute combos |
-| `/replay` | Demo Picker | Upload/browse demos, grouped by map |
-| `/replay/:file` | Match Replay | 2D viewer with playback controls |
-| `/replay/:file/insights` | Insights | Round/pattern/heatmap overlay panel |
-| `/replay/:file/economy` | Economy | Equipment graph + round-by-round buy analysis |
-| `/replay/:file/heatmap` | Heatmap | Position/death/grenade density overlays |
-| `/replay/:file/stats` | Stats | Per-player scoreboard + detailed breakdowns |
-| `/anti-strat` | Anti-Strat | Multi-demo opponent tendency scouting report |
-| `/players` | Player Profiles | Cross-demo leaderboard with role inference |
-| `/players/:steamid` | Player Detail | Per-map/side splits, recent match history |
-| `/matches` | Matches | HLTV tournament/match catalog with per-map demo fetch |
-
----
-
-## Anti-Strat Report
-
-The standout feature. Navigate to `/anti-strat` from the landing page:
-
-1. **Select a map** — dropdown populated from your demo library
-2. **Select a team** — auto-discovered from HLTV roster data across all demos on that map
-3. **Click Analyze** — loads all matching timelines in parallel
-4. **Read the report** — site hit frequency, utility tendencies (with radar heatmap), AWP positions, first blood timing, round win patterns, and per-player breakdowns
-
-All computation is client-side from existing timeline data. No new backend endpoints needed.
-
----
+| Route | Page |
+|---|---|
+| `/` | Home |
+| `/lineups` | Lineup grid, scatter plot, executes, practice lists |
+| `/replay` | Demo picker: upload (including archives), My matches, partial-demo badges |
+| `/replay/:demo` | 2D replay, key moments, share links (`?round=&t=`) |
+| `/replay/:demo/insights` · `/economy` · `/heatmap` · `/stats` · `/compare` | Replay tabs |
+| `/anti-strat` | Scouting report (`?map=&team=` to share) |
+| `/players`, `/players/:steamid` | Leaderboard and profiles |
+| `/matches` | Liquipedia match catalog |
+| `/ingest` | HLTV · FACEIT · Auto-import · Browser extension |
+| `/live` | Live GSI radar |
 
 ## API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/lineups/{map}/{type}?limit=N&side=T\|CT` | Ranked lineups |
-| `GET` | `/api/lineups/{map}?limit=N` | All grenade types for a map |
-| `POST` | `/api/lineups/{id}/describe?map_name=` | AI lineup description |
-| `GET` | `/api/maps` | Maps with analysed data |
-| `GET` | `/api/demos` | Demos on disk, grouped by map |
-| `GET` | `/api/callouts/{map}` | Callout positions |
-| `GET` | `/api/radars/{map}` | Radar calibration data |
-| `GET` | `/api/radars/{map}.png` | Radar PNG (1024x1024) |
-| `GET` | `/api/executes/{map}` | Coordinated utility combos |
-| `GET` | `/api/console/{id}?map_name=` | Console paste string |
-| `GET` | `/api/replay/{id}?map_name=` | Playdemo + seek strings |
-| `POST` | `/api/practice` | RCON teleport + give grenade |
-| `POST` | `/api/ingest/hltv` | Queue HLTV scrape + pipeline |
-| `POST` | `/api/ingest/run` | Re-run pipeline on existing demos |
-| `GET` | `/api/ingest/status` | Poll pipeline progress |
-| `POST` | `/api/ingest/faceit/matches` | List a FACEIT player's recent CS2 matches |
-| `POST` | `/api/ingest/faceit/download` | Download a FACEIT match demo and run pipeline |
-| `GET` | `/api/match-replay/demos` | List demos for replay |
-| `POST` | `/api/match-replay/upload` | Upload a .dem file |
-| `DELETE` | `/api/match-replay/{file}` | Delete a demo |
-| `GET` | `/api/match-replay/{file}/timeline` | Parse demo into timeline (cached, gzip) |
-| `GET` | `/api/match-replay/{file}/meta` | Cache status + completeness (flags partial/split demos) |
-| `DELETE` | `/api/match-replay/{file}/timeline` | Delete cached timeline (force re-parse) |
-| `POST` | `/api/match-replay/{file}/insights` | AI match recap |
-| `GET` | `/api/match-info/{file}` | Match metadata (teams, logos, event) |
-| `GET` | `/api/settings/cs2-path` | CS2 path + link status |
-| `POST` | `/api/settings/cs2-path` | Save CS2 directory |
-| `POST` | `/api/demos/link-to-cs2` | Create directory junction |
-| `DELETE` | `/api/demos/link-to-cs2` | Remove junction |
-| `DELETE` | `/api/data` | Wipe lineup database |
-| `GET` | `/api/stats` | Totals summary |
-| `GET` | `/api/players?min_matches=N` | Cross-demo player leaderboard |
-| `GET` | `/api/players/{steamid}` | Full profile for a single player |
-| `POST` | `/api/players/refresh` | Re-scan cached timelines + rebuild player stats |
+There are 77 endpoints; interactive docs are at **http://localhost:8000/docs**. The main groups:
 
-Interactive docs at `http://localhost:8000/docs`.
+| Area | Endpoints |
+|---|---|
+| Lineups | `GET /api/lineups/{map}/{type}`, `GET /api/maps`, `GET /api/executes/{map}`, `GET /api/console/{id}`, `GET /api/replay/{id}`, `POST /api/practice`, `POST /api/lineups/{id}/describe` |
+| Replay | `GET /api/match-replay/demos`, `GET /api/match-replay/{demo}/timeline` (gzip, cached), `GET …/meta` (completeness), `POST …/insights`, `GET /api/match-info/{demo}` |
+| Ingest and jobs | `POST /api/ingest/run`, `POST /api/ingest/faceit/matches`, `POST /api/ingest/faceit/download`, `GET /api/ingest/status` |
+| Imports | `GET/PUT /api/import/settings`, `GET /api/import/status`, `POST /api/import/scan`, `POST /api/import/upload`, `POST /api/import/hltv-page`, `POST /api/import/hltv-download` |
+| Players | `GET /api/players`, `GET /api/players/{steamid}`, `GET /api/players/match/{demo}`, `POST /api/players/refresh` |
+| Compare | `GET /api/compare/{demo}?steamid=` |
+| Practice lists | `GET/POST /api/practice-lists`, items, order, `GET …/{id}/cfg`, `POST …/{id}/install` |
+| Catalog | `GET /api/catalog/matches`, `GET /api/catalog/events`, `GET /api/catalog/status`, `POST /api/catalog/refresh` |
+| Photos | `GET /api/player-photo/{hltv_id}.png`, `GET /api/player-photo/by-name/{name}.png`, `GET …/attribution`, `POST /api/player-photos/warm` |
+| Live radar | `POST /api/gsi`, `GET /api/gsi/state`, `GET /api/gsi/stream` (SSE), `GET /api/gsi/config`, `POST /api/gsi/install`, `GET /api/gsi/status` |
+| Radar assets | `GET /api/radars/{map}` (calibration, plus lower level on Nuke and Vertigo), `GET /api/radars/{map}.png`, `GET /api/callouts/{map}` |
 
 ---
 
-## How Lineups Work
-
-Throws are bucketed along **six dimensions**:
-
-| Dimension | Bucket size |
-|-----------|-------------|
-| Landing `(x, y)` | 50 units |
-| Throw position `(x, y)` | 50 units |
-| Yaw | 3 degrees |
-| Pitch | 3 degrees |
-
-A lineup is kept only if `throw_count >= 2` and `round_win_rate >= 0.5`.
-
-Techniques are classified from velocity + duck state:
-- `|vel_z| > 10` → jump
-- `|vel_z| > 10 and horiz > 200` → running jump
-- `ducking or duck_amount > 0.5` → crouch
-- `is_walking` → walk
-- `horiz > 200` → run
-- Otherwise → stand
-
----
-
-## Project Layout
+## Project layout
 
 ```
-cs2-meta-engine/
-├── backend/
-│   ├── main.py                FastAPI app — all endpoints
-│   ├── config.py              Settings (env vars, paths)
-│   ├── models/schemas.py      Pydantic models
-│   ├── analysis/
-│   │   ├── clustering.py      Bucket-based lineup dedup
-│   │   ├── metrics.py         Pipeline orchestrator + SQLite
-│   │   ├── executes.py        Execute combo detection
-│   │   ├── callouts.py        Map callout lookup
-│   │   └── player_stats.py    Cross-demo player stat aggregation (SQLite)
-│   ├── ingestion/
-│   │   ├── demo_parser.py     demoparser2 wrapper + timeline extraction
-│   │   ├── hltv_scraper.py    HLTV scraper + downloader + logo extraction
-│   │   └── faceit_scraper.py  FACEIT API client + demo resolver
-│   ├── rcon/bridge.py         RCON teleport bridge
-│   ├── utils/cs2_detect.py    Steam registry CS2 path auto-detection
-│   └── data/
-│       ├── radars/            Radar PNGs + calibration JSON
-│       ├── callouts/          Per-map callout JSON
-│       └── lineup_data.db     SQLite database (lineup clusters)
-├── frontend/src/
-│   ├── api/client.ts          Typed API client (axios)
-│   ├── App.tsx                React Router routes
-│   └── components/
-│       ├── LandingPage.tsx     Module hub
-│       ├── IngestPage.tsx      HLTV / FACEIT tab switcher
-│       ├── IngestPanel.tsx     HLTV ingest controls + status
-│       ├── FaceitIngestPanel.tsx  FACEIT player lookup + match list
-│       ├── Dashboard.tsx       Lineup grid + filters + nav
-│       ├── AntiStratPage.tsx   Opponent scouting report (multi-demo)
-│       ├── ReplayLayout.tsx    Replay tab nav + shared data loading
-│       ├── MatchReplayViewer.tsx  2D match replay (SVG + rAF)
-│       ├── InsightsPanel.tsx   Round/pattern/heatmap overlay modes
-│       ├── NadeAnalysisPanel.tsx  Per-round and cross-round nade breakdown
-│       ├── EconomyPanel.tsx    Economy tracker (graph + table)
-│       ├── HeatmapPanel.tsx    Heatmaps (canvas overlay)
-│       ├── StatsPanel.tsx      Per-player stats scoreboard
-│       ├── PlayerListPage.tsx  Cross-demo player leaderboard
-│       ├── PlayerDetailPage.tsx  Per-player detail view
-│       ├── PlayerRoleRadar.tsx Role radar chart component
-│       ├── DemoPickerPage.tsx  Demo upload/browse
-│       ├── LineupCard.tsx      Individual lineup card
-│       ├── RadarView.tsx       Radar overlay modal
-│       ├── ScatterPlot.tsx     Win rate vs usage scatter
-│       └── SettingsPanel.tsx   CS2 path + demo linking
-├── demos/                     .dem files (gitignored)
-├── data/                      SQLite DB + timeline cache (gitignored)
-├── install.bat                One-shot Windows installer
-├── run_backend.bat            Launch uvicorn
-├── run_frontend.bat           Launch Vite dev server
-└── requirements.txt
+backend/
+  main.py               app wiring + core endpoints (lineups, replay, ingest, FACEIT, settings)
+  db.py                 SQLite / Postgres connection layer
+  jobs.py · worker.py   job queue + worker process
+  migrate_sqlite.py     SQLite → Postgres copier
+  api/                  routers: catalog, photos, players, imports, compare, practice_lists, gsi, deps
+  analysis/             clustering, metrics (pipeline), executes, callouts, player_stats,
+                        validation (completeness), compare
+  ingestion/            demo_parser, importer, faceit_scraper, liquipedia, match_catalog, hltv_scraper
+  rcon/bridge.py        RCON teleport
+  data/                 radars (+ lower levels), callouts
+extension/              Chrome MV3 "Send to CS2 Meta Engine"
+frontend/src/
+  api/                  typed clients (client.ts + per-feature modules)
+  components/           pages and panels (live/, antistrat/ subfolders)
+  lib/                  economy + key-moment helpers
+frontend/e2e/           Playwright tests
+tests/                  pytest suite (+ fixtures)
+k8s/ · ansible/ · terraform/ · docker/   deployment
 ```
 
----
-
-## Stack
-
-- **Backend**: FastAPI + demoparser2 (Rust) + SQLite + Anthropic SDK
-- **Frontend**: React 18 + Vite + Tailwind CSS + React Router + Recharts
-- **AI**: Claude (Anthropic) or OpenRouter (free tier)
-- **Parser**: demoparser2 — Rust-backed, extracts tick-level player data + events
-
-## Credits
-
-- **demoparser2** — Rust-based CS2 demo parser (LaihoE)
-- **awpy** — radar assets + calibration data
-- **CS2Callouts** — callout origin extraction
-- **HLTV.org** — match + demo sourcing + team logos
-- **FACEIT** — matchmaking demo source
-- **OpenRouter** — free AI model access
+## Credits and data sources
+- **[demoparser2](https://github.com/LaihoE/demoparser)**: Rust CS2 demo parser
+- **[awpy](https://github.com/pnxenopoulos/awpy)**: radar images and calibration
+- **[Liquipedia](https://liquipedia.net)**: match catalog and openly licensed player photos (CC-BY-SA; see the attribution in the app)
+- **[FACEIT](https://developers.faceit.com)**: Data and Downloads APIs
+- **HLTV.org**: match pages and demos, via your own browser and the extension
+- **Valve**: CS2 Game State Integration
 
 ---
 
-Research/educational project. Use on demos you have the right to analyse. Respect HLTV's and FACEIT's rate limits.
+Research and educational project. Analyse demos you have the right to use, and respect each data source's terms and rate limits.
