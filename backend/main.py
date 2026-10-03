@@ -77,7 +77,18 @@ async def _lifespan(_app: FastAPI):
     # Housekeeping runs off the event loop so startup isn't blocked by
     # reading every cached timeline.
     asyncio.create_task(asyncio.to_thread(_startup_housekeeping))
+    # Feature routers may define `async def on_startup()` / `on_shutdown()`
+    # (e.g. the folder watcher). Router-level startup events are ignored
+    # once an app has a lifespan, so they're called from here.
+    for mod in _FEATURE_MODULES:
+        hook = getattr(mod, "on_startup", None)
+        if hook:
+            await hook()
     yield
+    for mod in _FEATURE_MODULES:
+        hook = getattr(mod, "on_shutdown", None)
+        if hook:
+            await hook()
 
 
 app = FastAPI(
@@ -2127,7 +2138,8 @@ app.include_router(_players_router)
 # need from this file is imported lazily inside handlers (no import cycle).
 from backend.api import compare, gsi, imports, practice_lists  # noqa: E402
 
-for _feature in (imports, compare, practice_lists, gsi):
+_FEATURE_MODULES = (imports, compare, practice_lists, gsi)
+for _feature in _FEATURE_MODULES:
     app.include_router(_feature.router)
 
 
