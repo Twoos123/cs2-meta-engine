@@ -13,7 +13,7 @@ COPY requirements.lock .
 RUN pip install -r requirements.lock
 
 # fail the build early if the Rust-backed parser wheel didn't install cleanly
-RUN python -c "import demoparser2, awpy, pandas, sklearn, curl_cffi"
+RUN python -c "import demoparser2, awpy, pandas, psycopg2, curl_cffi"
 
 # ---- runtime stage ----------------------------------------------------------
 FROM python:3.12-slim
