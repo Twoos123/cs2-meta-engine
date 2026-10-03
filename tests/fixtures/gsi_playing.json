@@ -1,0 +1,108 @@
+{
+  "provider": {
+    "name": "Counter-Strike: Global Offensive",
+    "appid": 730,
+    "version": 14089,
+    "steamid": "76561198099999999",
+    "timestamp": 1759500100
+  },
+  "map": {
+    "mode": "competitive",
+    "name": "de_mirage",
+    "phase": "live",
+    "round": 4,
+    "team_ct": {
+      "score": 3,
+      "consecutive_round_losses": 0,
+      "timeouts_remaining": 1,
+      "matches_won_this_series": 0
+    },
+    "team_t": {
+      "score": 1,
+      "consecutive_round_losses": 2,
+      "timeouts_remaining": 1,
+      "matches_won_this_series": 0
+    },
+    "num_matches_to_win_series": 0
+  },
+  "round": {
+    "phase": "freezetime"
+  },
+  "player": {
+    "steamid": "76561198099999999",
+    "name": "you",
+    "observer_slot": 2,
+    "team": "CT",
+    "activity": "playing",
+    "state": {
+      "health": 100,
+      "armor": 100,
+      "helmet": true,
+      "flashed": 0,
+      "smoked": 0,
+      "burning": 0,
+      "money": 4750,
+      "round_kills": 0,
+      "round_killhs": 0,
+      "equip_value": 5200,
+      "defusekit": true
+    },
+    "weapons": {
+      "weapon_0": {
+        "name": "weapon_knife",
+        "paintkit": "default",
+        "type": "Knife",
+        "state": "holstered"
+      },
+      "weapon_1": {
+        "name": "weapon_usp_silencer",
+        "paintkit": "default",
+        "type": "Pistol",
+        "ammo_clip": 12,
+        "ammo_clip_max": 12,
+        "ammo_reserve": 24,
+        "state": "holstered"
+      },
+      "weapon_2": {
+        "name": "weapon_m4a1_silencer",
+        "paintkit": "default",
+        "type": "Rifle",
+        "ammo_clip": 20,
+        "ammo_clip_max": 20,
+        "ammo_reserve": 80,
+        "state": "active"
+      },
+      "weapon_3": {
+        "name": "weapon_smokegrenade",
+        "paintkit": "default",
+        "type": "Grenade",
+        "ammo_reserve": 1,
+        "state": "holstered"
+      },
+      "weapon_4": {
+        "name": "weapon_flashbang",
+        "paintkit": "default",
+        "type": "Grenade",
+        "ammo_reserve": 2,
+        "state": "holstered"
+      }
+    },
+    "match_stats": {
+      "kills": 5,
+      "assists": 1,
+      "deaths": 2,
+      "mvps": 1,
+      "score": 13
+    },
+    "position": "-1660.00, -1980.00, -168.00",
+    "forward": "0.00, 1.00, 0.00"
+  },
+  "previously": {
+    "round": {
+      "phase": "over"
+    }
+  },
+  "auth": {
+    "token": "__TOKEN__"
+  }
+}
