@@ -226,3 +226,33 @@ def test_install_writes_only_cfg(client, gsi, monkeypatch, tmp_path):
 
     monkeypatch.setattr(main, "_resolve_cs2_dir", lambda: None)
     assert client.post("/api/gsi/install", json={}).status_code == 400
+
+
+def test_shared_state_across_replicas(tmp_root, monkeypatch):
+    """PROCESS_ROLE=api: a state received by one replica is served by another."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    from backend.api import gsi
+    from backend.config import settings
+    from backend.db import connect
+
+    monkeypatch.setattr(settings, "process_role", "api")
+    with connect() as conn:
+        conn.execute(gsi._LIVE_DDL)
+    fixture = _Path(__file__).parent / "fixtures" / "gsi_spectator.json"
+    state = gsi.normalise(_json.loads(fixture.read_text(encoding="utf-8")))
+
+    gsi.store.reset()
+    gsi.store.put(state)                          # replica A receives…
+    gsi._publish_sync(state.model_dump_json(), gsi.store.seq, gsi.store.received_at)
+    seq_a = gsi.store.seq
+
+    gsi.store.reset()                             # …replica B starts empty
+    gsi._pull_sync()
+    assert gsi.store.state is not None
+    assert gsi.store.seq == seq_a
+    assert len(gsi.store.state.players) == len(state.players)
+    gsi._pull_sync()                              # nothing newer → unchanged
+    assert gsi.store.seq == seq_a
+    gsi.store.reset()

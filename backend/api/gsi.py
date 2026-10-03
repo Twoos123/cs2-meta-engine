@@ -36,6 +36,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from pydantic import BaseModel
 
 from backend.api.deps import ADMIN
+from backend.config import settings
 from backend.db import connect
 
 logger = logging.getLogger(__name__)
@@ -490,9 +491,17 @@ class _Store:
             self._event = asyncio.Event()
         return self._event
 
-    def put(self, state: GsiState) -> None:
-        self.seq += 1
-        self.received_at = time.time()
+    def put(self, state: GsiState, *, seq: Optional[int] = None,
+            received_at: Optional[float] = None) -> None:
+        self.received_at = received_at if received_at is not None else time.time()
+        # Shared mode (several API replicas) needs a sequence every replica
+        # agrees on: the receive time in ms. Single-process mode keeps 1, 2, 3…
+        if seq is not None:
+            self.seq = seq
+        elif _shared():
+            self.seq = max(self.seq + 1, int(self.received_at * 1000))
+        else:
+            self.seq += 1
         state.seq = self.seq
         state.received_at = self.received_at
         self.state = state
@@ -518,6 +527,54 @@ class _Store:
 
 
 store = _Store()
+
+
+# ---------------------------------------------------------------------------
+# Cross-replica sharing (PROCESS_ROLE=api runs several API pods: CS2 posts
+# to one, browsers may read from another). The latest state is mirrored to
+# a one-row table and pulled by readers; single-process mode skips this.
+# ---------------------------------------------------------------------------
+
+_LIVE_DDL = (
+    "CREATE TABLE IF NOT EXISTS gsi_live (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL, "
+    "received_at REAL NOT NULL, state TEXT NOT NULL)"
+)
+
+
+def _shared() -> bool:
+    return settings.process_role == "api"
+
+
+def _publish_sync(state_json: str, seq: int, received_at: float) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO gsi_live (id, seq, received_at, state) VALUES (1, ?, ?, ?) "
+            "ON CONFLICT (id) DO UPDATE SET seq = excluded.seq, "
+            "received_at = excluded.received_at, state = excluded.state",
+            (seq, received_at, state_json),
+        )
+
+
+def _pull_sync() -> None:
+    """Adopt the shared state if another replica received something newer."""
+    with connect() as conn:
+        row = conn.execute("SELECT seq, received_at, state FROM gsi_live WHERE id = 1").fetchone()
+    if row is None or int(row["seq"]) <= store.seq:
+        return
+    store.put(GsiState.model_validate_json(row["state"]),
+              seq=int(row["seq"]), received_at=float(row["received_at"]))
+    ev, store._event = store._event, None
+    if ev is not None:
+        ev.set()
+
+
+async def _pull() -> None:
+    if not _shared():
+        return
+    try:
+        await asyncio.to_thread(_pull_sync)
+    except Exception as exc:  # stale beats broken
+        logger.debug("GSI shared pull failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -612,6 +669,11 @@ async def on_startup() -> None:
         await asyncio.to_thread(get_token)
     except Exception as exc:  # pragma: no cover
         logger.warning("GSI token init failed: %s", exc)
+    if _shared():
+        def _ddl() -> None:
+            with connect() as conn:
+                conn.execute(_LIVE_DDL)
+        await asyncio.to_thread(_ddl)
 
 
 async def on_shutdown() -> None:
@@ -650,11 +712,19 @@ async def receive_gsi(request: Request):
         logger.warning("GSI payload could not be normalised: %s", exc)
         return {"ok": False}
     store.put(state)
+    if _shared():
+        try:
+            await asyncio.to_thread(
+                _publish_sync, state.model_dump_json(), store.seq, store.received_at,
+            )
+        except Exception as exc:
+            logger.warning("GSI shared publish failed: %s", exc)
     return {"ok": True}
 
 
 @router.get("/api/gsi/state", summary="Latest normalised live game state")
 async def get_state():
+    await _pull()
     snap = store.snapshot()
     if snap is None:
         return JSONResponse({"mode": "none", "players": [], "grenades": [], "age_seconds": None, "seq": 0})
@@ -681,6 +751,7 @@ async def stream_state(request: Request):
                 return
             if time.monotonic() - started > SSE_MAX_LIFETIME_S:
                 return
+            await _pull()
             if store.seq != last_seq and store.state is not None:
                 last_seq = store.seq
                 last_send = time.monotonic()
