@@ -1,0 +1,88 @@
+# PostgreSQL for the app (DATABASE_URL). Replaces the single-writer SQLite
+# file so the API can run several replicas next to a separate job worker.
+# The password lives in Secret postgres-auth, generated once by CI/Ansible —
+# never committed. cs2-secrets.DATABASE_URL points here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: cs2
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: cs2
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70          # postgres user in the alpine image
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:16.10-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: cs2
+            - name: POSTGRES_DB
+              value: cs2
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-auth
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata   # subdir: volume root holds lost+found
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "cs2", "-d", "cs2"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "cs2", "-d", "cs2"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: local-path
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi

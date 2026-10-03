@@ -31,6 +31,17 @@ async def _run() -> None:
         except NotImplementedError:  # Windows: rely on KeyboardInterrupt
             pass
 
+    # First start against an empty Postgres: bring over the SQLite data
+    # the app accumulated before the switch (no-op afterwards).
+    try:
+        from backend.migrate_sqlite import maybe_auto_migrate
+
+        copied = await asyncio.to_thread(maybe_auto_migrate)
+        if copied:
+            logger.info("imported SQLite data into Postgres: %s", copied)
+    except Exception:
+        logger.exception("SQLite → Postgres auto-import failed; continuing")
+
     for mod in app_main._FEATURE_MODULES:
         hook = getattr(mod, "on_startup", None)
         if hook:

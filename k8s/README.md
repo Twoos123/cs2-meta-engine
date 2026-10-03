@@ -3,9 +3,20 @@
 Single-node [k3s](https://k3s.io) on the `cs2-docker` VM. Bundled Traefik
 terminates `:80` and routes `/api` directly to the FastAPI Service and
 everything else to the nginx static Service (nginx's internal `/api` proxy
-is dormant here). Storage is the bundled local-path provisioner; the backend
-runs `replicas: 1` by design (in-process ingest state + single-writer SQLite)
-with `strategy: Recreate`.
+is dormant here). Storage is the bundled local-path provisioner.
+
+| Workload | Replicas | Role |
+|---|---|---|
+| `postgres` (StatefulSet) | 1 | App database (`DATABASE_URL`); password in Secret `postgres-auth` |
+| `backend` | 2, RollingUpdate | API only (`PROCESS_ROLE=api`) — enqueues jobs, serves reads |
+| `worker` | 1, Recreate | `python -m backend.worker` — runs queued ingest/pipeline/catalog jobs and the demo folder watcher |
+| `web` | 1 | nginx static bundle |
+
+Job progress lives in Postgres (`jobs` table), so every API replica reports
+the same status. On its first start against an empty Postgres the worker
+imports the old SQLite data (`python -m backend.migrate_sqlite` does the same
+by hand). CI generates `postgres-auth` and `cs2-secrets.DATABASE_URL` once if
+missing; Ansible does the same.
 
 ## Install
 
@@ -35,7 +46,7 @@ kubectl -n cs2 create secret generic cs2-secrets \
 
 ```bash
 kubectl apply -f k8s/
-kubectl -n cs2 rollout status deploy/backend deploy/web
+kubectl -n cs2 rollout status statefulset/postgres deploy/backend deploy/worker deploy/web
 ```
 
 App is served on port 80 of the node (Traefik via klipper-lb).

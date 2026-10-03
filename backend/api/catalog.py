@@ -27,6 +27,7 @@ from typing import Awaitable, Callable, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from backend import jobs
 from backend.config import settings
 from backend.ingestion import liquipedia as lp
 from backend.ingestion.match_catalog import (
@@ -153,12 +154,17 @@ def build_catalog_router(
 ) -> APIRouter:
     router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 
-    state: dict = {"running": False, "phase": "idle", "detail": ""}
+    # Refreshes run as "catalog_refresh" jobs (backend/jobs.py) so every API
+    # replica reports the same status; `job` tracks the one this process runs.
+    job: dict = {"id": None}
 
     def _set(phase: str, detail: str = "") -> None:
-        state["phase"] = phase
-        state["detail"] = detail
         logger.info("[catalog] %s %s", phase, detail)
+        if job["id"]:
+            try:
+                jobs.update_progress(job["id"], {"phase": phase, "detail": detail})
+            except Exception as exc:
+                logger.debug("[catalog] progress write failed: %s", exc)
 
     # ── refresh (blocking; runs in a worker thread) ─────────────────────
 
@@ -207,19 +213,15 @@ def build_catalog_router(
             )
         catalog.set_meta("last_refresh_unix", str(int(time.time())))
 
-    _lock = asyncio.Lock()
+    async def _refresh_job(job_id: int, payload: dict) -> None:
+        job["id"] = job_id
+        try:
+            await asyncio.to_thread(_refresh_sync, bool(payload.get("force")))
+            _set("idle", "refresh complete")
+        finally:
+            job["id"] = None
 
-    async def _refresh_task(force: bool) -> None:
-        async with _lock:
-            state["running"] = True
-            try:
-                await asyncio.to_thread(_refresh_sync, force)
-                _set("idle", "refresh complete")
-            except Exception as exc:
-                logger.exception("[catalog] refresh failed: %s", exc)
-                _set("error", str(exc))
-            finally:
-                state["running"] = False
+    jobs.register("catalog_refresh", _refresh_job, group="catalog")
 
     # ── row → response ──────────────────────────────────────────────────
 
@@ -261,20 +263,28 @@ def build_catalog_router(
         force: bool = Query(default=False,
                             description="Bypass the 20-minute Liquipedia:Matches cache"),
     ):
-        if state["running"] or _lock.locked():
+        try:
+            job_id = await asyncio.to_thread(jobs.enqueue, "catalog_refresh", {"force": force})
+        except jobs.Busy:
             raise HTTPException(status_code=409, detail="A catalog refresh is already running")
-        state["running"] = True
-        _set("queued")
-        asyncio.create_task(_refresh_task(force))
-        return {"status": "queued", "source": "liquipedia"}
+        return {"status": "queued", "source": "liquipedia", "job_id": job_id}
 
     @router.get("/status", response_model=CatalogStatusResponse)
     async def status():
         last = catalog.get_meta("last_refresh_unix")
+        latest = await asyncio.to_thread(jobs.latest, "catalog")
+        prog = (latest or {}).get("progress") or {}
+        running = bool(latest and latest["status"] in ("queued", "running"))
+        if latest and latest["status"] == "error":
+            phase, detail = "error", latest.get("error") or ""
+        elif running:
+            phase, detail = prog.get("phase") or latest["status"], prog.get("detail") or ""
+        else:
+            phase, detail = "idle", prog.get("detail") or ""
         return CatalogStatusResponse(
-            running=state["running"],
-            phase=state["phase"],
-            detail=state["detail"],
+            running=running,
+            phase=phase,
+            detail=detail,
             last_refresh_unix=int(last) if last else None,
             demo_disk_used_gb=round(demo_dir_bytes(settings.demo_dir) / 1024**3, 2),
             demo_retention_gb=settings.demo_retention_gb,

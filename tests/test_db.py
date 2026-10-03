@@ -25,6 +25,10 @@ from backend.db import translate
             "CREATE TABLE IF NOT EXISTS t (created_at TEXT DEFAULT (datetime('now')))",
             "CREATE TABLE IF NOT EXISTS t (created_at TEXT DEFAULT (CURRENT_TIMESTAMP::text))",
         ),
+        ("UPDATE t SET stars = MAX(stars, ?)", "UPDATE t SET stars = GREATEST(stars, %s)"),
+        ("SELECT MAX(id), min(a, b) FROM t", "SELECT MAX(id), LEAST(a, b) FROM t"),
+        ("SELECT MAX(COALESCE(a, 0)) FROM t", "SELECT MAX(COALESCE(a, 0)) FROM t"),
+        ("SELECT MAX(x, COALESCE(y, 1)) FROM t", "SELECT GREATEST(x, COALESCE(y, 1)) FROM t"),
         # REAL only rewritten in DDL — a value 'REAL' in DML stays put
         ("SELECT 'REAL' FROM t", "SELECT 'REAL' FROM t"),
     ],

@@ -11,8 +11,8 @@ copied ids. Rows already present in Postgres are kept (conflicting keys are skip
 --force truncates each table first instead.
 
 `maybe_auto_migrate()` runs the copy automatically on worker start when
-Postgres is still completely empty and the SQLite file has data, then
-records that it ran so it never repeats.
+Postgres has no lineups / player stats / practice lists yet and the SQLite
+file has data, then records that it ran so it never repeats.
 """
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ _MARKER_DDL = (
     "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at REAL)"
 )
 _MARKER = "sqlite_import"
+_CORE_TABLES = ("lineup_clusters", "player_stats", "practice_lists")
 
 
 def _pg_tables(conn) -> dict[str, list[str]]:
@@ -135,10 +136,11 @@ def maybe_auto_migrate(sqlite_path: Path | None = None) -> dict[str, int] | None
         if conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (_MARKER,)).fetchone():
             return None
         pg = _pg_tables(conn)
-        for table in pg:
-            if table == "schema_migrations":
-                continue
-            if conn.execute(f'SELECT 1 FROM "{table}" LIMIT 1').fetchone():
+        # Judge "fresh" by the core data tables only: API pods starting in
+        # parallel seed small rows (catalog meta, GSI token) that must not
+        # block the import — those tables are merged, not overwritten.
+        for table in _CORE_TABLES:
+            if table in pg and conn.execute(f'SELECT 1 FROM "{table}" LIMIT 1').fetchone():
                 logger.info("Postgres already has data (%s) — skipping SQLite import", table)
                 return None
     logger.info("empty Postgres + SQLite data at %s — importing", sqlite_path)

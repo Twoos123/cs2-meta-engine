@@ -536,7 +536,7 @@ store = _Store()
 # ---------------------------------------------------------------------------
 
 _LIVE_DDL = (
-    "CREATE TABLE IF NOT EXISTS gsi_live (id INTEGER PRIMARY KEY, seq INTEGER NOT NULL, "
+    "CREATE TABLE IF NOT EXISTS gsi_live (id INTEGER PRIMARY KEY, seq BIGINT NOT NULL, "
     "received_at REAL NOT NULL, state TEXT NOT NULL)"
 )
 

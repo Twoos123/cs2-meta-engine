@@ -1,0 +1,72 @@
+# Job worker: executes queued ingest / pipeline / catalog jobs from Postgres
+# (backend/jobs.py) and runs the background loops (demo folder watcher).
+# Exactly one replica — jobs in a group run one at a time, and the watcher
+# must not scan the inbox from two processes. Same image as the API.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: cs2
+  labels:
+    app: worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate        # never two workers at once
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: localhost:5000/cs2-backend:latest
+          imagePullPolicy: IfNotPresent   # CI pins SHA tags
+          command: ["python", "-m", "backend.worker"]
+          envFrom:
+            - configMapRef:
+                name: cs2-config
+            - secretRef:
+                name: cs2-secrets        # includes DATABASE_URL
+          env:
+            - name: PROCESS_ROLE
+              value: worker
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "3"
+              memory: 3Gi          # demo parses + pipeline clustering spike
+          volumeMounts:
+            - name: app-data
+              mountPath: /app/data
+            - name: demos
+              mountPath: /app/demos
+            - name: player-photos
+              mountPath: /app/backend/data/player_photos
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: app-data
+        - name: demos
+          persistentVolumeClaim:
+            claimName: demos
+        - name: player-photos
+          persistentVolumeClaim:
+            claimName: player-photos

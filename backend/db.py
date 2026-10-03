@@ -10,6 +10,8 @@ Write portable SQL and get connections from `connect()`:
 - `CREATE TABLE IF NOT EXISTS`, TEXT / INTEGER / REAL columns
   (REAL becomes DOUBLE PRECISION — unix timestamps don't fit in float4)
 - `INTEGER PRIMARY KEY [AUTOINCREMENT]` → an identity column
+- scalar `MAX(a, b)` / `MIN(a, b)` → `GREATEST` / `LEAST`
+- INTEGER is 32-bit on Postgres: use BIGINT for ms timestamps / byte sizes
 - need a new row's id? use `INSERT ... RETURNING id` (works on both)
 - PRAGMA statements are ignored on Postgres
 
@@ -92,6 +94,42 @@ def _placeholders(sql: str) -> str:
     return "".join(out)
 
 
+_SCALAR_MINMAX_RE = re.compile(r"\b(MAX|MIN)\s*\(", re.I)
+
+
+def _scalar_minmax(sql: str) -> str:
+    """SQLite's multi-argument MAX(a, b) / MIN(a, b) → GREATEST / LEAST.
+    One-argument MAX(x) / MIN(x) are aggregates and stay as they are."""
+    out, i = [], 0
+    for m in _SCALAR_MINMAX_RE.finditer(sql):
+        if m.start() < i:
+            continue
+        depth, j, top_comma = 0, m.end(), False
+        quote = None
+        while j < len(sql):
+            ch = sql[j]
+            if quote:
+                if ch == quote:
+                    quote = None
+            elif ch in ("'", '"'):
+                quote = ch
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                if depth == 0:
+                    break
+                depth -= 1
+            elif ch == "," and depth == 0:
+                top_comma = True
+            j += 1
+        if top_comma:
+            out.append(sql[i:m.start()])
+            out.append("GREATEST(" if m.group(1).upper() == "MAX" else "LEAST(")
+            i = m.end()
+    out.append(sql[i:])
+    return "".join(out)
+
+
 def translate(sql: str) -> Optional[str]:
     """SQLite-flavoured SQL → PostgreSQL. Returns None for no-op statements."""
     if _PRAGMA_RE.match(sql):
@@ -117,6 +155,7 @@ def translate(sql: str) -> Optional[str]:
             else:
                 body += " ON CONFLICT DO NOTHING"
         sql = body
+    sql = _scalar_minmax(sql)
     return _placeholders(sql)
 
 

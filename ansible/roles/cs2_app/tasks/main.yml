@@ -29,6 +29,30 @@
   changed_when: "'CREATED' in cs2_secrets.stdout"
   become: false
 
+# Postgres password + the app's DATABASE_URL, generated once (CI does the
+# same check before each deploy, so either path converges).
+- name: postgres-auth secret + DATABASE_URL (generated if missing)
+  ansible.builtin.shell: |
+    set -e
+    export KUBECONFIG=/home/debian/.kube/config
+    CHANGED=0
+    if ! kubectl -n cs2 get secret postgres-auth >/dev/null 2>&1; then
+      kubectl -n cs2 create secret generic postgres-auth \
+        --from-literal=password="$(openssl rand -hex 24)"
+      CHANGED=1
+    fi
+    if [ -z "$(kubectl -n cs2 get secret cs2-secrets -o jsonpath='{.data.DATABASE_URL}')" ]; then
+      PW=$(kubectl -n cs2 get secret postgres-auth -o jsonpath='{.data.password}' | base64 -d)
+      kubectl -n cs2 patch secret cs2-secrets --type merge \
+        -p "{\"stringData\":{\"DATABASE_URL\":\"postgresql://cs2:${PW}@postgres:5432/cs2\"}}"
+      CHANGED=1
+    fi
+    [ "$CHANGED" = 1 ] && echo CREATED || true
+  register: pg_auth
+  changed_when: "'CREATED' in pg_auth.stdout"
+  no_log: true
+  become: false
+
 # Added to an existing cs2-secrets too (older clusters predate the key).
 # The backend only reads env at start, so a new token triggers a restart.
 - name: cs2-secrets ADMIN_TOKEN (generated if missing)

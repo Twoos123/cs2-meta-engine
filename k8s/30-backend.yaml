@@ -6,11 +6,15 @@ metadata:
   labels:
     app: backend
 spec:
-  # Hard cap at 1: HLTV/FACEIT ingest and photo-warm status live in
-  # process-local globals the UI polls, and SQLite has a single writer.
-  replicas: 1
+  # Stateless API: ingest runs as jobs in Postgres (backend/jobs.py) and is
+  # executed by the separate worker Deployment, so replicas can scale and
+  # roll without downtime. local-path RWO volumes mount fine on one node.
+  replicas: 2
   strategy:
-    type: Recreate       # RWO volumes + single-writer DB — never two pods at once
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: backend
@@ -37,7 +41,10 @@ spec:
             - configMapRef:
                 name: cs2-config
             - secretRef:
-                name: cs2-secrets
+                name: cs2-secrets        # includes DATABASE_URL
+          env:
+            - name: PROCESS_ROLE
+              value: api                 # enqueue only; the worker executes
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

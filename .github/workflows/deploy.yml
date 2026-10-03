@@ -43,6 +43,30 @@ jobs:
       - name: Tests
         run: pytest
 
+  test-postgres:
+    # Same suite against a real Postgres (the cluster's database).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - run: pip install -r requirements.lock pytest
+      - run: pytest
+
   infra:
     runs-on: ubuntu-latest
     steps:
@@ -80,7 +104,7 @@ jobs:
         run: npx vite build
 
   build-and-deploy:
-    needs: [test, frontend]
+    needs: [test, test-postgres, frontend]
     if: github.event_name == 'push'
     runs-on: self-hosted
     env:
@@ -106,12 +130,28 @@ jobs:
           docker push "$REGISTRY/cs2-web:$TAG"
           docker push "$REGISTRY/cs2-web:latest"
 
+      - name: Ensure database credentials (generated once, never committed)
+        run: |
+          kubectl apply -f k8s/00-namespace.yaml
+          if ! kubectl -n cs2 get secret postgres-auth >/dev/null 2>&1; then
+            kubectl -n cs2 create secret generic postgres-auth \
+              --from-literal=password="$(openssl rand -hex 24)"
+          fi
+          if [ -z "$(kubectl -n cs2 get secret cs2-secrets -o jsonpath='{.data.DATABASE_URL}')" ]; then
+            PW=$(kubectl -n cs2 get secret postgres-auth -o jsonpath='{.data.password}' | base64 -d)
+            kubectl -n cs2 patch secret cs2-secrets --type merge \
+              -p "{\"stringData\":{\"DATABASE_URL\":\"postgresql://cs2:${PW}@postgres:5432/cs2\"}}"
+          fi
+
       - name: Deploy to k3s
         run: |
           kubectl apply -R -f k8s/
+          kubectl -n cs2 rollout status statefulset/postgres --timeout=180s
           kubectl -n cs2 set image deploy/backend "backend=$REGISTRY/cs2-backend:$TAG"
+          kubectl -n cs2 set image deploy/worker "worker=$REGISTRY/cs2-backend:$TAG"
           kubectl -n cs2 set image deploy/web "nginx=$REGISTRY/cs2-web:$TAG"
           kubectl -n cs2 rollout status deploy/backend --timeout=300s
+          kubectl -n cs2 rollout status deploy/worker --timeout=300s
           kubectl -n cs2 rollout status deploy/web --timeout=120s
 
       - name: Smoke test

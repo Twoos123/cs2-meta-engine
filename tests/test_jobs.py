@@ -10,6 +10,10 @@ from backend import jobs
 
 @pytest.fixture()
 def q(tmp_root):
+    # Keep the app's in-process worker (from the session TestClient) out of
+    # these direct claim() tests.
+    jobs.PAUSED.set()
+    time.sleep(1.2)  # let an in-flight poll finish
     jobs.init_db()
     from backend import db
 
@@ -27,7 +31,8 @@ def q(tmp_root):
     jobs.register("test_ok", ok, group="test_a")
     jobs.register("test_ok_b", ok, group="test_b")
     jobs.register("test_boom", boom, group="test_c")
-    return ran
+    yield ran
+    jobs.PAUSED.clear()
 
 
 def _drain():

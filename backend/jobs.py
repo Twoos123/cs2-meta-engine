@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import socket
+import threading
 import time
 from typing import Any, Awaitable, Callable, Optional
 
@@ -35,6 +36,10 @@ _HANDLERS: dict[str, tuple[str, Handler]] = {}
 
 WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
 STALE_AFTER_S = 15 * 60  # a running job with no heartbeat for this long is dead
+
+# Set to stop worker loops in this process from claiming new jobs (tests use
+# it to exercise claim() directly; also handy when debugging).
+PAUSED = threading.Event()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -253,7 +258,7 @@ async def worker_loop(stop: asyncio.Event, *, poll_s: float = 1.0) -> None:
             if time.time() - last_reap > 60:
                 reap_stale()
                 last_reap = time.time()
-            job = await asyncio.to_thread(claim)
+            job = None if PAUSED.is_set() else await asyncio.to_thread(claim)
         except Exception:
             logger.exception("job claim failed")
             job = None
