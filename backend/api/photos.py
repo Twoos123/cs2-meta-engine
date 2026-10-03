@@ -40,6 +40,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from backend.api.deps import ADMIN as _ADMIN
+from backend import jobs
 from backend.config import settings
 from backend.ingestion import liquipedia as lp
 
@@ -75,16 +76,10 @@ def _sniff_image_mime(head: bytes) -> str:
     return "image/webp"
 
 
-# Progress state for the photo-warming background task.
-_photo_warm_state: dict = {
-    "running": False,
-    "done": 0,
-    "total": 0,
-    "ok": 0,
-    "missing": 0,
-    "errors": 0,
-    "started_at": 0.0,
-}
+# Photo warming runs as a "photo_warm" job (backend/jobs.py): the worker
+# executes it and its progress lives in the jobs table, so every API replica
+# reports the same numbers to the Players page.
+_WARM_GROUP = "photos"
 
 
 def _read_photo_generation() -> int:
@@ -579,17 +574,25 @@ def _collect_known_hltv_ids() -> list[int]:
     return out
 
 
-async def _warm_player_photos_task():
+async def _warm_player_photos_job(job_id: int, payload: dict) -> None:
     """Fetch every known player's photo. Liquipedia lookups are prefetched
     50 names per query; image downloads then go one at a time through the
     Liquipedia throttle (1 request / 2 s)."""
     scraper = _hltv_scraper()
     ids = _collect_known_hltv_ids()
     names = _hltv_names()
-    _photo_warm_state.update(
-        running=True, done=0, total=len(ids),
-        ok=0, missing=0, errors=0, started_at=time.time(),
-    )
+    state = {"done": 0, "total": len(ids), "ok": 0, "missing": 0, "errors": 0,
+             "started_at": time.time()}
+    last_write = 0.0
+
+    def publish(force: bool = False) -> None:
+        nonlocal last_write
+        # At most ~2 writes/s — progress, not a log.
+        if force or time.time() - last_write > 0.5:
+            jobs.update_progress(job_id, state)
+            last_write = time.time()
+
+    publish(force=True)
     logger.info("photo-warm: started, %d ids", len(ids))
 
     try:
@@ -613,23 +616,22 @@ async def _warm_player_photos_task():
                 result = "error"
 
             if result == "ok":
-                _photo_warm_state["ok"] += 1
+                state["ok"] += 1
             elif result == "missing":
-                _photo_warm_state["missing"] += 1
+                state["missing"] += 1
             else:
-                _photo_warm_state["errors"] += 1
-            _photo_warm_state["done"] = idx
-            await asyncio.sleep(0)
+                state["errors"] += 1
+            state["done"] = idx
+            await asyncio.to_thread(publish)
     finally:
-        elapsed = time.time() - _photo_warm_state["started_at"]
-        _photo_warm_state["running"] = False
+        await asyncio.to_thread(publish, True)
         logger.info(
             "photo-warm: done in %.1fs — ok=%d missing=%d errors=%d",
-            elapsed,
-            _photo_warm_state["ok"],
-            _photo_warm_state["missing"],
-            _photo_warm_state["errors"],
+            time.time() - state["started_at"], state["ok"], state["missing"], state["errors"],
         )
+
+
+jobs.register("photo_warm", _warm_player_photos_job, group=_WARM_GROUP)
 
 
 @router.post(
@@ -640,17 +642,18 @@ async def warm_player_photos():
     """Kick off the warming background task. Poll
     `/api/player-photos/warm/status` for progress. A second call while one
     is running returns the in-flight total without restarting."""
-    if _photo_warm_state["running"]:
+    total = len(_collect_known_hltv_ids())
+    try:
+        await asyncio.to_thread(jobs.enqueue, "photo_warm", {"total": total})
+    except jobs.Busy as busy:
+        prog = busy.job.get("progress") or {}
         return {
             "started": False,
             "running": True,
-            "done": _photo_warm_state["done"],
-            "total": _photo_warm_state["total"],
+            "done": prog.get("done", 0),
+            "total": prog.get("total", total),
         }
-    ids = _collect_known_hltv_ids()
-    _photo_warm_state.update(running=True, done=0, total=len(ids))
-    asyncio.create_task(_warm_player_photos_task())
-    return {"started": True, "running": True, "done": 0, "total": len(ids)}
+    return {"started": True, "running": True, "done": 0, "total": total}
 
 
 @router.get(
@@ -658,13 +661,16 @@ async def warm_player_photos():
     summary="Progress snapshot of the current photo-warm task",
 )
 async def warm_player_photos_status():
+    job = await asyncio.to_thread(jobs.latest, _WARM_GROUP)
+    prog = (job or {}).get("progress") or {}
+    payload = (job or {}).get("payload") or {}
     return {
-        "running":    _photo_warm_state["running"],
-        "done":       _photo_warm_state["done"],
-        "total":      _photo_warm_state["total"],
-        "ok":         _photo_warm_state["ok"],
-        "missing":    _photo_warm_state["missing"],
-        "errors":     _photo_warm_state["errors"],
+        "running":    bool(job and job["status"] in ("queued", "running")),
+        "done":       prog.get("done", 0),
+        "total":      prog.get("total", payload.get("total", 0)),
+        "ok":         prog.get("ok", 0),
+        "missing":    prog.get("missing", 0),
+        "errors":     prog.get("errors", 0),
         # Cache generation — the frontend's `?v=` token on avatar URLs.
         "generation": _read_photo_generation(),
         "source":     "liquipedia",

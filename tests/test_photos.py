@@ -116,3 +116,27 @@ def test_reset_marks_stale_instead_of_deleting(client, photos):
     assert (d / "6.png").read_bytes() == b"keep"
     assert m._photo_needs_refresh(6)
     assert not (d / "7.404").exists()
+
+
+def test_warm_runs_as_job_and_reports_from_db(client, monkeypatch):
+    """Warm progress comes from the jobs table, so any API replica can serve it."""
+    import time as _time
+
+    import backend.api.photos as m
+
+    monkeypatch.setattr(m, "_collect_known_hltv_ids", lambda: [101, 102, 103])
+    monkeypatch.setattr(m, "_hltv_names", lambda: {})
+    monkeypatch.setattr(m, "_hltv_scraper", lambda: None)
+    monkeypatch.setattr(m.lp, "lookup_player_photos", lambda names: None)
+    results = iter(["ok", "missing", "ok"])
+    monkeypatch.setattr(m, "_fetch_player_photo", lambda *a, **k: next(results))
+
+    r = client.post("/api/player-photos/warm")
+    assert r.status_code == 200 and r.json()["total"] == 3
+    deadline = _time.time() + 15
+    while _time.time() < deadline:
+        st = client.get("/api/player-photos/warm/status").json()
+        if not st["running"] and st["done"] == 3:
+            break
+        _time.sleep(0.2)
+    assert (st["done"], st["ok"], st["missing"], st["errors"]) == (3, 2, 1, 0)
