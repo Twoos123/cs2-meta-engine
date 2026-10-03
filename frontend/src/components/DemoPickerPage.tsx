@@ -3,12 +3,14 @@
  *
  * Users can:
  * - Browse existing demos grouped by map
- * - Drag-and-drop or click to upload new .dem files (with progress bar)
+ * - Drag-and-drop or click to upload .dem files, HLTV .rar/.zip archives or
+ *   compressed .dem.gz/.bz2/.zst demos (imported + named by map server-side)
+ * - Filter to "My matches" (demos containing the configured SteamID)
  * - Delete demos they no longer need
  * - Click a card to open the replay viewer
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Cs2PathResponse,
   MatchDemoEntry,
@@ -18,8 +20,14 @@ import {
   getCs2Path,
   getMatchInfo,
   getMatchReplayDemos,
-  uploadDemo,
 } from "../api/client";
+import {
+  IMPORT_ACCEPT,
+  UploadImportResponse,
+  getImportSettings,
+  isImportableFile,
+  uploadImport,
+} from "../api/imports";
 import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 import { useReveal } from "../hooks/useReveal";
@@ -47,9 +55,14 @@ export default function DemoPickerPage() {
   const [uploadPct, setUploadPct] = useState(0);
   const [uploadFile, setUploadFile] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadDone, setUploadDone] = useState<UploadImportResponse[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
+
+  // "My matches": demos whose players include the configured SteamID64.
+  const [mySteamId, setMySteamId] = useState<string>("");
+  const [onlyMine, setOnlyMine] = useState(false);
 
   // Delete state
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -71,6 +84,9 @@ export default function DemoPickerPage() {
 
   useEffect(() => { loadDemos(); }, [loadDemos]);
   useEffect(() => { getCs2Path().then(setLinkInfo).catch(() => {}); }, []);
+  useEffect(() => {
+    getImportSettings().then((s) => setMySteamId(s.my_steamid || "")).catch(() => {});
+  }, []);
 
   // Fetch match info for all demos (team names from roster files)
   useEffect(() => {
@@ -101,21 +117,29 @@ export default function DemoPickerPage() {
     });
   }, [demos]);
 
-  const handleUpload = useCallback(async (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".dem")) {
-      setUploadError("Only .dem files are accepted");
+  const handleUpload = useCallback(async (files: File[]) => {
+    const accepted = files.filter((f) => isImportableFile(f.name));
+    if (accepted.length === 0) {
+      setUploadError("Upload a .dem, .rar, .zip, .dem.gz, .dem.bz2 or .dem.zst file");
       return;
     }
     setUploading(true);
-    setUploadPct(0);
-    setUploadFile(file.name);
     setUploadError(null);
+    setUploadDone([]);
+    const done: UploadImportResponse[] = [];
     try {
-      await uploadDemo(file, (pct) => setUploadPct(pct));
-      setUploadPct(100);
+      for (const file of accepted) {
+        setUploadPct(0);
+        setUploadFile(file.name);
+        try {
+          done.push(await uploadImport(file, (pct) => setUploadPct(pct)));
+          setUploadDone([...done]);
+        } catch (e) {
+          setUploadError(`${file.name}: ${apiErrorMessage(e, "Upload failed")}`);
+          break;
+        }
+      }
       loadDemos(); // refresh list
-    } catch (e) {
-      setUploadError(apiErrorMessage(e, "Upload failed"));
     } finally {
       setUploading(false);
     }
@@ -142,22 +166,26 @@ export default function DemoPickerPage() {
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const files = Array.from(e.dataTransfer.files);
-    const dem = files.find((f) => f.name.toLowerCase().endsWith(".dem"));
-    if (dem) handleUpload(dem);
-    else setUploadError("No .dem file found in drop");
+    handleUpload(Array.from(e.dataTransfer.files));
   }, [handleUpload]);
+
+  const myDemoCount = useMemo(
+    () => (mySteamId ? (demos ?? []).filter((d) => d.player_steamids.includes(mySteamId)).length : 0),
+    [demos, mySteamId],
+  );
+  const showOnlyMine = onlyMine && !!mySteamId;
 
   const grouped = useMemo(() => {
     const m = new Map<string, MatchDemoEntry[]>();
     for (const d of demos ?? []) {
+      if (showOnlyMine && !d.player_steamids.includes(mySteamId)) continue;
       const key = d.map_name || "unknown";
       const arr = m.get(key) ?? [];
       arr.push(d);
       m.set(key, arr);
     }
     return Array.from(m.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [demos]);
+  }, [demos, showOnlyMine, mySteamId]);
 
   return (
     <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d]">
@@ -172,8 +200,9 @@ export default function DemoPickerPage() {
           Pick a demo to <span className="accent">rewatch</span>
         </h1>
         <p className="mt-3 text-sm text-cs2-muted leading-relaxed max-w-2xl">
-          Browse your library, upload a new .dem file, or link the folder to CS2
-          so Replay buttons jump straight in.
+          Browse your library, upload a demo or an HLTV archive, or link the
+          folder to CS2 so Replay buttons jump straight in. Your own matchmaking
+          demos are imported automatically once you download them in CS2.
         </p>
       </div>
 
@@ -220,7 +249,7 @@ export default function DemoPickerPage() {
         role="button"
         tabIndex={uploading ? -1 : 0}
         aria-disabled={uploading || undefined}
-        aria-label="Upload a .dem file"
+        aria-label="Upload a demo or archive"
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
@@ -243,13 +272,14 @@ export default function DemoPickerPage() {
           ref={fileInputRef}
           id={fileInputId}
           type="file"
-          accept=".dem,application/octet-stream"
+          accept={IMPORT_ACCEPT}
+          multiple
           className="sr-only"
           tabIndex={-1}
           disabled={uploading}
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) handleUpload(f);
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) handleUpload(files);
             e.target.value = "";
           }}
         />
@@ -257,7 +287,7 @@ export default function DemoPickerPage() {
         {uploading ? (
           <>
             <p className="text-[12px] text-cs2-accent font-mono max-w-full truncate">
-              Uploading {uploadFile}…
+              {uploadPct < 100 ? "Uploading" : "Importing"} {uploadFile}…
             </p>
             <div className="w-full max-w-md h-2 rounded-full bg-cs2-border/50 overflow-hidden">
               <div
@@ -271,14 +301,14 @@ export default function DemoPickerPage() {
           <>
             <div className="text-[24px] text-cs2-accent/60">+</div>
             <p className="text-[12px] text-cs2-muted">
-              <span className="text-cs2-accent sm:hidden">Tap to choose a .dem file</span>
+              <span className="text-cs2-accent sm:hidden">Tap to choose a demo or archive</span>
               <span className="hidden sm:inline">
                 <span className="text-cs2-accent">Click to browse</span> or drag
-                & drop a .dem file here
+                & drop demos or HLTV archives here
               </span>
             </p>
             <p className="text-[10px] text-cs2-muted/60">
-              CS2 demo files · max 2 GB
+              .dem · .rar · .zip · .dem.gz/.bz2/.zst · max 2 GB each
             </p>
           </>
         )}
@@ -290,9 +320,61 @@ export default function DemoPickerPage() {
         </p>
       )}
 
+      {uploadDone.length > 0 && !uploading && (
+        <div className="text-[12px] text-cs2-green border-l-2 border-cs2-green/50 pl-2 space-y-0.5">
+          {uploadDone.map((r) => (
+            <p key={r.source} className="break-words">
+              {r.status === "duplicate" ? "Already in your library: " : "Imported: "}
+              <span className="font-mono text-gray-300 break-all">{r.demos.join(", ")}</span>
+              {r.status === "imported" && (
+                <span className="text-cs2-muted"> · parsing in the background</span>
+              )}
+            </p>
+          ))}
+        </div>
+      )}
+
       {error && (
         <p className="text-[12px] text-cs2-red border-l-2 border-cs2-red/50 pl-2 break-words">
           {error}
+        </p>
+      )}
+
+      {demos && demos.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {mySteamId ? (
+            <>
+              <button
+                className={`hud-tab ${!showOnlyMine ? "hud-tab-active" : "hud-tab-idle"}`}
+                onClick={() => setOnlyMine(false)}
+                aria-pressed={!showOnlyMine}
+              >
+                All demos ({demos.length})
+              </button>
+              <button
+                className={`hud-tab ${showOnlyMine ? "hud-tab-active" : "hud-tab-idle"}`}
+                onClick={() => setOnlyMine(true)}
+                aria-pressed={showOnlyMine}
+              >
+                My matches ({myDemoCount})
+              </button>
+            </>
+          ) : (
+            <p className="text-[11px] text-cs2-muted">
+              Set your SteamID under{" "}
+              <Link to="/ingest?tab=auto" className="text-cs2-accent underline">
+                Collect, Auto-import
+              </Link>{" "}
+              to filter to your own matches.
+            </p>
+          )}
+        </div>
+      )}
+
+      {showOnlyMine && myDemoCount === 0 && (
+        <p className="text-[12px] text-cs2-muted">
+          None of your demos include this SteamID yet. Demos are matched after
+          their first parse, so new imports show up once parsing finishes.
         </p>
       )}
 

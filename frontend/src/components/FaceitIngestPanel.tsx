@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import {
   FaceitMatchEntry,
   FaceitMatchListResponse,
@@ -53,6 +54,8 @@ export default function FaceitIngestPanel({ onComplete }: Props) {
   const [data, setData] = useState<FaceitMatchListResponse | null>(null);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  // HTTP 503 from the list endpoint = FACEIT_API_KEY missing on the server.
+  const [needsKey, setNeedsKey] = useState(false);
 
   const [pullingMatchId, setPullingMatchId] = useState<string | null>(null);
   const [pullStatus, setPullStatus] = useState<string | null>(null);
@@ -61,11 +64,16 @@ export default function FaceitIngestPanel({ onComplete }: Props) {
   const handleFetchList = async () => {
     setListLoading(true);
     setListError(null);
+    setNeedsKey(false);
     setData(null);
     try {
       const resp = await listFaceitMatches(url, 30);
       setData(resp);
     } catch (e: any) {
+      if (axios.isAxiosError(e) && e.response?.status === 503) {
+        setNeedsKey(true);
+        return;
+      }
       setListError(
         e?.response?.data?.detail ?? e?.message ?? "Failed to fetch matches",
       );
@@ -134,6 +142,28 @@ export default function FaceitIngestPanel({ onComplete }: Props) {
           {listLoading ? "Fetching…" : "List matches"}
         </button>
       </div>
+
+      {needsKey && (
+        <div className="border-l-2 border-amber-400/70 bg-amber-400/5 pl-3 pr-2 py-2 space-y-1">
+          <p className="text-[11px] text-amber-200 font-semibold">
+            FACEIT isn't set up on this server yet.
+          </p>
+          <p className="text-[11px] text-gray-300 leading-relaxed">
+            Add <span className="font-mono text-white">FACEIT_API_KEY=…</span> to the
+            backend's <span className="font-mono text-white">.env</span> file and restart it.
+            You can create a free key at{" "}
+            <a
+              href="https://developers.faceit.com/"
+              target="_blank"
+              rel="noreferrer"
+              className="text-cs2-accent underline break-all"
+            >
+              developers.faceit.com
+            </a>{" "}
+            (App Studio → API keys → Server side).
+          </p>
+        </div>
+      )}
 
       {listError && (
         <p className="text-[11px] text-cs2-red border-l-2 border-cs2-red/60 bg-cs2-red/5 pl-2 py-1">
@@ -207,11 +237,9 @@ export default function FaceitIngestPanel({ onComplete }: Props) {
             Open the demo in a new tab using your logged-in FACEIT session — your
             browser will download a compressed demo (usually{" "}
             <span className="font-mono">.dem.zst</span>, sometimes{" "}
-            <span className="font-mono">.dem.gz</span>). Decompress it
-            (macOS: <span className="font-mono">zstd -d file.dem.zst</span> or{" "}
-            <span className="font-mono">gunzip file.dem.gz</span>), then drop the{" "}
-            <span className="font-mono">.dem</span> onto{" "}
-            <a href="/replay" className="text-cs2-accent underline">/replay</a> to upload.
+            <span className="font-mono">.dem.gz</span>). Drop that file as-is onto{" "}
+            <a href="/replay" className="text-cs2-accent underline">/replay</a> to
+            upload; it's decompressed for you.
           </p>
           <a
             href={manualUrl}

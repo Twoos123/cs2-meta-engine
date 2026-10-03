@@ -1,19 +1,33 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import IngestPanel from "./IngestPanel";
 import FaceitIngestPanel from "./FaceitIngestPanel";
+import AutoImportPanel from "./AutoImportPanel";
+import ExtensionPanel from "./ExtensionPanel";
 import AppHeader from "./AppHeader";
 import AppBackdrop from "./AppBackdrop";
 import IngestStatusBanner from "./IngestStatusBanner";
 import { useReveal } from "../hooks/useReveal";
 
-type Tab = "hltv" | "faceit";
+type Tab = "hltv" | "faceit" | "auto" | "extension";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "hltv", label: "HLTV" },
+  { id: "faceit", label: "FACEIT" },
+  { id: "auto", label: "Auto-import" },
+  { id: "extension", label: "Browser extension" },
+];
+
+const isTab = (v: string | null): v is Tab => TABS.some((t) => t.id === v);
 
 export default function IngestPage() {
   const navigate = useNavigate();
   const hero = useReveal<HTMLDivElement>();
   const body = useReveal<HTMLDivElement>();
-  const [tab, setTab] = useState<Tab>("hltv");
+  // ?tab= deep-links (e.g. the demo picker links to ?tab=auto).
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get("tab");
+  const tab: Tab = isTab(tabParam) ? tabParam : "hltv";
+  const setTab = (t: Tab) => setParams(t === "hltv" ? {} : { tab: t }, { replace: true });
 
   return (
     <div className="relative h-screen flex flex-col overflow-hidden bg-[#05070d]">
@@ -32,8 +46,9 @@ export default function IngestPage() {
               Pull matches into the <span className="accent">pipeline</span>
             </h1>
             <p className="mt-4 text-sm md:text-base text-cs2-muted leading-relaxed max-w-xl mx-auto">
-              Scrape HLTV or queue FACEIT matches. The pipeline parses and
-              clusters every demo automatically — nothing leaves your machine.
+              Import your own CS2 replays automatically, send HLTV matches from
+              your browser, or queue FACEIT matches. Every demo is parsed and
+              clustered locally — nothing leaves your machine.
             </p>
           </div>
 
@@ -47,28 +62,25 @@ export default function IngestPage() {
             ref={body.ref}
             className={`reveal reveal-delay-1 ${body.shown ? "in" : ""} space-y-6`}
           >
-            <div className="flex gap-1.5 justify-center">
-              <button
-                className={`hud-tab ${tab === "hltv" ? "hud-tab-active" : "hud-tab-idle"} flex items-center gap-2`}
-                onClick={() => setTab("hltv")}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                HLTV
-              </button>
-              <button
-                className={`hud-tab ${tab === "faceit" ? "hud-tab-active" : "hud-tab-idle"} flex items-center gap-2`}
-                onClick={() => setTab("faceit")}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
-                FACEIT
-              </button>
+            <div className="flex flex-wrap gap-1.5 justify-center" role="tablist">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={tab === t.id}
+                  className={`hud-tab ${tab === t.id ? "hud-tab-active" : "hud-tab-idle"} flex items-center gap-2`}
+                  onClick={() => setTab(t.id)}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            {tab === "hltv" ? (
-              <IngestPanel onComplete={() => navigate("/lineups")} />
-            ) : (
-              <FaceitIngestPanel onComplete={() => navigate("/lineups")} />
-            )}
+            {tab === "hltv" && <IngestPanel onComplete={() => navigate("/lineups")} />}
+            {tab === "faceit" && <FaceitIngestPanel onComplete={() => navigate("/lineups")} />}
+            {tab === "auto" && <AutoImportPanel />}
+            {tab === "extension" && <ExtensionPanel />}
           </div>
         </div>
       </div>

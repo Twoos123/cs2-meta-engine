@@ -1,7 +1,8 @@
 /**
  * IngestPanel — lets the user pull demos from HLTV and trigger the pipeline.
  */
-import React, { useState } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   getIngestionStatus,
   ingestFromHLTV,
@@ -106,6 +107,23 @@ export default function IngestPanel({ onComplete }: Props) {
         <h2 className="text-sm font-semibold text-white mt-0.5">
           Pull pro demos from HLTV
         </h2>
+      </div>
+
+      <div className="border-l-2 border-amber-400/70 bg-amber-400/5 pl-3 pr-2 py-2 space-y-1.5">
+        <p className="text-[11px] text-amber-200 font-semibold">
+          HLTV now blocks server-side downloads.
+        </p>
+        <p className="text-[11px] text-gray-300 leading-relaxed">
+          HLTV answers the app's own scraper with a Cloudflare challenge, so
+          "Fetch + Analyse" will usually fail. Use the{" "}
+          <Link to="/ingest?tab=extension" className="text-cs2-accent underline">
+            browser extension
+          </Link>{" "}
+          to send a match from your browser, or download the demo yourself and
+          upload the <span className="font-mono">.rar</span> on the{" "}
+          <Link to="/replay" className="text-cs2-accent underline">Demo picker</Link>.
+          "Re-run" still re-analyses demos you already have.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
