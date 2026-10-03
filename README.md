@@ -219,6 +219,7 @@ deployment on a self-hosted Proxmox box:
 
 - [`terraform/`](terraform/README.md) — VM provisioning via the Proxmox API (bpg provider)
 - [`ansible/`](ansible/README.md) — OS → Docker → registry → k3s → CI runner → app, idempotent
+- [`terraform/cloudflare/`](terraform/cloudflare/README.md) — public HTTPS via Cloudflare Tunnel with Cloudflare Access login (no open ports)
 - [`k8s/`](k8s/README.md) — Kubernetes manifests incl. Prometheus/Grafana monitoring
 - [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — tests + lint + frontend build on every push/PR, then push-to-deploy on a self-hosted runner
 

@@ -43,6 +43,22 @@ jobs:
       - name: Tests
         run: pytest
 
+  infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - name: Validate Terraform roots (no credentials, no backend)
+        run: |
+          for root in terraform terraform/cloudflare; do
+            echo "::group::$root"
+            terraform -chdir="$root" init -backend=false -input=false
+            terraform -chdir="$root" validate
+            echo "::endgroup::"
+          done
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

@@ -1,0 +1,36 @@
+---
+# Public HTTPS via Cloudflare Tunnel. Opt-in: does nothing unless a token is
+# passed, e.g. from terraform/cloudflare:
+#   ansible-playbook site.yml -e cloudflared_tunnel_token=$(terraform -chdir=../terraform/cloudflare output -raw tunnel_token)
+- name: Cloudflare Tunnel connector
+  when: cloudflared_tunnel_token | default('') | length > 0
+  become: false
+  environment:
+    KUBECONFIG: /home/debian/.kube/config
+  block:
+    - name: cloudflared-token secret
+      ansible.builtin.shell: |
+        set -e
+        kubectl -n cs2 create secret generic cloudflared-token \
+          --from-literal=token="$TOKEN" --dry-run=client -o yaml \
+          | kubectl apply -f - | grep -q unchanged && echo UNCHANGED || echo CHANGED
+      environment:
+        TOKEN: "{{ cloudflared_tunnel_token }}"
+      no_log: true
+      register: cf_secret
+      changed_when: "'CHANGED' in cf_secret.stdout"
+
+    - name: Copy cloudflared manifest
+      ansible.builtin.copy:
+        src: cloudflared.yaml
+        dest: "{{ app_dir }}/cloudflared.yaml"
+        mode: "0644"
+
+    - name: Apply cloudflared deployment
+      ansible.builtin.command: kubectl apply -f {{ app_dir }}/cloudflared.yaml
+      register: cf_apply
+      changed_when: "'unchanged' not in cf_apply.stdout"
+
+    - name: Restart connectors when the token changed
+      ansible.builtin.command: kubectl -n cs2 rollout restart deploy/cloudflared
+      when: cf_secret is changed

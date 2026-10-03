@@ -1,0 +1,8 @@
+api_token  = "cf-api-token-with-tunnel-access-dns-permissions"
+account_id = "0123456789abcdef0123456789abcdef"
+zone_id    = "fedcba9876543210fedcba9876543210"
+hostname   = "cs2.example.com"
+
+allowed_emails = [
+  "you@example.com",
+]
