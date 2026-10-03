@@ -2,9 +2,10 @@
 FACEIT Data API v4 client.
 
 Uses the official Data API (requires a server-side key from developers.faceit.com).
-Demo download attempts a direct GET on the signed URL returned in match details;
-if that fails (pending Downloads API approval), the caller falls back to opening
-the URL in the user's browser so their logged-in FACEIT session can download it.
+Demo downloads go through the FACEIT Downloads API (POST the match's private
+`demo_url` → signed URL → GET). If the key has no Downloads API access yet
+(separate approval), the caller falls back to opening the URL in the user's
+browser so their logged-in FACEIT session can download it.
 """
 from __future__ import annotations
 
@@ -49,6 +50,7 @@ class FaceitScraper:
         self.base = settings.faceit_base_url.rstrip("/")
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Bearer {self.api_key}"})
+        self.downloads_api_status: Optional[str] = None  # ok | not_granted | error
 
     # ---- URL parsing ------------------------------------------------------
 
@@ -161,6 +163,42 @@ class FaceitScraper:
 
         return demo_url, map_token
 
+    def signed_download_url(self, resource_url: str) -> Optional[str]:
+        """
+        FACEIT Downloads API: POST the private `demo_url` from match details
+        and get back a short-lived signed URL. Needs Downloads API access on
+        the key (separate approval) — until then FACEIT answers 401/403 and
+        we return None so the caller can fall back to a browser download.
+        `downloads_api_status` records the last outcome for the UI/logs.
+        """
+        try:
+            r = self.session.post(
+                settings.faceit_downloads_url,
+                json={"resource_url": resource_url},
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            logger.warning("FACEIT Downloads API request failed: %s", exc)
+            self.downloads_api_status = "error"
+            return None
+        if r.status_code in (401, 403):
+            logger.info(
+                "FACEIT Downloads API access not granted for this key yet (HTTP %s)",
+                r.status_code,
+            )
+            self.downloads_api_status = "not_granted"
+            return None
+        if r.status_code != 200:
+            logger.warning("FACEIT Downloads API returned HTTP %s", r.status_code)
+            self.downloads_api_status = "error"
+            return None
+        try:
+            url = (r.json().get("payload") or {}).get("download_url")
+        except ValueError:
+            url = None
+        self.downloads_api_status = "ok" if url else "error"
+        return url
+
     def try_download_demo(self, demo_url: str, dest: Path) -> bool:
         """
         Attempt a direct GET on FACEIT's signed demo URL.
@@ -183,9 +221,16 @@ class FaceitScraper:
             )
             return False
 
+        # Preferred path: exchange the private resource URL for a signed one
+        # via the Downloads API. The signed URL is fetched without our
+        # Authorization header (it carries its own signature).
+        signed = self.signed_download_url(demo_url)
+        getter = requests.get if signed else self.session.get
+        fetch_url = signed or demo_url
+
         blob_path = dest.with_suffix(dest.suffix + ext)
         try:
-            with self.session.get(demo_url, stream=True, timeout=120) as r:
+            with getter(fetch_url, stream=True, timeout=300) as r:
                 if r.status_code != 200:
                     logger.warning(
                         "FACEIT demo direct-download returned HTTP %s for %s",

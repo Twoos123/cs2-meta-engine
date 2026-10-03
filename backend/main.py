@@ -763,6 +763,20 @@ def _write_timeline_meta(name: str, bundle: dict) -> dict:
     return meta
 
 
+def _require_parsed(bundle: dict, name: str) -> None:
+    """
+    Refuse to cache a timeline with no rounds or players. demoparser2 can
+    fail soft on demos from a newer CS2 build than it supports (every query
+    raises EntityNotFound and the bundle comes back empty); caching that
+    would leave a permanently blank replay.
+    """
+    if not bundle.get("rounds") or not bundle.get("players"):
+        raise ValueError(
+            f"{name} parsed to an empty timeline — the demo may be from a newer "
+            "CS2 build than the installed demoparser2 supports (try upgrading it)"
+        )
+
+
 def _delete_timeline_cache(name: str) -> bool:
     """Remove a demo's cached timeline + meta sidecar. Returns whether a timeline existed."""
     cache_file = _TIMELINE_CACHE_DIR / f"{name}.json"
@@ -1235,6 +1249,7 @@ async def get_match_replay_timeline(demo_file: str):
 
     try:
         bundle = await asyncio.to_thread(extract_match_timeline, demo_path)
+        _require_parsed(bundle, name)
     except Exception as exc:
         logger.exception("extract_match_timeline failed for %s", name)
         raise HTTPException(status_code=500, detail=f"Timeline parse failed: {exc}")
@@ -2051,7 +2066,9 @@ async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
             )
 
             map_suffix = (map_token or "unknown").replace("de_", "")
-            dest = demo_dir / f"faceit_{match_id}_{map_suffix}.dem"
+            # The app reads the map from the text after the FIRST underscore,
+            # so the prefix must not contain one ("faceit-<id>_<map>.dem").
+            dest = demo_dir / f"faceit-{match_id.replace('_', '-')}_{map_suffix}.dem"
 
             if dest.exists():
                 _set_phase("analysing", f"{dest.name} already present")
@@ -2062,12 +2079,21 @@ async def _run_faceit_ingest(*, match_id: str, run_id: int) -> None:
                 )
                 if not ok:
                     _ingest_state["manual_url"] = demo_url
+                    why = (
+                        "FACEIT hasn't enabled Downloads API access for this key yet"
+                        if scraper.downloads_api_status == "not_granted"
+                        else "Direct download failed"
+                    )
                     _set_phase(
                         "manual",
-                        "Direct download blocked — open the URL in a new tab, "
+                        f"{why} — open the URL in a new tab, "
                         "then drag the .dem.gz into /replay to upload.",
                     )
                     return
+
+            # Parse the timeline too, so the replay, player stats and
+            # completeness flags are ready without a separate step.
+            await loop.run_in_executor(None, _ensure_timeline_for_demo, dest)
 
             _set_phase("analysing", f"running pipeline on {dest.name}")
             await loop.run_in_executor(
@@ -2185,6 +2211,7 @@ def _ensure_timeline_for_demo(demo_path: Path) -> bool:
         logger.info("parsing %s (%.1f MB)", demo_path.name, size_mb)
         parse_start = time.perf_counter()
         bundle = extract_match_timeline(demo_path)
+        _require_parsed(bundle, demo_path.name)
         logger.info(
             "parsed %s in %.1fs — %d players, %d rounds, %d events",
             demo_path.name,

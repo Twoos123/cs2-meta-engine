@@ -244,7 +244,9 @@ class MetricsPipeline:
         grenade_types : list[str], optional
             Filter to specific types.  Default: all types.
         clear_existing : bool
-            If True, drop existing rows for (map, type) before inserting.
+            Kept for API compatibility. Every run re-clusters ALL demos for
+            the map, so rows for each (map, type) are always replaced —
+            appending would duplicate every lineup.
         player_names : Iterable[str], optional
             Restrict analysis to throws by players with these names (case
             insensitive). When set by /api/ingest/hltv's team_name filter,
@@ -288,8 +290,7 @@ class MetricsPipeline:
                     len(clusters), len(rankings),
                 )
                 if rankings:
-                    if clear_existing:
-                        self._delete_clusters(map_name=m, grenade_type=g)
+                    self._delete_clusters(map_name=m, grenade_type=g)
                     self._persist_rankings(rankings)
                     all_rankings.extend(rankings)
 
@@ -309,8 +310,7 @@ class MetricsPipeline:
                     df, [r.cluster for r in all_clusters_for_map], m,
                 )
                 logger.info("execute detection %s → %d combos", m, len(executes))
-                if clear_existing:
-                    self._delete_executes(map_name=m)
+                self._delete_executes(map_name=m)
                 if executes:
                     self._persist_executes(executes, m)
 

@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # FACEIT Data API v4
     faceit_api_key: str = ""
     faceit_base_url: str = "https://open.faceit.com/data/v4"
+    # Downloads API (needs separate approval on the same key)
+    faceit_downloads_url: str = "https://open.faceit.com/download/v2/demos/download"
 
     # Anthropic (Claude) API for match-replay AI insights
     anthropic_api_key: str = ""
@@ -52,12 +54,28 @@ class Settings(BaseSettings):
 
     # HLTV match catalog (tournaments/matches browser)
     catalog_refresh_pages: int = 2          # /results pages per refresh (100 matches each)
-    catalog_autopull: bool = True           # auto-download demos for big-event matches
+    catalog_autopull: bool = False          # HLTV blocks server-side demo downloads — no-op
     catalog_autopull_min_stars: int = 2     # HLTV star rating threshold
     catalog_autopull_event_regex: str = (
         r"major|iem|esl pro league|blast premier|pgl|katowice|cologne"
     )
     demo_retention_gb: float = 50.0         # FIFO cap on the demos volume
+
+    # ── Liquipedia (backend/ingestion/liquipedia.py: match catalog + player photos) ──
+    # Free MediaWiki API, used under https://liquipedia.net/api-terms-of-use.
+    # The contact goes in the User-Agent — a URL or a project address, never
+    # a personal email by default.
+    liquipedia_contact: str = "https://github.com/Twoos123/cs2-meta-engine"
+    liquipedia_wiki: str = "counterstrike"
+    liquipedia_cache_dir: Path = Path("data/liquipedia")
+    # LiquipediaDB (api.liquipedia.net) key — optional; unused until set.
+    liquipedia_api_key: str = ""
+    # Catalog refresh: tournament pages parsed per run for maps + HLTV links
+    # (each is an action=parse, so ≥30 s apart) and which tiers qualify.
+    liquipedia_max_tournament_parses: int = 3
+    liquipedia_enrich_tiers: str = "S,A"
+    # HLTV as a secondary player-photo source (blocked by Cloudflare today).
+    photo_hltv_fallback: bool = False
 
     # Database — set DATABASE_URL for Supabase/PostgreSQL; leave empty for SQLite
     database_url: str = ""
@@ -65,6 +83,16 @@ class Settings(BaseSettings):
     # CS2 replay integration
     cs2_game_dir: str = ""           # e.g. C:/Program Files (x86)/Steam/.../game/csgo
     cs2_demo_link_name: str = "cs2tool_demos"
+
+    # ── Demo auto-import (backend/api/imports.py, backend/ingestion/importer.py) ──
+    # Folder watcher + archive uploads + HLTV browser-extension hand-off.
+    # Watched folders and on/off switches live in the imports_settings table.
+    import_inbox_dir: Path = Path("data/inbox")      # always-available drop folder
+    import_tmp_dir: Path = Path("data/import_tmp")   # archive extraction scratch
+    import_scan_interval_s: float = 15.0             # watcher poll interval
+    import_settle_s: float = 10.0                    # ignore files modified more recently
+    import_watch_autostart: bool = True              # start the watcher with the app
+    import_hltv_handoff_minutes: float = 15.0        # watcher leaves fresh archives to the extension
 
     class Config:
         env_file = ".env"
