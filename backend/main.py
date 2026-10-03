@@ -935,7 +935,17 @@ async def refresh_rosters():
     Does NOT re-download demos — only touches the sidecar JSON files.
     Paced by `hltv_request_delay` between match-page fetches so we stay
     polite to HLTV. Returns a summary of how many rosters were processed.
+
+    Retired: HLTV now blocks server-side requests (Cloudflare 403), so every
+    fetch would fail after the polite delay. Rosters arrive with the page
+    the browser extension hands over (/api/import/hltv-page) instead.
     """
+    if not settings.photo_hltv_fallback:
+        raise HTTPException(
+            status_code=410,
+            detail="HLTV blocks server-side requests — rosters now come from the "
+                   "browser extension when you send a match page",
+        )
     demo_dir = settings.demo_dir
     if not demo_dir.exists():
         return {"checked": 0, "refreshed": 0, "failed": 0, "skipped": 0}

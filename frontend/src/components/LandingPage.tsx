@@ -72,7 +72,7 @@ const features: Feature[] = [
     title: "Ingest Demos",
     eyebrow: "Collect",
     description:
-      "Scrape HLTV or FACEIT matches. Parallel download, dedup, and the analysis pipeline feeds every other module.",
+      "Auto-import your own matchmaking demos, pull FACEIT matches, or send HLTV pages with the browser extension. Dedup and parsing feed every other module.",
     route: "/ingest",
     color: "#facc15",
     colorRgb: "250, 204, 21",
@@ -83,7 +83,7 @@ const features: Feature[] = [
     title: "Tournaments",
     eyebrow: "Browse",
     description:
-      "The HLTV results feed as a persistent catalog — recent events, matches, and scores. Big-event demos auto-pull; everything else is one click away.",
+      "Recent and upcoming pro matches from Liquipedia, with tiers, scores and maps — open any match on HLTV and send its demo in one click.",
     route: "/matches",
     color: "#fb923c",
     colorRgb: "251, 146, 60",
@@ -285,7 +285,7 @@ function Hero({
         </h1>
 
         <p className="mt-7 max-w-2xl text-base md:text-lg text-cs2-muted leading-relaxed">
-          Ingest demos from HLTV or FACEIT. Surface the grenades that actually
+          Import your own, FACEIT and pro demos. Surface the grenades that actually
           win rounds. Scout opponents with multi-demo aggregated stats — all
           from a local workspace with zero tracking.
         </p>
