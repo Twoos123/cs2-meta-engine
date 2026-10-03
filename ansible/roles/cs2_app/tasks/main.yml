@@ -29,6 +29,25 @@
   changed_when: "'CREATED' in cs2_secrets.stdout"
   become: false
 
+# Added to an existing cs2-secrets too (older clusters predate the key).
+# The backend only reads env at start, so a new token triggers a restart.
+- name: cs2-secrets ADMIN_TOKEN (generated if missing)
+  ansible.builtin.shell: |
+    set -e
+    export KUBECONFIG=/home/debian/.kube/config
+    if [ -z "$(kubectl -n cs2 get secret cs2-secrets -o jsonpath='{.data.ADMIN_TOKEN}')" ]; then
+      TOKEN=$(openssl rand -hex 24)
+      kubectl -n cs2 patch secret cs2-secrets --type merge \
+        -p "{\"stringData\":{\"ADMIN_TOKEN\":\"$TOKEN\"}}"
+      umask 077
+      printf '%s\n' "$TOKEN" > /home/debian/cs2-admin-token.txt
+      kubectl -n cs2 rollout restart deploy/backend >/dev/null 2>&1 || true
+      echo CREATED
+    fi
+  register: cs2_admin_token
+  changed_when: "'CREATED' in cs2_admin_token.stdout"
+  become: false
+
 - name: grafana-admin secret (generated password if missing)
   ansible.builtin.shell: |
     set -e

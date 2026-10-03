@@ -108,7 +108,8 @@ Accessed from the Insights tab within any loaded demo:
 - **Computed client-side** — No backend changes needed, all derived from timeline data
 
 ### Player Profiles (Cross-Demo)
-- **Leaderboard** — All players seen across every parsed demo, ranked by rating; sortable by K/D, kills, matches
+- **Leaderboard** — All players seen across every parsed demo, ranked by an HLTV Rating 1.0–style score (≈1.00 average, 1.20+ star) computed from kills, survival and multi-kill rounds; sortable by K/D, kills, matches
+- **Partial-demo detection** — HLTV sometimes splits a map across several demo files; demos that end before the match did are flagged in the picker, replay header and anti-strat
 - **Role inference** — AWP / Entry / Support / Lurker / Rifler — inferred from AWP ratio, opening kill rate, utility rate, survival rate
 - **Filters** — Search by name, filter by role, set minimum match threshold
 - **Detail view** — Per-map and per-side splits, recent match list (up to 50), multi-kill and special kill breakdown
@@ -219,7 +220,36 @@ deployment on a self-hosted Proxmox box:
 - [`terraform/`](terraform/README.md) — VM provisioning via the Proxmox API (bpg provider)
 - [`ansible/`](ansible/README.md) — OS → Docker → registry → k3s → CI runner → app, idempotent
 - [`k8s/`](k8s/README.md) — Kubernetes manifests incl. Prometheus/Grafana monitoring
-- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — push-to-deploy on a self-hosted runner
+- [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — tests + lint + frontend build on every push/PR, then push-to-deploy on a self-hosted runner
+
+### Admin token
+
+Deletes, uploads and the CS2-path settings are guarded by `ADMIN_TOKEN`. When
+it is set, those requests need an `X-Admin-Token` header; the web UI prompts
+for the token once and remembers it in the browser. Leave it empty on a
+private machine. On the cluster, Ansible generates it into `cs2-secrets` and
+writes a copy to `~debian/cs2-admin-token.txt` on the VM.
+
+### Backups
+
+- **Database** — `k8s/57-db-backup-cronjob.yaml` takes a nightly online
+  SQLite backup (03:30) into the `backups` PVC, keeping the last 14. Restore
+  by gunzipping one over `/app/data/lineups.db` with the backend scaled to 0.
+- **Whole VM** — demos, timelines and photos are re-derivable, so the VM-level
+  backup covers them. Schedule it once on the Proxmox host:
+
+  ```bash
+  pvesh create /cluster/backup --id cs2-weekly --schedule 'sun 04:00'     --vmid 101 --storage local --mode snapshot --compress zstd     --prune-backups keep-last=4
+  ```
+
+### Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest                                   # backend API + validation tests
+ruff check backend tests --select E9,F63,F7,F82,F401
+cd frontend && npx tsc --noEmit          # frontend type-check
+```
 
 ---
 
@@ -239,6 +269,7 @@ deployment on a self-hosted Proxmox box:
 | `/anti-strat` | Anti-Strat | Multi-demo opponent tendency scouting report |
 | `/players` | Player Profiles | Cross-demo leaderboard with role inference |
 | `/players/:steamid` | Player Detail | Per-map/side splits, recent match history |
+| `/matches` | Matches | HLTV tournament/match catalog with per-map demo fetch |
 
 ---
 
@@ -280,7 +311,8 @@ All computation is client-side from existing timeline data. No new backend endpo
 | `GET` | `/api/match-replay/demos` | List demos for replay |
 | `POST` | `/api/match-replay/upload` | Upload a .dem file |
 | `DELETE` | `/api/match-replay/{file}` | Delete a demo |
-| `GET` | `/api/match-replay/{file}/timeline` | Parse demo into timeline (cached) |
+| `GET` | `/api/match-replay/{file}/timeline` | Parse demo into timeline (cached, gzip) |
+| `GET` | `/api/match-replay/{file}/meta` | Cache status + completeness (flags partial/split demos) |
 | `DELETE` | `/api/match-replay/{file}/timeline` | Delete cached timeline (force re-parse) |
 | `POST` | `/api/match-replay/{file}/insights` | AI match recap |
 | `GET` | `/api/match-info/{file}` | Match metadata (teams, logos, event) |

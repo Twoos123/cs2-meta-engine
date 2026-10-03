@@ -1,6 +1,11 @@
-# Push-to-deploy: build both images on the self-hosted runner (the k3s VM),
-# push to the loopback registry, roll the Deployments to the new SHA tag.
-# Runner, registry, and cluster share one node, so images never cross the LAN.
+# CI + push-to-deploy.
+#
+# test / frontend run on GitHub-hosted runners for every push and PR, so
+# checks still report when the homelab (and its self-hosted runner) is off.
+# build-and-deploy runs only for pushes to main, after both checks pass:
+# build both images on the self-hosted runner (the k3s VM), push to the
+# loopback registry, roll the Deployments to the new SHA tag. Runner,
+# registry, and cluster share one node, so images never cross the LAN.
 name: deploy
 
 on:
@@ -11,13 +16,56 @@ on:
       - "screenshots/**"
       - "terraform/**"
       - "ansible/**"
+  pull_request:
 
 concurrency:
-  group: deploy
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'push' && 'deploy' || format('ci-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      - name: Install dependencies
+        run: pip install -r requirements.lock pytest ruff
+
+      - name: Lint (errors + unused imports)
+        run: ruff check backend tests --select E9,F63,F7,F82,F401
+
+      - name: Tests
+        run: pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Build
+        run: npx vite build
+
   build-and-deploy:
+    needs: [test, frontend]
+    if: github.event_name == 'push'
     runs-on: self-hosted
     env:
       KUBECONFIG: /home/debian/.kube/config

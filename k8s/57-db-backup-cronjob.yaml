@@ -1,0 +1,94 @@
+# Nightly SQLite backup. The DB holds everything that can't be rebuilt by
+# re-parsing demos (clustered lineups, executes, player stats, HLTV catalog,
+# AI cache), so it gets a consistent online copy via sqlite3's backup API —
+# safe while the backend is writing. Demos, timelines and photos are all
+# re-downloadable / re-derivable and are covered by the VM-level vzdump
+# (see README → Backups) rather than here.
+#
+# Same node as the backend, so mounting the RWO local-path volume is fine.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  namespace: cs2
+spec:
+  storageClassName: local-path
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: cs2
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 900
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              # the backend image already ships Python + sqlite3
+              image: localhost:5000/cs2-backend:latest
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-c"]
+              args:
+                - |
+                  import gzip, shutil, sqlite3, time
+                  from pathlib import Path
+                  KEEP = 14
+                  out = Path("/backups")
+                  stamp = time.strftime("%Y%m%d-%H%M%S")
+                  tmp = out / f"lineups-{stamp}.db"
+                  src = sqlite3.connect("/app/data/lineups.db", timeout=60)
+                  dst = sqlite3.connect(tmp)
+                  with dst:
+                      src.backup(dst)
+                  src.close(); dst.close()
+                  with tmp.open("rb") as f, gzip.open(f"{tmp}.gz", "wb") as g:
+                      shutil.copyfileobj(f, g)
+                  tmp.unlink()
+                  settings = Path("/app/data/user_settings.json")
+                  if settings.exists():
+                      shutil.copy2(settings, out / "user_settings.json")
+                  old = sorted(out.glob("lineups-*.db.gz"))[:-KEEP]
+                  for p in old:
+                      p.unlink()
+                  print(f"backup ok: {tmp.name}.gz, pruned {len(old)}")
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits: { memory: 256Mi }
+              volumeMounts:
+                # read-write: SQLite may need to roll back a hot journal
+                # left by an interrupted writer before it can read
+                - name: app-data
+                  mountPath: /app/data
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: app-data
+              persistentVolumeClaim:
+                claimName: app-data
+            - name: backups
+              persistentVolumeClaim:
+                claimName: backups
