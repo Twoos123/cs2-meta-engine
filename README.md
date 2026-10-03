@@ -30,41 +30,65 @@ It runs locally, or self-hosted on Kubernetes with Postgres, a job worker, CI/CD
 ### Home
 ![Landing Page](screenshots/landing.png)
 
-### Grenade lineups: impact-ranked pro lineups with scatter plot and technique detection
+### Grenade lineups: impact-ranked pro lineups, technique and click detection, executes
 ![Grenade Lineups](screenshots/lineups.png)
 
-### Demo picker: upload or browse demos grouped by map
+### Practice lists: star lineups, reorder and annotate them, then export a CS2 `.cfg` that cycles with `]` / `[`
+![Practice Lists](screenshots/practice-lists.png)
+
+### Demo picker: upload `.dem` or archives, My matches filter, partial-demo badges
 ![Demo Picker](screenshots/demo-picker.png)
 
-### Match replay: live 2D viewer with team header, score and bomb timer
+### Match replay: opened from a share link (`?round=14&t=38`)
 ![Match Replay](screenshots/replay.png)
 
-### Insights: round overlay with utility paths, entry/exit markers, flash blinds and AOE radii
+### Key moments: entries, multi-kills, clutches, plants, defuses and eco wins, each with a link
+![Key Moments](screenshots/key-moments.png)
+
+### Compare: your throws vs the nearest pro lineup
+![Compare](screenshots/compare.png)
+
+### Insights: round, patterns and heatmap modes
 ![Insights — Round mode](screenshots/insights.png)
-
-### Insights · Patterns: one player across every round, or drill into a single round
 ![Insights — Patterns](screenshots/insights-patterns.png)
-
-### Insights · Heatmap: grenade landings across the match
 ![Insights — Heatmap](screenshots/insights-heatmap.png)
 
-### Economy: equipment value and buy types round by round
+### Economy: equipment value and buy types (Pistol / Eco / Force / Half / Full)
 ![Economy Tracker](screenshots/economy.png)
 
 ### Heatmap: positions, deaths and utility
 ![Heatmap](screenshots/heatmap.png)
 
-### Stats: per-player scoreboard
+### Stats: K/D, ADR, KAST, clutches and trades per match
 ![Stats Panel](screenshots/stats.png)
 
-### Anti-strat: scouting report for an opponent
+### Anti-strat: scouting report with partial-demo warnings, share link and Print / PDF
 ![Anti-Strat Report](screenshots/anti-strat.png)
+
+### Anti-strat: CT default setups and T spread at 0:20
+![Anti-Strat Default Setups](screenshots/anti-strat-setups.png)
+
+### Anti-strat: utility tendencies, AWP positions and player breakdown
 ![Anti-Strat Utility & AWP](screenshots/anti-strat-2.png)
 ![Anti-Strat Player Breakdown](screenshots/anti-strat-3.png)
 
-### Players: cross-demo leaderboard and profiles
+### Players: Rating 2.0 leaderboard and profiles with ADR, KAST and clutches
 ![Players](screenshots/players.png)
 ![Player Detail](screenshots/player-detail.png)
+
+### Matches: Liquipedia catalog with tiers and HLTV / Liquipedia links
+![Matches](screenshots/matches.png)
+
+### Ingest: auto-import from folders (CS2 replays, inbox, Downloads)
+![Auto-import](screenshots/ingest-auto-import.png)
+
+### Live radar: Game State Integration, with upper and lower levels on Nuke
+![Live Radar](screenshots/live-radar.png)
+
+### On a phone
+![Mobile](screenshots/mobile.png)
+
+Screenshots are produced by `frontend/scripts/capture-screenshots.mjs` against a running local app.
 
 ---
 
