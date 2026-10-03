@@ -3,6 +3,8 @@
  *
  * Positions are projected with the awpy calibration from /api/radars/{map}:
  *   px = (x - pos_x) / scale,  py = (pos_y - y) / scale
+ * Two-level maps (Nuke, Vertigo) render an Upper and a Lower radar, splitting
+ * players / bomb / grenades by z at the map's lower_level_max_units.
  * Movement between updates is smoothed with CSS transitions on each player
  * group (GSI sends ~10 updates/s), and facing angles are unwrapped so the
  * arrow never spins the long way round across ±180°.
@@ -26,12 +28,6 @@ interface Props {
 
 export default function LiveRadar({ state, radar, radarMissing, stale }: Props) {
   const yawRef = useRef(new Map<string, number>());
-  const [imgFailed, setImgFailed] = useState(false);
-
-  const project = (x: number | null, y: number | null): [number, number] | null => {
-    if (!radar || x == null || y == null) return null;
-    return [(x - radar.pos_x) / radar.scale, (radar.pos_y - y) / radar.scale];
-  };
 
   /** Unwrapped screen rotation for a player's facing arrow. */
   const facing = (p: GsiPlayer): number | null => {
@@ -47,15 +43,68 @@ export default function LiveRadar({ state, radar, radarMissing, stale }: Props) 
     return out;
   };
 
+  // Two-level maps (Nuke, Vertigo): the backend supplies a second overview
+  // and the z below which things belong on it. Each level gets its own
+  // radar so a player in Nuke's ramp isn't drawn on top of outside.
+  const lowerZ = radar?.lower_level_max_units ?? null;
+  const twoLevel = radar != null && lowerZ != null && !!radar.lower_image_url;
+  const isLower = (z: number | null | undefined) => twoLevel && z != null && z <= (lowerZ as number);
+
+  if (!twoLevel) {
+    return (
+      <RadarLayer state={state} radar={radar} imageUrl={radar?.image_url ?? null}
+        include={() => true} facing={facing} radarMissing={radarMissing} stale={stale} />
+    );
+  }
+  const lowerCount = state.players.filter((p) => p.alive && isLower(p.z)).length;
+  const upperCount = state.players.filter((p) => p.alive && !isLower(p.z)).length;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <RadarLayer state={state} radar={radar} imageUrl={radar.image_url}
+        include={(z) => !isLower(z)} facing={facing} radarMissing={radarMissing} stale={stale}
+        label={`Upper · ${upperCount}`} />
+      <RadarLayer state={state} radar={radar} imageUrl={radar.lower_image_url ?? null}
+        include={(z) => isLower(z)} facing={facing} radarMissing={radarMissing} stale={stale}
+        label={`Lower · ${lowerCount}`} hideNotes />
+    </div>
+  );
+}
+
+interface LayerProps {
+  state: GsiState;
+  radar: RadarInfo | null;
+  imageUrl: string | null;
+  /** Which z-heights belong on this layer. */
+  include: (z: number | null | undefined) => boolean;
+  facing: (p: GsiPlayer) => number | null;
+  radarMissing: boolean;
+  stale: boolean;
+  label?: string;
+  /** Only one layer shows the "playing mode" / missing-radar notes. */
+  hideNotes?: boolean;
+}
+
+function RadarLayer({ state, radar, imageUrl, include, facing, radarMissing, stale, label, hideNotes }: LayerProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const project = (x: number | null, y: number | null): [number, number] | null => {
+    if (!radar || x == null || y == null) return null;
+    return [(x - radar.pos_x) / radar.scale, (radar.pos_y - y) / radar.scale];
+  };
+
   const scale = radar?.scale ?? 5;
   const playing = state.mode === "playing";
   const self = playing ? state.players[0] : undefined;
   const bomb = state.bomb;
-  const bombPos = bomb && bomb.state !== "carried" ? project(bomb.x, bomb.y) : null;
-  const dead = state.players.filter((p) => !p.alive);
-  const alive = state.players.filter((p) => p.alive);
+  const bombPos = bomb && bomb.state !== "carried" && include(bomb.z) ? project(bomb.x, bomb.y) : null;
+  const onLayer = state.players.filter((p) => include(p.z));
+  const dead = onLayer.filter((p) => !p.alive);
+  const alive = onLayer.filter((p) => p.alive);
   // Observed player last so it draws on top.
   alive.sort((a, b) => Number(a.observed) - Number(b.observed));
+  const grenades = state.grenades.filter((g) =>
+    include(g.z ?? (g.flames.length ? g.flames[0][2] : null)),
+  );
 
   return (
     <div className="relative w-full aspect-square overflow-hidden rounded-xl bg-[#070a12] border border-white/5">
@@ -63,7 +112,7 @@ export default function LiveRadar({ state, radar, radarMissing, stale }: Props) 
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${stale ? "opacity-60" : ""}`}
         role="img"
-        aria-label={`Live radar of ${prettyMap(state.map)}`}
+        aria-label={`Live radar of ${prettyMap(state.map)}${label ? ` (${label})` : ""}`}
       >
         <defs>
           <pattern id="live-grid" width="64" height="64" patternUnits="userSpaceOnUse">
@@ -71,9 +120,9 @@ export default function LiveRadar({ state, radar, radarMissing, stale }: Props) 
           </pattern>
         </defs>
         <rect width={SIZE} height={SIZE} fill="url(#live-grid)" />
-        {radar && !imgFailed && (
+        {imageUrl && !imgFailed && (
           <image
-            href={radar.image_url}
+            href={imageUrl}
             x={0}
             y={0}
             width={SIZE}
@@ -84,7 +133,7 @@ export default function LiveRadar({ state, radar, radarMissing, stale }: Props) 
         )}
 
         {/* Grenades */}
-        {state.grenades.map((g) => (
+        {grenades.map((g) => (
           <Grenade key={g.id} g={g} project={project} scale={scale} />
         ))}
 
@@ -121,14 +170,20 @@ export default function LiveRadar({ state, radar, radarMissing, stale }: Props) 
         })}
       </svg>
 
-      {(radarMissing || imgFailed) && (
+      {label && (
+        <div className="pointer-events-none absolute top-3 left-3 text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-200 bg-black/55 rounded-md px-2 py-1">
+          {label}
+        </div>
+      )}
+
+      {!hideNotes && (radarMissing || imgFailed) && (
         <div className="absolute top-3 left-3 right-3 text-[11px] text-cs2-muted bg-black/50 rounded-lg px-3 py-2">
           No radar image for <span className="font-mono text-gray-300">{state.map ?? "this map"}</span>
           {radarMissing ? " — positions can't be projected." : "."}
         </div>
       )}
 
-      {playing && (
+      {!hideNotes && playing && (
         <div className="pointer-events-none absolute bottom-3 left-3 right-3 text-[11px] leading-snug text-gray-300 bg-black/60 backdrop-blur rounded-lg px-3 py-2">
           {self && self.x == null
             ? "Playing: CS2 isn't sending your position. "

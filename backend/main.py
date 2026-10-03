@@ -485,6 +485,14 @@ async def get_radar_info(map_name: str):
         raise HTTPException(
             status_code=404, detail=f"No radar calibration for {map_name}"
         )
+    # Two-level maps (Nuke, Vertigo) ship a second "_lower" overview with
+    # the same calibration; anything at or below lower_level_max_units (z)
+    # belongs on it. awpy uses a huge negative sentinel for one-level maps.
+    lower_z = info.get("lower_level_max_units")
+    has_lower = (
+        lower_z is not None and lower_z > -100000
+        and (_RADAR_DIR / f"{map_name}_lower.png").exists()
+    )
     return {
         "map_name": map_name,
         "pos_x": info.get("pos_x"),
@@ -492,6 +500,8 @@ async def get_radar_info(map_name: str):
         "scale": info.get("scale"),
         "rotate": info.get("rotate", 0),
         "image_url": f"/api/radars/{map_name}.png",
+        "lower_level_max_units": lower_z if has_lower else None,
+        "lower_image_url": f"/api/radars/{map_name}_lower.png" if has_lower else None,
     }
 
 

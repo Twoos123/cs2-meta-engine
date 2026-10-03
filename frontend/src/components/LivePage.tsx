@@ -111,7 +111,15 @@ export default function LivePage() {
             </div>
             <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] items-start">
               <div className="hud-panel p-2 sm:p-3 min-w-0">
-                <div className="mx-auto w-full lg:max-w-[calc(100vh-12rem)]">
+                {/* Width capped so the square radar fits the window height;
+                    two-level maps show two radars side by side, so double it. */}
+                <div
+                  className={`mx-auto w-full ${
+                    radarForMap?.lower_image_url
+                      ? "lg:max-w-[calc(200vh-24rem)]"
+                      : "lg:max-w-[calc(100vh-12rem)]"
+                  }`}
+                >
                   <LiveRadar state={state} radar={radarForMap} radarMissing={radarMissing} stale={stale} />
                 </div>
               </div>

@@ -147,3 +147,13 @@ def test_upload_unreadable_header_keeps_name(tmp_root, monkeypatch):
     src.write_bytes(b"x")
     assert _name_upload_by_map(src) == src
     src.unlink()
+
+
+@pytest.mark.parametrize("map_name,two_level", [("de_nuke", True), ("de_vertigo", True), ("de_mirage", False)])
+def test_radar_lower_level(client, map_name, two_level):
+    info = client.get(f"/api/radars/{map_name}").json()
+    if two_level:
+        assert info["lower_level_max_units"] is not None
+        assert client.get(info["lower_image_url"]).status_code == 200
+    else:
+        assert info["lower_level_max_units"] is None and info["lower_image_url"] is None

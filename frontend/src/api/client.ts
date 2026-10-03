@@ -229,6 +229,9 @@ export interface RadarInfo {
   scale: number;
   rotate: number;
   image_url: string;
+  /** Two-level maps (Nuke, Vertigo): z at or below this is the lower level. */
+  lower_level_max_units?: number | null;
+  lower_image_url?: string | null;
 }
 
 export const getRadarInfo = async (mapName: string): Promise<RadarInfo> => {
